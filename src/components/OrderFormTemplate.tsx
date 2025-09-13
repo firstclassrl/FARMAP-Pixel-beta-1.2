@@ -45,131 +45,91 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData }) => {
   };
 
   return (
-    <div className="font-sans bg-white text-gray-800 p-8 shadow-lg max-w-4xl mx-auto">
-      {/* Company Header Space */}
-      <div className="flex justify-between items-center mb-6 border-b-2 border-red-600 pb-4">
-        <div>
-          <div className="text-3xl font-bold text-red-600">FARMAP S.r.l.</div>
-          <div className="text-sm text-gray-600 mt-1">Gestione Commerciale</div>
-        </div>
-        <div className="text-right">
-          <h2 className="text-2xl font-bold text-gray-800">ORDINE DI ACQUISTO</h2>
-          <div className="text-sm text-gray-600 mt-1">Documento Ufficiale</div>
-        </div>
-      </div>
-
-      {/* Order Details */}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-6 bg-gray-50 p-4 rounded-lg">
-        <div>
-          <p className="text-sm font-semibold text-gray-700">Numero Ordine:</p>
-          <p className="text-lg font-bold text-gray-900">{orderData.orderNumber}</p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-gray-700">Data Ordine:</p>
-          <p className="text-base font-medium text-gray-900">{formatDate(orderData.orderDate)}</p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-gray-700">Data Consegna Prevista:</p>
-          <p className="text-base font-bold text-red-600">{formatDate(orderData.deliveryDate)}</p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-gray-700">Rappresentante di Vendita:</p>
-          <p className="text-base font-medium text-gray-900">{orderData.salesRepresentative}</p>
-        </div>
-        {orderData.trackingNumber && (
-          <div className="col-span-2 border-t pt-3 mt-2">
-            <p className="text-sm font-semibold text-gray-700">Numero di Tracciamento:</p>
-            <p className="text-base font-mono text-blue-600">{orderData.trackingNumber}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Customer Details */}
-      <div className="mb-6 bg-blue-50 p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-          <Building className="w-5 h-5 mr-2 text-blue-600" />
-          Dettagli Cliente
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+    <div className="font-sans bg-white text-gray-800 p-6 shadow-lg max-w-4xl mx-auto" style={{ width: '210mm', minHeight: '297mm' }}>
+      {/* Header con Logo Originale */}
+      <div className="flex justify-between items-center mb-4 border-b-2 border-red-600 pb-3">
+        <div className="flex items-center space-x-3">
+          <img src="/logo_farmap industry.jpg" alt="FARMAP Logo" className="h-12 w-auto" />
           <div>
-            <p className="text-sm font-semibold text-gray-700">Nome Cliente / Azienda:</p>
-            <p className="text-base font-medium text-gray-900">{orderData.customerName}</p>
-            {orderData.customerContact && (
-              <>
-                <p className="text-sm font-semibold text-gray-700 mt-2">Persona di Contatto:</p>
-                <p className="text-base text-gray-900">{orderData.customerContact}</p>
-              </>
+            <h2 className="text-xl font-bold text-gray-800">ORDINE DI ACQUISTO</h2>
+            <div className="text-xs text-gray-600">Documento Ufficiale</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dettagli Ordine e Cliente - Layout Compatto Affiancato */}
+      <div className="flex gap-4 mb-4 -mt-2">
+        {/* Dettagli Ordine */}
+        <div className="flex-1 bg-gray-50 p-3 rounded border">
+          <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center">
+            <Package className="w-4 h-4 mr-1" />
+            Dettagli Ordine
+          </h3>
+          <div className="space-y-1 text-xs">
+            <div><span className="font-semibold">Numero:</span> {orderData.orderNumber}</div>
+            <div><span className="font-semibold">Data:</span> {formatDate(orderData.orderDate)}</div>
+            <div><span className="font-semibold">Consegna:</span> {formatDate(orderData.deliveryDate)}</div>
+            <div><span className="font-semibold">Rappresentante:</span> {orderData.salesRepresentative}</div>
+            {orderData.trackingNumber && (
+              <div><span className="font-semibold">Tracking:</span> {orderData.trackingNumber}</div>
             )}
           </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-700">Codice Cliente:</p>
-            <p className="text-base font-mono text-gray-900">{orderData.customerCode}</p>
-            {orderData.customerEmail && (
-              <>
-                <p className="text-sm font-semibold text-gray-700 mt-2">Email:</p>
-                <p className="text-base text-blue-600">{orderData.customerEmail}</p>
-              </>
+        </div>
+
+        {/* Dettagli Cliente */}
+        <div className="flex-1 bg-blue-50 p-3 rounded border">
+          <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center">
+            <Building className="w-4 h-4 mr-1" />
+            Dettagli Cliente
+          </h3>
+          <div className="space-y-1 text-xs">
+            <div><span className="font-semibold">Cliente:</span> {orderData.customerName}</div>
+            <div><span className="font-semibold">Codice:</span> {orderData.customerCode}</div>
+            {orderData.customerContact && (
+              <div><span className="font-semibold">Contatto:</span> {orderData.customerContact}</div>
             )}
             {orderData.customerPhone && (
-              <>
-                <p className="text-sm font-semibold text-gray-700 mt-2">Telefono:</p>
-                <p className="text-base text-gray-900">{orderData.customerPhone}</p>
-              </>
+              <div><span className="font-semibold">Telefono:</span> {orderData.customerPhone}</div>
+            )}
+            {orderData.customerAddress && (
+              <div><span className="font-semibold">Indirizzo:</span> {orderData.customerAddress}</div>
             )}
           </div>
-          {orderData.customerAddress && (
-            <div className="md:col-span-2 border-t pt-3 mt-2">
-              <p className="text-sm font-semibold text-gray-700">Indirizzo Cliente:</p>
-              <p className="text-base text-gray-900">{orderData.customerAddress}</p>
-            </div>
-          )}
-          {orderData.shippingAddress && orderData.shippingAddress !== 'Stesso indirizzo del cliente' && (
-            <div className="md:col-span-2 border-t pt-3 mt-2">
-              <p className="text-sm font-semibold text-gray-700">Indirizzo di Spedizione:</p>
-              <p className="text-base text-gray-900">{orderData.shippingAddress}</p>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Product Details Table */}
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-          <Package className="w-5 h-5 mr-2 text-green-600" />
+
+      {/* Product Details Table - Compatta con Griglia Nera */}
+      <div className="mb-4">
+        <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center">
+          <Package className="w-4 h-4 mr-1" />
           Dettagli Prodotti
         </h3>
-        <table className="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden">
+        <table className="w-full border-collapse border border-black">
           <thead>
-            <tr className="bg-red-600 text-white">
-              <th className="text-left p-3 text-sm font-bold">Codice</th>
-              <th className="text-left p-3 text-sm font-bold w-2/5">Nome / Descrizione</th>
-              <th className="text-right p-3 text-sm font-bold">Quantità</th>
-              <th className="text-right p-3 text-sm font-bold">Prezzo Unit.</th>
-              <th className="text-right p-3 text-sm font-bold">Sconto</th>
-              <th className="text-right p-3 text-sm font-bold">Totale</th>
+            <tr className="bg-gray-800 text-white">
+              <th className="text-left p-2 text-xs font-bold border border-black">Codice</th>
+              <th className="text-left p-2 text-xs font-bold border border-black">Prodotto</th>
+              <th className="text-right p-2 text-xs font-bold border border-black">Qty</th>
+              <th className="text-right p-2 text-xs font-bold border border-black">Prezzo</th>
+              <th className="text-right p-2 text-xs font-bold border border-black">Totale</th>
             </tr>
           </thead>
           <tbody>
             {orderData.items.map((item, index) => (
-              <tr key={index} className={`border-b last:border-b-0 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                <td className="p-3 text-sm font-mono">{item.productCode}</td>
-                <td className="p-3 text-sm w-2/5">
-                  <div className="font-semibold text-gray-900">{item.productName}</div>
+              <tr key={index} className="border border-black">
+                <td className="p-2 text-xs font-mono border border-black">{item.productCode}</td>
+                <td className="p-2 text-xs border border-black">
+                  <div className="font-semibold">{item.productName}</div>
                   {item.productDescription && (
-                    <div className="text-xs text-gray-600 mt-1">{item.productDescription}</div>
-                  )}
-                  {item.notes && (
-                    <div className="text-xs text-blue-600 mt-1 italic font-medium">Note: {item.notes}</div>
+                    <div className="text-gray-600">{item.productDescription}</div>
                   )}
                 </td>
-                <td className="text-right p-3 text-sm font-medium">
+                <td className="text-right p-2 text-xs border border-black">
                   {item.quantity} {item.unit || 'pz'}
                 </td>
-                <td className="text-right p-3 text-sm">{formatCurrency(item.unitPrice)}</td>
-                <td className="text-right p-3 text-sm">
-                  {item.discountPercentage ? `${item.discountPercentage}%` : '-'}
-                </td>
-                <td className="text-right p-3 text-sm font-bold text-red-600">
+                <td className="text-right p-2 text-xs border border-black">{formatCurrency(item.unitPrice)}</td>
+                <td className="text-right p-2 text-xs font-bold border border-black">
                   {formatCurrency(calculateItemTotal(item.quantity, item.unitPrice, item.discountPercentage))}
                 </td>
               </tr>
@@ -178,51 +138,28 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData }) => {
         </table>
       </div>
 
-      {/* Totals */}
-      <div className="flex justify-end mb-6">
-        <div className="w-1/2 bg-gray-50 p-4 rounded-lg">
-          <div className="flex justify-between py-2 border-b border-gray-300">
-            <span className="font-semibold text-gray-700">Subtotale (Imponibile):</span>
-            <span className="font-medium">{formatCurrency(orderData.subtotal)}</span>
-          </div>
-          {orderData.discountAmount && orderData.discountAmount > 0 && (
-            <div className="flex justify-between py-2 border-b border-gray-300 text-red-600">
-              <span className="font-semibold">Sconto Applicato:</span>
-              <span className="font-medium">-{formatCurrency(orderData.discountAmount)}</span>
-            </div>
-          )}
-          {orderData.shippingCost && orderData.shippingCost > 0 && (
-            <div className="flex justify-between py-2 border-b border-gray-300">
-              <span className="font-semibold text-gray-700">Costi di Spedizione:</span>
-              <span className="font-medium">{formatCurrency(orderData.shippingCost)}</span>
-            </div>
-          )}
-          <div className="flex justify-between py-2 border-b border-gray-300">
-            <span className="font-semibold text-gray-700">IVA (22%):</span>
-            <span className="font-medium">{formatCurrency(orderData.taxAmount || 0)}</span>
-          </div>
-          <div className="flex justify-between py-3 text-lg font-bold text-red-600 border-t-2 border-red-600 mt-2">
-            <span>Totale Ordine:</span>
-            <span>{formatCurrency(orderData.totalAmount)}</span>
-          </div>
+      {/* Totals in una riga */}
+      <div className="mb-4 p-2 bg-gray-50 rounded border">
+        <div className="text-sm font-bold text-center">
+          Subtotale: {formatCurrency(orderData.subtotal)} | 
+          IVA: {formatCurrency(orderData.taxAmount || 0)} | 
+          TOTALE: {formatCurrency(orderData.totalAmount)}
         </div>
       </div>
 
-      {/* Order Notes */}
+      {/* Note compatte */}
       {orderData.notes && (
-        <div className="mb-6 border-t pt-4">
-          <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center">
-            <AlertCircle className="w-4 h-4 mr-2 text-yellow-600" />
-            Note Ordine:
-          </h4>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-gray-800 leading-relaxed">{orderData.notes}</p>
+        <div className="mb-4">
+          <div className="bg-yellow-100 border border-yellow-300 rounded p-2 h-16">
+            <div className="text-xs font-bold text-yellow-800 mb-1">NOTE:</div>
+            <div className="text-xs text-gray-800 leading-tight">{orderData.notes}</div>
           </div>
         </div>
       )}
 
+
       {/* Footer with generation info */}
-      <div className="mt-8 pt-4 border-t-2 border-gray-300 flex justify-between text-xs text-gray-500">
+      <div className="mt-4 pt-2 border-t border-gray-300 flex justify-between text-xs text-gray-500">
         <span>Generato il {new Date().toLocaleDateString('it-IT')} alle {new Date().toLocaleTimeString('it-IT')}</span>
         <span>FARMAP S.r.l. - Sistema CRM Pixel</span>
       </div>

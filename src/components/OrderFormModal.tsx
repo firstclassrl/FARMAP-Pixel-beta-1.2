@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { Download, Loader2, X } from 'lucide-react';
+import { Download, Loader2, X, Mail } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useNotifications } from '../store/useStore';
@@ -326,6 +326,37 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
     }
   };
 
+  const handleSendEmail = () => {
+    if (!orderData || !orderData.customerEmail) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Email del cliente non disponibile'
+      });
+      return;
+    }
+
+    const subject = encodeURIComponent(`Ordine ${orderData.orderNumber} - FARMAP`);
+    const body = encodeURIComponent(`Gentile ${orderData.customerName},
+
+In allegato l'ordine di acquisto n. ${orderData.orderNumber}.
+
+Dettagli ordine:
+- Data: ${new Date(orderData.orderDate).toLocaleDateString('it-IT')}
+- Totale: €${orderData.totalAmount.toFixed(2)}
+
+Cordiali saluti,
+FARMAP S.r.l.`);
+
+    window.open(`mailto:${orderData.customerEmail}?subject=${subject}&body=${body}`);
+
+    addNotification({
+      type: 'success',
+      title: 'Email Aperta',
+      message: 'Il client di posta è stato aperto con i dettagli dell\'ordine'
+    });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0">
@@ -333,9 +364,16 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
           <div className="flex justify-between items-center pr-8">
             <DialogTitle>{orderData ? `Dettaglio Ordine ${orderData.orderNumber}` : 'Caricamento...'}</DialogTitle>
             {orderData && (
-              <Button onClick={handleDownloadPdf}>
-                <Download className="w-4 h-4 mr-2" /> Scarica PDF
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleDownloadPdf}>
+                  <Download className="w-4 h-4 mr-2" /> Scarica PDF
+                </Button>
+                {orderData.customerEmail && (
+                  <Button onClick={handleSendEmail} variant="outline">
+                    <Mail className="w-4 h-4 mr-2" /> Invia Email
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </DialogHeader>

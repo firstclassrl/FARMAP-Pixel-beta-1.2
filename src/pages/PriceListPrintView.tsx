@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Mail } from 'lucide-react';
+import { X, Printer, Mail, Download } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -11,6 +11,8 @@ import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/exportUtils';
 import { useNotifications } from '../store/useStore';
 import type { Database } from '../types/database.types';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
 type PriceListItem = Database['public']['Tables']['price_list_items']['Row'];
@@ -136,6 +138,105 @@ Team FARMAP`;
         type: 'error',
         title: 'Errore',
         message: 'Impossibile aprire il client email'
+      });
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!priceList) return;
+
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPosition = margin;
+
+      // 1. LOGO ORIGINALE FARMAP
+      try {
+        const logoImg = new Image();
+        logoImg.src = '/logo_farmap industry.jpg';
+        doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
+        yPosition += 20;
+      } catch (logoError) {
+        console.warn('Logo non caricato, continuo senza logo');
+        yPosition += 10;
+      }
+
+      // 2. INTESTAZIONE
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LISTINO PREZZI', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // 3. DETTAGLI LISTINO
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Nome Listino: ${priceList.name}`, margin, yPosition);
+      doc.text(`Data: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      yPosition += 6;
+      
+      if (priceList.customer) {
+        doc.text(`Cliente: ${priceList.customer.company_name}`, margin, yPosition);
+        doc.text(`Contatto: ${priceList.customer.contact_person}`, margin + contentWidth/2, yPosition);
+        yPosition += 6;
+      }
+      
+      if (priceList.valid_from) {
+        doc.text(`Valido dal: ${new Date(priceList.valid_from).toLocaleDateString('it-IT')}`, margin, yPosition);
+      }
+      if (priceList.valid_until) {
+        doc.text(`Valido fino al: ${new Date(priceList.valid_until).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      }
+      yPosition += 10;
+
+      // 4. TABELLA PRODOTTI
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Codice', 'Prodotto', 'Qty Min', 'Prezzo', 'Sconto %']],
+        body: priceList.items.map((item) => [
+          item.products?.code || '',
+          item.products?.name || '',
+          `${item.min_quantity} ${item.products?.unit || ''}`,
+          formatCurrency(item.price),
+          `${item.discount_percentage}%`
+        ]),
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [0, 0, 0], 
+          textColor: [255, 255, 255],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5
+        },
+        bodyStyles: { 
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5
+        },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 20 }
+        }
+      });
+
+      // 5. SALVA IL FILE
+      doc.save(`listino-${priceList.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+
+      addNotification({
+        type: 'success',
+        title: 'PDF Generato',
+        message: 'Il listino è stato scaricato come PDF'
+      });
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Errore nella generazione del PDF'
       });
     }
   };
@@ -400,6 +501,13 @@ Team FARMAP`;
               >
                 <Mail className="w-4 h-4" />
                 <span>Invia Email</span>
+              </Button>
+              <Button 
+                onClick={handleDownloadPDF} 
+                className="flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download PDF</span>
               </Button>
               <Button 
                 onClick={handlePrint} 

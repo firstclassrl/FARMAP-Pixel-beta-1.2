@@ -16,7 +16,6 @@ import {
   FolderPlus,
   Trash,
   FileImage,
-  Eye,
   AlertTriangle,
   Tag,
   X
@@ -801,17 +800,16 @@ export const ProductsPage = () => {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Visualizza dettagli"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
                         <Link to={`/products/${product.id}/schede-prodotto`}>
                           <Button variant="glass" size="sm">
                             <FileImage className="w-4 h-4 mr-1" />
                             Schede
+                          </Button>
+                        </Link>
+                        <Link to="/garden">
+                          <Button variant="glass" size="sm">
+                            <Package className="w-4 h-4 mr-1" />
+                            Garden
                           </Button>
                         </Link>
                       </div>

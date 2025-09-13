@@ -196,9 +196,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </>
               )}
             </DialogTitle>
-            <Button variant="ghost" size="icon" onClick={handleClose}>
-              <X className="w-4 h-4" />
-            </Button>
           </div>
         </DialogHeader>
 

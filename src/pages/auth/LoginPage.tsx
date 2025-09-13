@@ -9,8 +9,7 @@ import {
   Loader2, 
   Mail, 
   Lock,
-  AlertCircle,
-  CheckCircle
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -106,19 +105,22 @@ export const LoginPage = () => {
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <img 
-              src="/logo farmap industry.png" 
-              alt="FARMAP Logo" 
-              className="h-16 w-auto drop-shadow-lg filter brightness-110"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const fallback = document.createElement('div');
-                fallback.className = 'text-3xl font-bold text-white';
-                fallback.textContent = 'FARMAP';
-                e.currentTarget.parentNode?.appendChild(fallback);
-              }}
-            />
+            <div className="bg-white rounded-lg p-4 border-2 border-black shadow-lg">
+              <img 
+                src="/logo farmap industry.png" 
+                alt="FARMAP Logo" 
+                className="h-12 w-auto drop-shadow-lg"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = document.createElement('div');
+                  fallback.className = 'text-2xl font-bold text-red-600';
+                  fallback.textContent = 'FARMAP';
+                  e.currentTarget.parentNode?.appendChild(fallback);
+                }}
+              />
+            </div>
           </div>
+          <p className="text-sm text-white mb-2">www.farmapindustry.it</p>
           <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
             Accedi a Pixel CRM
           </h1>

@@ -24,14 +24,22 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 function App() {
   const { user, loading, error } = useAuth();
 
+  console.log('🚀 App: Current auth state:', { 
+    hasUser: !!user, 
+    loading, 
+    hasError: !!error,
+    userEmail: user?.email 
+  });
+
   // Show loading only for a brief moment, then show login if no user
   if (loading) {
+    console.log('🚀 App: Showing loading fallback');
     return <LoadingFallback message="Caricamento applicazione..." />;
   }
 
   // If there's an auth error, always show login page
   if (error) {
-    console.error('Auth error in App:', error);
+    console.error('🚀 App: Auth error:', error);
   }
 
   return (
@@ -47,11 +55,13 @@ function App() {
           {!user ? (
             // Redirect all other routes to login when not authenticated
             <>
+              {console.log('🚀 App: No user, redirecting to login')}
               <Route path="*" element={<Navigate to="/auth/login" replace />} />
             </>
           ) : (
             // Protected routes when authenticated
             <>
+              {console.log('🚀 App: User authenticated, showing protected routes')}
               <Route path="garden" element={<GardenPage />} />
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />

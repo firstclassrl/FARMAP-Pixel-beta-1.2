@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { testConnection } from './lib/supabase';
+import './index.css';
 
 // Log per capire che main.tsx si carica davvero
 console.log('🔧 main.tsx loaded');

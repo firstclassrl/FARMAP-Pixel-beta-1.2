@@ -75,14 +75,12 @@ export const PriceListsPage = () => {
     try {
       setLoading(true);
       
-      // MODIFICA 2: Aggiunto filtro per caricare solo listini con is_active = true
       const { data: priceListsData, error: priceListsError } = await supabase
         .from('price_lists')
         .select(`
           *,
           price_list_items(count)
         `)
-        .eq('is_active', true) 
         .order('created_at', { ascending: false });
 
       if (priceListsError) throw priceListsError;

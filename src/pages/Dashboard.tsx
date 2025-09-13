@@ -106,15 +106,9 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">
-            Benvenuto{profile?.full_name ? `, ${profile.full_name}` : ''}! Cosa vuoi fare oggi?
-          </p>
-          {profile?.role && (
-            <p className="text-sm text-gray-500 mt-1">
-              Ruolo: <span className="font-medium capitalize">{profile.role}</span>
-            </p>
-          )}
+          <h1 className="text-3xl font-bold text-gray-900">
+            Buongiorno{profile?.full_name ? `, ${profile.full_name}` : ''}!
+          </h1>
         </div>
       </div>
 

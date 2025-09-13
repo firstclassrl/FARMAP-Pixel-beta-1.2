@@ -5,6 +5,8 @@ import { useUI } from '../../store/useStore';
 import { cn } from '../../lib/cn';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingFallback } from '../LoadingFallback';
+import { AlertCircle } from 'lucide-react';
+import { Button } from '../ui/button';
 
 export const Layout = () => {
   const { sidebarCollapsed } = useUI();
@@ -37,10 +39,7 @@ export const Layout = () => {
     <div className="flex h-screen bg-background">
       <Sidebar />
       
-      <div className={cn(
-        "flex-1 flex flex-col overflow-hidden transition-all duration-300",
-        sidebarCollapsed ? "ml-16" : "ml-64"
-      )}>
+      <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         <Header />
         
         <main className="flex-1 overflow-y-auto p-6">

@@ -12,32 +12,30 @@ import {
   Sprout,
   UserCog,
   Loader2,
-  Building2,
-  User
+  Building2
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useUI } from '../../store/useStore';
 import { Button } from '../ui/button';
-import { AuthStatus } from '../auth/AuthStatus';
 import { useAuth } from '../../hooks/useAuth';
 
-// Definiamo la lista completa di tutte le possibili voci del menu
+// Definiamo la lista completa di tutte le possibili voci del menu con i colori specifici
 const allNavigationItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'lettore'] },
-  { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales'] },
-  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'lettore'] },
-  { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales'] },
-  { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales'] },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'lettore'], color: 'neutral' },
+  { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales'], color: 'blue' },
+  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'lettore'], color: 'green' },
+  { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales'], color: 'purple' },
+  { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales'], color: 'orange' },
   { 
     name: 'Garden',
     href: '/garden',
     icon: Sprout,
     roles: ['admin', 'sales', 'production'],
-    isSpecial: true // Proprietà per gestire lo stile speciale
+    color: 'emerald'
   },
-  { name: 'Campionatura', href: '/sample-requests', icon: Building2, roles: ['admin', 'sales'] },
-  { name: 'Report', href: '/reports', icon: BarChart3, roles: ['admin', 'sales', 'lettore'] },
-  { name: 'Gestione Utenti', href: '/user-management', icon: UserCog, roles: ['admin'] }
+  { name: 'Campionatura', href: '/sample-requests', icon: Building2, roles: ['admin', 'sales'], color: 'red' },
+  { name: 'Report', href: '/reports', icon: BarChart3, roles: ['admin', 'sales', 'lettore'], color: 'blue' },
+  { name: 'Gestione Utenti', href: '/user-management', icon: UserCog, roles: ['admin'], color: 'neutral' }
 ] as const;
 
 export function Sidebar() {
@@ -66,14 +64,13 @@ export function Sidebar() {
         {/* Header con logo e pulsante */}
         <div className="flex items-center h-20 p-4 border-b border-neutral-800">
           {!sidebarCollapsed && (
-            <div className="flex items-center space-x-3 flex-1">
-              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-white font-bold text-lg leading-tight">Pixel CRM</h2>
-                <p className="text-neutral-400 text-xs leading-tight">FARMAP</p>
-              </div>
+            <div className="flex justify-center flex-1">
+              <img src="/logo farmap industry.png" alt="FARMAP Logo" className="w-32 h-16 object-contain" />
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <div className="flex justify-center">
+              <img src="/logo farmap industry.png" alt="FARMAP Logo" className="w-16 h-12 object-contain" />
             </div>
           )}
           <Button
@@ -98,6 +95,20 @@ export function Sidebar() {
               {visibleNavigation.map((item) => {
                 const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
                 
+                // Funzione per ottenere le classi CSS basate sul colore
+                const getColorClasses = (color: string, isActive: boolean) => {
+                  const colorMap = {
+                    blue: isActive ? "bg-blue-600 text-white" : "text-neutral-400 hover:bg-blue-600/20 hover:text-blue-400",
+                    green: isActive ? "bg-green-600 text-white" : "text-neutral-400 hover:bg-green-600/20 hover:text-green-400",
+                    purple: isActive ? "bg-purple-600 text-white" : "text-neutral-400 hover:bg-purple-600/20 hover:text-purple-400",
+                    orange: isActive ? "bg-orange-600 text-white" : "text-neutral-400 hover:bg-orange-600/20 hover:text-orange-400",
+                    emerald: isActive ? "bg-emerald-600 text-white" : "text-neutral-400 hover:bg-emerald-600/20 hover:text-emerald-400",
+                    red: isActive ? "bg-red-600 text-white" : "text-neutral-400 hover:bg-red-600/20 hover:text-red-400",
+                    neutral: isActive ? "bg-neutral-700 text-white" : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+                  };
+                  return colorMap[color as keyof typeof colorMap] || colorMap.neutral;
+                };
+                
                 return (
                   <li key={item.name}>
                     <Link
@@ -105,8 +116,7 @@ export function Sidebar() {
                       className={cn(
                         "flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 group",
                         sidebarCollapsed ? "justify-center" : "",
-                        item.isSpecial && (isActive ? "bg-green-600 text-white" : "text-neutral-300 hover:bg-green-700/50 hover:text-white"),
-                        !item.isSpecial && (isActive ? "bg-neutral-700 text-white" : "text-neutral-400 hover:bg-neutral-800 hover:text-white")
+                        getColorClasses(item.color, isActive)
                       )}
                       title={sidebarCollapsed ? item.name : undefined}
                     >
@@ -120,14 +130,18 @@ export function Sidebar() {
           )}
         </nav>
         
-        {/* Footer con stato utente */}
+        
+        {/* Footer con logo Pixel */}
         <div className="border-t border-neutral-800 p-4">
           {sidebarCollapsed ? (
             <div className="flex justify-center">
-              <User className="w-5 h-5 text-neutral-400" />
+              <img src="/Logo Pixel Farmap 2025.png" alt="Pixel Logo" className="h-5 w-auto filter brightness-110" />
             </div>
           ) : (
-            <AuthStatus />
+            <div className="flex items-center justify-center space-x-2">
+              <img src="/Logo Pixel Farmap 2025.png" alt="Pixel Logo" className="h-5 w-auto filter brightness-110" />
+              <span className="text-xs text-neutral-400">Pixel CRM v1.0 Beta</span>
+            </div>
           )}
         </div>
       </div>

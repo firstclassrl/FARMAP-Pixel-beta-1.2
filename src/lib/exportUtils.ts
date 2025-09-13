@@ -104,31 +104,57 @@ import autoTable from 'jspdf-autotable';
 
 
 // NUOVA FUNZIONE PER ESPORTARE L'ORDINE IN PDF
-export const exportOrderToPDF = (order: any, logo: string) => {
+export const exportOrderToPDF = (order: any) => {
   try {
-    const doc = new jsPDF();
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let yPosition = margin;
 
-    // 1. AGGIUNGI IL LOGO (CON COMPRESSIONE OTTIMALE)
-    // Questa è la soluzione al problema dei 14 MB.
-    // 'FAST' dice a jsPDF di comprimere l'immagine.
-    // Assicurati che 'logo' sia il percorso del tuo logo ottimizzato da 89kb.
-    doc.addImage(logo, 'PNG', 15, 10, 50, 15, undefined, 'FAST');
+    // 1. LOGO ORIGINALE FARMAP (senza compressione per qualità)
+    try {
+      // Carica il logo originale senza compressione
+      const logoImg = new Image();
+      logoImg.src = '/logo_farmap industry.jpg';
+      doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
+      yPosition += 20;
+    } catch (logoError) {
+      console.warn('Logo non caricato, continuo senza logo');
+      yPosition += 10;
+    }
 
     // 2. INTESTAZIONE
     doc.setFontSize(20);
-    doc.text('ORDINE DI ACQUISTO', 105, 40, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.text('ORDINE DI ACQUISTO', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
 
-    // 3. DETTAGLI ORDINE E CLIENTE
+    // 3. DETTAGLI ORDINE E CLIENTE (layout compatto)
     doc.setFontSize(10);
-    doc.text(`Numero Ordine: ${order.order_number}`, 15, 60);
-    doc.text(`Data Ordine: ${formatDate(order.order_date)}`, 140, 60);
-    doc.text(`Nome Cliente: ${order.customers.company_name}`, 15, 70);
-    doc.text(`Codice Cliente: ${order.customers.id.slice(0, 8)}`, 140, 70);
+    doc.setFont('helvetica', 'normal');
     
-    // 4. TABELLA PRODOTTI (usando il plugin autoTable)
+    // Dettagli ordine e cliente in due colonne
+    doc.text(`Numero Ordine: ${order.order_number}`, margin, yPosition);
+    doc.text(`Data Ordine: ${formatDate(order.order_date)}`, margin + contentWidth/2, yPosition);
+    yPosition += 6;
+    
+    doc.text(`Cliente: ${order.customers.company_name}`, margin, yPosition);
+    doc.text(`Codice: ${order.customers.id.slice(0, 8)}`, margin + contentWidth/2, yPosition);
+    yPosition += 6;
+    
+    doc.text(`Contatto: ${order.customers.contact_person}`, margin, yPosition);
+    doc.text(`Telefono: ${order.customers.phone}`, margin + contentWidth/2, yPosition);
+    yPosition += 6;
+    
+    doc.text(`Indirizzo: ${order.customers.address}`, margin, yPosition);
+    yPosition += 10;
+    
+    // 4. TABELLA PRODOTTI (con griglia nera)
     autoTable(doc, {
-      startY: 85,
-      head: [['Codice Prodotto', 'Nome / Descrizione', 'Quantità', 'Prezzo Unitario', 'Totale']],
+      startY: yPosition,
+      head: [['Codice', 'Prodotto', 'Qty', 'Prezzo', 'Totale']],
       body: order.order_items.map((item: any) => [
         item.products.code,
         item.products.name,
@@ -136,32 +162,53 @@ export const exportOrderToPDF = (order: any, logo: string) => {
         formatCurrency(item.unit_price),
         formatCurrency(item.total_price)
       ]),
-      theme: 'striped'
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [0, 0, 0], 
+        textColor: [255, 255, 255],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.5
+      },
+      bodyStyles: { 
+        lineColor: [0, 0, 0],
+        lineWidth: 0.5
+      },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 60 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30 }
+      }
     });
     
-    // 5. CALCOLO TOTALI
-    const finalY = (doc as any).lastAutoTable.finalY; // Posizione dopo la tabella
+    // 5. TOTALI IN UNA RIGA (layout compatto)
+    const finalY = (doc as any).lastAutoTable.finalY + 5;
     const totalAmount = formatCurrency(order.total_amount);
     const taxAmount = formatCurrency(order.tax_amount);
     const finalTotal = formatCurrency(order.total_amount + order.tax_amount);
 
-    doc.setFontSize(12);
-    doc.text('Subtotale (Imponibile):', 140, finalY + 10);
-    doc.text(totalAmount, 200, finalY + 10, { align: 'right' });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Subtotale: ${totalAmount} | IVA: ${taxAmount} | TOTALE: ${finalTotal}`, margin, finalY);
     
-    doc.text('IVA:', 140, finalY + 17);
-    doc.text(taxAmount, 200, finalY + 17, { align: 'right' });
-    
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Totale Ordine:', 140, finalY + 25);
-    doc.text(finalTotal, 200, finalY + 25, { align: 'right' });
+    // 6. NOTE (se presenti)
+    if (order.notes) {
+      yPosition = finalY + 15;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('NOTE:', margin, yPosition);
+      yPosition += 5;
+      doc.setFont('helvetica', 'normal');
+      const splitNotes = doc.splitTextToSize(order.notes, contentWidth);
+      doc.text(splitNotes, margin, yPosition);
+    }
 
-    // 6. SALVA IL FILE
+    // 7. SALVA IL FILE
     doc.save(`ordine-${order.order_number}.pdf`);
 
   } catch (error) {
     console.error('Error creating PDF:', error);
-    // Qui potresti chiamare una notifica di errore
+    throw error;
   }
 };
