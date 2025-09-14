@@ -3,15 +3,13 @@ import {
   ShoppingCart,
   Package,
   FileText,
-  Building,
   ArrowRight,
   BarChart3,
   Sprout,
   Building2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
 import { useAuth } from '../hooks/useAuth';
 
 // Quick action sections with role-based filtering
@@ -23,6 +21,8 @@ const quickActions = [
     href: '/customers',
     color: 'bg-blue-500',
     hoverColor: 'hover:bg-blue-600',
+    borderHover: 'hover:border-blue-500',
+    textHover: 'group-hover:text-blue-600',
     roles: ['admin', 'commerciale']
   },
   {
@@ -32,6 +32,8 @@ const quickActions = [
     href: '/products',
     color: 'bg-green-500',
     hoverColor: 'hover:bg-green-600',
+    borderHover: 'hover:border-green-500',
+    textHover: 'group-hover:text-green-600',
     roles: ['admin', 'commerciale', 'lettore']
   },
   {
@@ -41,6 +43,8 @@ const quickActions = [
     href: '/price-lists',
     color: 'bg-purple-500',
     hoverColor: 'hover:bg-purple-600',
+    borderHover: 'hover:border-purple-500',
+    textHover: 'group-hover:text-purple-600',
     roles: ['admin', 'commerciale']
   },
   {
@@ -50,6 +54,8 @@ const quickActions = [
     href: '/orders',
     color: 'bg-orange-500',
     hoverColor: 'hover:bg-orange-600',
+    borderHover: 'hover:border-orange-500',
+    textHover: 'group-hover:text-orange-600',
     roles: ['admin', 'commerciale']
   },
   {
@@ -59,6 +65,8 @@ const quickActions = [
     href: '/garden',
     color: 'bg-emerald-500',
     hoverColor: 'hover:bg-emerald-600',
+    borderHover: 'hover:border-emerald-500',
+    textHover: 'group-hover:text-emerald-600',
     roles: ['admin', 'commerciale', 'production']
   },
   {
@@ -68,6 +76,8 @@ const quickActions = [
     href: '/sample-requests',
     color: 'bg-red-500',
     hoverColor: 'hover:bg-red-600',
+    borderHover: 'hover:border-red-500',
+    textHover: 'group-hover:text-red-600',
     roles: ['admin', 'commerciale']
   },
   {
@@ -77,6 +87,8 @@ const quickActions = [
     href: '/reports',
     color: 'bg-indigo-500',
     hoverColor: 'hover:bg-indigo-600',
+    borderHover: 'hover:border-indigo-500',
+    textHover: 'group-hover:text-indigo-600',
     roles: ['admin', 'commerciale', 'lettore']
   }
 ];
@@ -130,26 +142,26 @@ export default function Dashboard() {
           </div>
         ) : (
           visibleActions.map((action, index) => (
-          <Link key={index} to={action.href} className="group">
-            <Card className="h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer border-2 hover:border-primary-200">
-              <CardContent className="p-8">
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className={`w-16 h-16 ${action.color} ${action.hoverColor} rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110`}>
-                    <action.icon className="w-8 h-8 text-white" />
+            <Link key={index} to={action.href} className="group">
+              <Card className={`h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer border-2 border-gray-200 ${action.borderHover}`}>
+                <CardContent className="p-8">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className={`w-16 h-16 ${action.color} ${action.hoverColor} rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110`}>
+                      <action.icon className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`text-xl font-bold text-gray-900 ${action.textHover} transition-colors duration-300`}>
+                        {action.title}
+                      </h3>
+                    </div>
+                    <ArrowRight className={`w-5 h-5 text-gray-400 ${action.textHover} group-hover:translate-x-1 transition-all duration-300`} />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-primary-600 transition-colors duration-300">
-                      {action.title}
-                    </h3>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary-600 group-hover:translate-x-1 transition-all duration-300" />
-                </div>
-                <p className="text-gray-600 leading-relaxed">
-                  {action.description}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
+                  <p className="text-gray-600 leading-relaxed">
+                    {action.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           ))
         )}
       </div>

@@ -161,7 +161,7 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData }) => {
       {/* Footer with generation info */}
       <div className="mt-4 pt-2 border-t border-gray-300 flex justify-between text-xs text-gray-500">
         <span>Generato il {new Date().toLocaleDateString('it-IT')} alle {new Date().toLocaleTimeString('it-IT')}</span>
-        <span>FARMAP S.r.l. - Sistema CRM Pixel</span>
+        <span>FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)</span>
       </div>
     </div>
   );

@@ -48,7 +48,7 @@ const createUserSchema = z.object({
   email: z.string().email('Email non valida').min(1, 'Email richiesta'),
   password: z.string().min(6, 'Password deve essere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'commerciale', 'lettore'], {
+  role: z.enum(['admin', 'sales', 'backoffice', 'viewer', 'lettore', 'ProductManager', 'production', 'customer_user'], {
     required_error: 'Ruolo richiesto'
   })
 });
@@ -57,21 +57,36 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 
 const roleLabels = {
   admin: 'Amministratore',
-  commerciale: 'Commerciale',
-  lettore: 'Lettore'
+  sales: 'Vendite',
+  backoffice: 'Back Office',
+  viewer: 'Visualizzatore',
+  lettore: 'Lettore',
+  ProductManager: 'Product Manager',
+  production: 'Produzione',
+  customer_user: 'Utente Cliente'
 };
 
 const roleDescriptions = {
   admin: 'Accesso completo a tutte le funzionalità',
-  commerciale: 'Gestione clienti, ordini e preventivi',
-  lettore: 'Solo visualizzazione dati'
+  sales: 'Gestione vendite e clienti',
+  backoffice: 'Gestione amministrativa e contabile',
+  viewer: 'Solo visualizzazione dati',
+  lettore: 'Solo visualizzazione dati',
+  ProductManager: 'Gestione prodotti e cataloghi',
+  production: 'Gestione produzione e magazzino',
+  customer_user: 'Accesso limitato per clienti'
 };
 
 const getRoleBadge = (role: string) => {
   const styles = {
     admin: 'bg-red-100 text-red-800 border-red-200',
-    commerciale: 'bg-blue-100 text-blue-800 border-blue-200',
-    lettore: 'bg-gray-100 text-gray-800 border-gray-200'
+    sales: 'bg-blue-100 text-blue-800 border-blue-200',
+    backoffice: 'bg-purple-100 text-purple-800 border-purple-200',
+    viewer: 'bg-gray-100 text-gray-800 border-gray-200',
+    lettore: 'bg-gray-100 text-gray-800 border-gray-200',
+    ProductManager: 'bg-green-100 text-green-800 border-green-200',
+    production: 'bg-orange-100 text-orange-800 border-orange-200',
+    customer_user: 'bg-yellow-100 text-yellow-800 border-yellow-200'
   };
 
   return (
@@ -107,7 +122,7 @@ export const UserManagementPage = () => {
 
   const editUserSchema = z.object({
     full_name: z.string().min(2, 'Nome completo richiesto'),
-    role: z.enum(['admin', 'commerciale', 'lettore'], {
+    role: z.enum(['admin', 'sales', 'backoffice', 'viewer', 'lettore', 'ProductManager', 'production', 'customer_user'], {
       required_error: 'Ruolo richiesto'
     })
   });
@@ -126,14 +141,38 @@ export const UserManagementPage = () => {
 
   const loadUsers = useCallback(async () => {
     try {
+      // Use direct database query - check if created_at column exists
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading users:', error);
+        // If there's a column error, show a helpful message
+        if (error.message.includes('created_at') || error.message.includes('updated_at')) {
+          addNotification({
+            type: 'error',
+            title: 'Errore di configurazione',
+            message: 'Colonne timestamp mancanti nella tabella profiles. Esegui ADD_MISSING_COLUMNS.sql'
+          });
+        } else if (error.message.includes('infinite recursion') || error.message.includes('policy')) {
+          addNotification({
+            type: 'error',
+            title: 'Errore di configurazione',
+            message: 'Problema con le politiche di sicurezza. Contatta l\'amministratore.'
+          });
+        } else {
+          addNotification({
+            type: 'error',
+            title: 'Errore',
+            message: 'Impossibile caricare la lista utenti'
+          });
+        }
+        return;
+      }
+
       setUsers(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading users:', error);
       addNotification({
         type: 'error',
@@ -153,71 +192,56 @@ export const UserManagementPage = () => {
     setIsLoading(true);
     
     try {
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        addNotification({
-          type: 'error',
-          title: 'Errore di sessione',
-          message: 'Problema con la sessione utente. Riprova ad accedere.'
-        });
-        return;
-      }
-
-      if (!session?.access_token) {
-        addNotification({
-          type: 'error',
-          title: 'Sessione scaduta',
-          message: 'La tua sessione è scaduta. Effettua nuovamente l\'accesso.'
-        });
-        await signOut();
-        return;
-      }
-
-      // Verify current user is admin before proceeding
-      const { data: currentProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (profileError || !currentProfile || currentProfile.role !== 'admin') {
-        addNotification({
-          type: 'error',
-          title: 'Permessi insufficienti',
-          message: 'Solo gli amministratori possono creare nuovi utenti'
-        });
-        return;
-      }
-
-      // Call the edge function to create user
-      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`;
-      
-      console.log('Calling Edge Function:', functionUrl);
-      console.log('Request data:', { ...data, password: '[HIDDEN]' });
-      
-      const response = await fetch(
-        functionUrl,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-            'x-client-info': 'pixel-crm@1.0.0'
-          },
-          body: JSON.stringify(data),
+      // Create user in auth system
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: data.email,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: data.full_name,
+          role: data.role
         }
-      );
+      });
 
-      console.log('Response status:', response.status);
-      
-      const result = await response.json();
-      console.log('Response data:', result);
+      if (authError) {
+        console.error('Error creating auth user:', authError);
+        addNotification({
+          type: 'error',
+          title: 'Errore creazione utente',
+          message: authError.message || 'Impossibile creare l\'utente nel sistema di autenticazione'
+        });
+        return;
+      }
 
-      if (!response.ok) {
-        throw new Error(result.error || `HTTP ${response.status}: Errore durante la creazione dell'utente`);
+      if (!authData.user) {
+        addNotification({
+          type: 'error',
+          title: 'Errore creazione utente',
+          message: 'Utente creato ma dati non disponibili'
+        });
+        return;
+      }
+
+      // Create profile record
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: data.email,
+          full_name: data.full_name,
+          role: data.role
+        });
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        // If profile creation fails, we should clean up the auth user
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        addNotification({
+          type: 'error',
+          title: 'Errore creazione profilo',
+          message: 'Impossibile creare il profilo utente'
+        });
+        return;
       }
 
       addNotification({
@@ -266,6 +290,7 @@ export const UserManagementPage = () => {
 
     setIsLoading(true);
     try {
+      // Use direct database query for updating user
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -274,7 +299,15 @@ export const UserManagementPage = () => {
         })
         .eq('id', editingUser.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating user:', error);
+        addNotification({
+          type: 'error',
+          title: 'Errore aggiornamento',
+          message: 'Impossibile aggiornare l\'utente. Verifica i permessi.'
+        });
+        return;
+      }
 
       addNotification({
         type: 'success',
@@ -316,49 +349,17 @@ export const UserManagementPage = () => {
 
     setIsLoading(true);
     try {
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // First delete the auth user (this will cascade to profiles if foreign key is set up)
+      const { error: authError } = await supabase.auth.admin.deleteUser(userToDelete.id);
       
-      if (sessionError) {
-        console.error('Session error:', sessionError);
+      if (authError) {
+        console.error('Error deleting auth user:', authError);
         addNotification({
           type: 'error',
-          title: 'Errore di sessione',
-          message: 'Problema con la sessione utente. Riprova ad accedere.'
+          title: 'Errore eliminazione',
+          message: 'Impossibile eliminare l\'utente dal sistema di autenticazione.'
         });
         return;
-      }
-
-      if (!session?.access_token) {
-        addNotification({
-          type: 'error',
-          title: 'Sessione scaduta',
-          message: 'La tua sessione è scaduta. Effettua nuovamente l\'accesso.'
-        });
-        await signOut();
-        return;
-      }
-
-      // Call the edge function to delete user
-      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`;
-      
-      const response = await fetch(
-        functionUrl,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-            'x-client-info': 'pixel-crm@1.0.0'
-          },
-          body: JSON.stringify({ userId: userToDelete.id }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || `HTTP ${response.status}: Errore durante l'eliminazione dell'utente`);
       }
 
       addNotification({
@@ -484,16 +485,46 @@ export const UserManagementPage = () => {
                         <span className="text-xs text-gray-500">Accesso completo</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="commerciale">
+                    <SelectItem value="sales">
                       <div className="flex flex-col">
-                        <span className="font-medium">Commerciale</span>
-                        <span className="text-xs text-gray-500">Gestione vendite</span>
+                        <span className="font-medium">Vendite</span>
+                        <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="backoffice">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Back Office</span>
+                        <span className="text-xs text-gray-500">Gestione amministrativa</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="viewer">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Visualizzatore</span>
+                        <span className="text-xs text-gray-500">Solo visualizzazione</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="lettore">
                       <div className="flex flex-col">
                         <span className="font-medium">Lettore</span>
                         <span className="text-xs text-gray-500">Solo lettura</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="ProductManager">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Product Manager</span>
+                        <span className="text-xs text-gray-500">Gestione prodotti</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="production">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Produzione</span>
+                        <span className="text-xs text-gray-500">Gestione produzione</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="customer_user">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Utente Cliente</span>
+                        <span className="text-xs text-gray-500">Accesso limitato</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -651,16 +682,46 @@ export const UserManagementPage = () => {
                       <span className="text-xs text-gray-500">Accesso completo</span>
                     </div>
                   </SelectItem>
-                  <SelectItem value="commerciale">
+                  <SelectItem value="sales">
                     <div className="flex flex-col">
-                      <span className="font-medium">Commerciale</span>
-                      <span className="text-xs text-gray-500">Gestione vendite</span>
+                      <span className="font-medium">Vendite</span>
+                      <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="backoffice">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Back Office</span>
+                      <span className="text-xs text-gray-500">Gestione amministrativa</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="viewer">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Visualizzatore</span>
+                      <span className="text-xs text-gray-500">Solo visualizzazione</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="lettore">
                     <div className="flex flex-col">
                       <span className="font-medium">Lettore</span>
                       <span className="text-xs text-gray-500">Solo lettura</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="ProductManager">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Product Manager</span>
+                      <span className="text-xs text-gray-500">Gestione prodotti</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="production">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Produzione</span>
+                      <span className="text-xs text-gray-500">Gestione produzione</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="customer_user">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Utente Cliente</span>
+                      <span className="text-xs text-gray-500">Accesso limitato</span>
                     </div>
                   </SelectItem>
                 </SelectContent>

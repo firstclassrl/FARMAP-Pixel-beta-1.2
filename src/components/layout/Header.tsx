@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Search, 
@@ -29,6 +29,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { typeIcons, typeColors } from '../../pages/NotificationsPage';
 import { useAuth } from '../../hooks/useAuth';
+import { useSmartSearch } from '../../hooks/useSmartSearch';
+import { SearchResults } from '../SearchResults';
 
 export const Header = () => {
   const { globalSearchTerm, setGlobalSearchTerm, addToSearchHistory } = useSearch();
@@ -41,17 +43,55 @@ export const Header = () => {
   } = useNotifications();
   const [searchFocused, setSearchFocused] = useState(false);
   const { profile, loading } = useAuth();
+  const searchRef = useRef<HTMLDivElement>(null);
+  
+  const {
+    searchResults,
+    isSearching,
+    searchTerm,
+    handleSearch,
+    handleResultClick,
+    clearSearch
+  } = useSmartSearch();
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const recentNotifications = notifications.slice(0, 5); // Show only 5 most recent
 
-  const handleSearch = (e: React.FormEvent) => {
+  // Handle search input changes
+  const handleSearchInput = (value: string) => {
+    setGlobalSearchTerm(value);
+    handleSearch(value);
+  };
+
+  // Handle search form submission
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (globalSearchTerm.trim()) {
       addToSearchHistory(globalSearchTerm);
-      // Implement global search logic here
+      // Search is already triggered by handleSearchInput
     }
   };
+
+  // Handle result click
+  const handleSearchResultClick = (result: any) => {
+    addToSearchHistory(globalSearchTerm);
+    handleResultClick(result);
+    setGlobalSearchTerm('');
+  };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        clearSearch();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [clearSearch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Global shortcuts
@@ -81,18 +121,27 @@ export const Header = () => {
     >
       <div className="flex items-center justify-between">
         {/* Search */}
-        <div className="flex-1 max-w-xl">
-          <form onSubmit={handleSearch} className="relative">
+        <div className="flex-1 max-w-xl" ref={searchRef}>
+          <form onSubmit={handleSearchSubmit} className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="global-search"
               type="text"
-              placeholder="Cerca clienti, ordini, prodotti... (premi '/' per cercare)"
+              placeholder="🤖 Cerca qualsiasi cosa in Pixel... (premi '/' per cercare)"
               value={globalSearchTerm}
-              onChange={(e) => setGlobalSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchInput(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               className="pl-10 pr-4 w-full h-10 rounded-xl shadow-sm bg-background border-input text-foreground placeholder:text-muted-foreground focus:border-primary-500 focus:ring-primary-500 transition-all duration-200"
+            />
+            
+            {/* Search Results */}
+            <SearchResults
+              results={searchResults}
+              isSearching={isSearching}
+              onResultClick={handleSearchResultClick}
+              onClear={clearSearch}
+              searchTerm={searchTerm}
             />
           </form>
         </div>

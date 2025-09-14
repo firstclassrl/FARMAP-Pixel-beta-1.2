@@ -144,6 +144,11 @@ export function SampleRequestsPage() {
       setProducts(productsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile caricare i dati della campionatura'
+      });
     } finally {
       setLoading(false);
     }
@@ -360,14 +365,24 @@ export function SampleRequestsPage() {
                   <Label htmlFor="customer">Cliente</Label>
                   <Select value={formData.customer_id} onValueChange={(value) => setFormData({...formData, customer_id: value})}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona cliente" />
+                      <SelectValue placeholder={loading ? "Caricamento..." : "Seleziona cliente"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {customers.map(customer => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.company_name}
+                      {loading ? (
+                        <SelectItem value="loading" disabled>
+                          Caricamento clienti...
                         </SelectItem>
-                      ))}
+                      ) : customers.length > 0 ? (
+                        customers.map(customer => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.company_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-customers" disabled>
+                          Nessun cliente attivo disponibile
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

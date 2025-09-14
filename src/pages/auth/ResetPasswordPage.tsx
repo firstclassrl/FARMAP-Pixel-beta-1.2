@@ -291,7 +291,7 @@ export const ResetPasswordPage = () => {
             <span className="text-sm text-gray-500">Pixel CRM v1.0.0</span>
           </div>
           <p className="text-xs text-gray-400">
-            © 2025 FARMAP S.r.l. Tutti i diritti riservati.
+            © 2025 FARMAP INDUSTRY S.r.l. Tutti i diritti riservati.
           </p>
         </div>
       </div>

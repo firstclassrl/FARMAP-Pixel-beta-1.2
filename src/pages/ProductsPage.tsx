@@ -18,7 +18,8 @@ import {
   FileImage,
   AlertTriangle,
   Tag,
-  X
+  X,
+  Sprout
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -733,7 +734,7 @@ export const ProductsPage = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
-                <Card key={product.id} className="hover:shadow-lg transition-shadow">
+                <Card key={product.id} className="hover:shadow-lg transition-all duration-300 hover:shadow-emerald-500/20 hover:ring-2 hover:ring-emerald-400/30 hover:ring-opacity-50">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -800,15 +801,12 @@ export const ProductsPage = () => {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                        <Link to={`/products/${product.id}/schede-prodotto`}>
-                          <Button variant="glass" size="sm">
-                            <FileImage className="w-4 h-4 mr-1" />
-                            Schede
-                          </Button>
-                        </Link>
                         <Link to="/garden">
-                          <Button variant="glass" size="sm">
-                            <Package className="w-4 h-4 mr-1" />
+                          <Button 
+                            size="sm" 
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-lg hover:shadow-emerald-500/25 transition-all duration-200"
+                          >
+                            <Sprout className="w-4 h-4 mr-1" />
                             Garden
                           </Button>
                         </Link>

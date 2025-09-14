@@ -100,7 +100,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
     window.print();
   };
 
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     if (!priceList || !priceList.customer?.email) {
       addNotification({
         type: 'warning',
@@ -110,8 +110,117 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       return;
     }
     
-    const subject = `Listino Prezzi FARMAP - ${priceList.name}`;
-    const body = `Gentile ${priceList.customer.company_name},
+    try {
+      // Genera il PDF automaticamente
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPosition = margin;
+
+      // 1. LOGO ORIGINALE FARMAP
+      try {
+        const logoImg = new Image();
+        logoImg.src = '/logo_farmap industry.jpg';
+        doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
+        yPosition += 20;
+      } catch (logoError) {
+        console.warn('Logo non caricato, continuo senza logo');
+        yPosition += 10;
+      }
+
+      // 2. INTESTAZIONE
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LISTINO PREZZI', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // 3. DETTAGLI LISTINO
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Nome Listino: ${priceList.name}`, margin, yPosition);
+      doc.text(`Data: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      yPosition += 6;
+      
+      if (priceList.customer) {
+        doc.text(`Cliente: ${priceList.customer.company_name}`, margin, yPosition);
+        doc.text(`Contatto: ${priceList.customer.contact_person}`, margin + contentWidth/2, yPosition);
+        yPosition += 6;
+      }
+      
+      if (priceList.valid_from) {
+        doc.text(`Valido dal: ${new Date(priceList.valid_from).toLocaleDateString('it-IT')}`, margin, yPosition);
+      }
+      if (priceList.valid_until) {
+        doc.text(`Valido fino al: ${new Date(priceList.valid_until).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      }
+      yPosition += 10;
+
+      // 4. TABELLA PRODOTTI
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Codice', 'Prodotto', 'Categoria', 'Unità', 'Prezzo', 'Qty Min', 'Sconto']],
+        body: priceList.price_list_items?.map(item => [
+          item.products?.code || '',
+          item.products?.name || '',
+          item.products?.category || '',
+          item.products?.unit || '',
+          `€${item.price.toFixed(2)}`,
+          item.min_quantity.toString(),
+          `${item.discount_percentage}%`
+        ]) || [],
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [0, 0, 0], 
+          textColor: [255, 255, 255],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5
+        },
+        bodyStyles: { 
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5
+        },
+        columnStyles: {
+          0: { cellWidth: 20 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 15 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 15 },
+          6: { cellWidth: 15 }
+        }
+      });
+
+      // 5. FOOTER
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
+        pageWidth - margin,
+        pageHeight - 15,
+        { align: 'right' }
+      );
+
+      // Salva il PDF temporaneamente
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      // Crea un link temporaneo per scaricare il PDF
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `listino_${priceList.name.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Pulisci l'URL temporaneo
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+      
+      // Apri il client email con le istruzioni
+      const subject = `Listino Prezzi FARMAP - ${priceList.name}`;
+      const body = `Gentile ${priceList.customer.company_name},
 
 In allegato troverete il vostro listino prezzi personalizzato.
 
@@ -119,25 +228,34 @@ Listino: ${priceList.name}
 Data: ${new Date().toLocaleDateString('it-IT')}
 Prodotti inclusi: ${priceList.price_list_items?.length || 0}
 
+IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
+Per allegarlo:
+1. Clicca sull'icona graffetta (📎) in questa email
+2. Seleziona il file "listino_${priceList.name.replace(/\s+/g, '_')}.pdf" dalla cartella Downloads
+3. Il file verrà allegato automaticamente
+4. Invia l'email
+
 Per qualsiasi domanda o chiarimento, non esitate a contattarci.
 
 Cordiali saluti,
 Team FARMAP`;
 
-    const mailtoUrl = `mailto:${priceList.customer.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    try {
+      const mailtoUrl = `mailto:${priceList.customer.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
       window.location.href = mailtoUrl;
+      
       addNotification({
         type: 'success',
-        title: 'Client email aperto',
-        message: `Email preparata per ${priceList.customer.email}`
+        title: 'PDF generato e email preparata',
+        message: `PDF scaricato automaticamente. Email preparata per ${priceList.customer.email}`
       });
+      
     } catch (error) {
+      console.error('Error generating PDF for email:', error);
       addNotification({
         type: 'error',
         title: 'Errore',
-        message: 'Impossibile aprire il client email'
+        message: 'Impossibile generare il PDF per l\'email'
       });
     }
   };
@@ -471,8 +589,8 @@ Team FARMAP`;
                 <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
                   <div className="flex justify-between">
                     <div>
-                      <p>FARMAP S.r.l. - Via Example 123, 00100 Roma</p>
-                      <p>P.IVA: 12345678901 - Tel: +39 06 1234567</p>
+                      <p>FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)</p>
+                      <p>P.IVA: 12345678901 - Tel: +39 085 1234567</p>
                     </div>
                     <div className="text-right">
                       <p>Listino valido dal {new Date(priceList.valid_from).toLocaleDateString('it-IT')}</p>

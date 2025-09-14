@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { Layout } from './components/layout/Layout';
 import GardenPage from './pages/GardenPage';
+import ProductDetailsPage from './pages/ProductDetailsPage';
 import Dashboard from './pages/Dashboard';
 import CustomersPage from './pages/CustomersPage';
 import ProductsPage from './pages/ProductsPage';
@@ -16,6 +17,7 @@ import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import { GardenLoginPage } from './pages/GardenLoginPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { NotificationToast } from './components/NotificationToast';
 import { LoadingFallback } from './components/LoadingFallback';
@@ -52,6 +54,13 @@ function App() {
           <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           
+          {/* Garden routes - accessible without main app authentication */}
+          <Route path="/garden/login" element={<GardenLoginPage />} />
+          
+          {/* Garden routes for authenticated users */}
+          <Route path="/garden" element={user ? <GardenPage /> : <Navigate to="/garden/login" replace />} />
+          <Route path="/garden/product/:id" element={user ? <ProductDetailsPage /> : <Navigate to="/garden/login" replace />} />
+          
           {!user ? (
             // Redirect all other routes to login when not authenticated
             <>
@@ -62,7 +71,8 @@ function App() {
             // Protected routes when authenticated
             <>
               {console.log('🚀 App: User authenticated, showing protected routes')}
-              <Route path="garden" element={<GardenPage />} />
+              
+              {/* Main app routes */}
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="customers" element={<CustomersPage />} />
@@ -76,8 +86,11 @@ function App() {
                   <ProtectedRoute requiredRole="admin"><UserManagementPage /></ProtectedRoute>
                 } />
               </Route>
+              
               {/* Redirect auth routes to dashboard when already logged in */}
               <Route path="/auth/*" element={<Navigate to="/" replace />} />
+              
+              {/* Catch-all route for authenticated users */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           )}

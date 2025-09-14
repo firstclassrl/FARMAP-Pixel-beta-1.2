@@ -34,6 +34,43 @@ Deno.serve(async (req) => {
 
     if (createError) throw createError;
 
+    // Create profile record in profiles table
+    const profileData: any = {
+      id: newUser.id,
+      email: email,
+      full_name: full_name,
+      role: role
+    };
+
+    // Try to add timestamp columns if they exist
+    try {
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          ...profileData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (profileError) {
+        // If timestamp columns don't exist, try without them
+        if (profileError.message.includes('created_at') || profileError.message.includes('updated_at')) {
+          const { error: profileError2 } = await supabaseAdmin
+            .from('profiles')
+            .insert(profileData);
+          
+          if (profileError2) throw profileError2;
+        } else {
+          throw profileError;
+        }
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
+      // If profile creation fails, we should clean up the auth user
+      await supabaseAdmin.auth.admin.deleteUser(newUser.id);
+      throw new Error('Errore nella creazione del profilo utente');
+    }
+
     return new Response(JSON.stringify(newUser), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

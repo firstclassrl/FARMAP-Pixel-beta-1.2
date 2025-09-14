@@ -169,7 +169,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
       // Company info
       doc.setFontSize(16);
       doc.setTextColor(220, 38, 38); // Red color
-      doc.text('FARMAP S.r.l.', margin, yPosition);
+      doc.text('FARMAP INDUSTRY S.r.l.', margin, yPosition);
       doc.setTextColor(0, 0, 0); // Reset to black
       yPosition += 15;
 
@@ -301,7 +301,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
         pageHeight - 15
       );
       doc.text(
-        'FARMAP S.r.l. - Sistema CRM Pixel',
+        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
         pageHeight - 15,
         { align: 'right' }
@@ -326,7 +326,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
     }
   };
 
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     if (!orderData || !orderData.customerEmail) {
       addNotification({
         type: 'error',
@@ -336,25 +336,166 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
       return;
     }
 
-    const subject = encodeURIComponent(`Ordine ${orderData.orderNumber} - FARMAP`);
-    const body = encodeURIComponent(`Gentile ${orderData.customerName},
+    try {
+      // Genera il PDF automaticamente usando la funzione esistente
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPosition = margin;
+
+      // 1. LOGO ORIGINALE FARMAP
+      try {
+        const logoImg = new Image();
+        logoImg.src = '/logo_farmap industry.jpg';
+        doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
+        yPosition += 20;
+      } catch (logoError) {
+        console.warn('Logo non caricato, continuo senza logo');
+        yPosition += 10;
+      }
+
+      // 2. INTESTAZIONE
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ORDINE DI ACQUISTO', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // 3. DETTAGLI ORDINE E CLIENTE
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      doc.text(`Numero Ordine: ${orderData.orderNumber}`, margin, yPosition);
+      doc.text(`Data Ordine: ${new Date(orderData.orderDate).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      yPosition += 6;
+      
+      doc.text(`Cliente: ${orderData.customerName}`, margin, yPosition);
+      doc.text(`Email: ${orderData.customerEmail}`, margin + contentWidth/2, yPosition);
+      yPosition += 6;
+      
+      if (orderData.customerPhone) {
+        doc.text(`Telefono: ${orderData.customerPhone}`, margin, yPosition);
+      }
+      if (orderData.customerAddress) {
+        doc.text(`Indirizzo: ${orderData.customerAddress}`, margin + contentWidth/2, yPosition);
+      }
+      yPosition += 10;
+      
+      // 4. TABELLA PRODOTTI
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Codice', 'Prodotto', 'Qty', 'Prezzo', 'Totale']],
+        body: orderData.orderItems?.map((item: any) => [
+          item.productCode || '',
+          item.productName || '',
+          `${item.quantity} ${item.unit || 'pz'}`,
+          `€${item.unitPrice?.toFixed(2) || '0.00'}`,
+          `€${item.totalPrice?.toFixed(2) || '0.00'}`
+        ]) || [],
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [0, 0, 0], 
+          textColor: [255, 255, 255],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5
+        },
+        bodyStyles: { 
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5
+        },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 30 }
+        }
+      });
+      
+      // 5. TOTALI
+      const finalY = (doc as any).lastAutoTable.finalY + 5;
+      const totalAmount = `€${orderData.totalAmount?.toFixed(2) || '0.00'}`;
+      const taxAmount = `€${orderData.taxAmount?.toFixed(2) || '0.00'}`;
+      const finalTotal = `€${(orderData.totalAmount + orderData.taxAmount)?.toFixed(2) || '0.00'}`;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Subtotale: ${totalAmount} | IVA: ${taxAmount} | TOTALE: ${finalTotal}`, margin, finalY);
+      
+      // 6. NOTE (se presenti)
+      if (orderData.notes) {
+        yPosition = finalY + 15;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('NOTE:', margin, yPosition);
+        yPosition += 5;
+        doc.setFont('helvetica', 'normal');
+        const splitNotes = doc.splitTextToSize(orderData.notes, contentWidth);
+        doc.text(splitNotes, margin, yPosition);
+      }
+
+      // 7. FOOTER
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
+        pageWidth - margin,
+        pageHeight - 15,
+        { align: 'right' }
+      );
+
+      // Salva il PDF temporaneamente
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      // Crea un link temporaneo per scaricare il PDF
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `ordine_${orderData.orderNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Pulisci l'URL temporaneo
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+
+      // Apri il client email con le istruzioni
+      const subject = encodeURIComponent(`Ordine ${orderData.orderNumber} - FARMAP`);
+      const body = encodeURIComponent(`Gentile ${orderData.customerName},
 
 In allegato l'ordine di acquisto n. ${orderData.orderNumber}.
 
 Dettagli ordine:
 - Data: ${new Date(orderData.orderDate).toLocaleDateString('it-IT')}
-- Totale: €${orderData.totalAmount.toFixed(2)}
+- Totale: €${orderData.totalAmount?.toFixed(2) || '0.00'}
+
+IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
+Per allegarlo:
+1. Clicca sull'icona graffetta (📎) in questa email
+2. Seleziona il file "ordine_${orderData.orderNumber}.pdf" dalla cartella Downloads
+3. Il file verrà allegato automaticamente
+4. Invia l'email
 
 Cordiali saluti,
-FARMAP S.r.l.`);
+FARMAP INDUSTRY S.r.l.`);
 
-    window.open(`mailto:${orderData.customerEmail}?subject=${subject}&body=${body}`);
+      window.open(`mailto:${orderData.customerEmail}?subject=${subject}&body=${body}`);
 
-    addNotification({
-      type: 'success',
-      title: 'Email Aperta',
-      message: 'Il client di posta è stato aperto con i dettagli dell\'ordine'
-    });
+      addNotification({
+        type: 'success',
+        title: 'PDF generato e email preparata',
+        message: `PDF scaricato automaticamente. Email preparata per ${orderData.customerEmail}`
+      });
+      
+    } catch (error) {
+      console.error('Error generating PDF for email:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile generare il PDF per l\'email'
+      });
+    }
   };
 
   return (

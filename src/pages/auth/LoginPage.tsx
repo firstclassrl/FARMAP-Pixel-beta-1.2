@@ -105,22 +105,19 @@ export const LoginPage = () => {
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <div className="bg-white rounded-lg p-4 border-2 border-black shadow-lg">
-              <img 
-                src="/logo farmap industry.png" 
-                alt="FARMAP Logo" 
-                className="h-12 w-auto drop-shadow-lg"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const fallback = document.createElement('div');
-                  fallback.className = 'text-2xl font-bold text-red-600';
-                  fallback.textContent = 'FARMAP';
-                  e.currentTarget.parentNode?.appendChild(fallback);
-                }}
-              />
-            </div>
+            <img 
+              src="/logo farmap industry.png" 
+              alt="FARMAP Logo" 
+              className="h-16 w-auto drop-shadow-lg"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const fallback = document.createElement('div');
+                fallback.className = 'text-3xl font-bold text-white';
+                fallback.textContent = 'FARMAP';
+                e.currentTarget.parentNode?.appendChild(fallback);
+              }}
+            />
           </div>
-          <p className="text-sm text-white mb-2">www.farmapindustry.it</p>
           <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
             Accedi a Pixel CRM
           </h1>
@@ -248,7 +245,7 @@ export const LoginPage = () => {
             <span className="text-sm text-gray-300">Pixel CRM v1.0.0</span>
           </div>
           <p className="text-xs text-gray-400">
-            © 2025 FARMAP S.r.l. Tutti i diritti riservati.
+            © 2025 FARMAP INDUSTRY S.r.l. Tutti i diritti riservati.
           </p>
         </div>
       </div>
