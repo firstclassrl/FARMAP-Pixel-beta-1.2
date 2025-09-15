@@ -129,6 +129,7 @@ CREATE TRIGGER on_auth_user_created
 -- 3. VERIFY EXISTING USERS HAVE PROFILES
 -- ==============================================
 
+
 -- Create profiles for any existing auth users that don't have profiles
 INSERT INTO public.profiles (id, email, full_name, role)
 SELECT 
