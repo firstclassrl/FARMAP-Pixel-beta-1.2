@@ -23,7 +23,7 @@ const quickActions = [
     hoverColor: 'hover:bg-blue-600',
     borderHover: 'hover:border-blue-500',
     textHover: 'group-hover:text-blue-600',
-    roles: ['admin', 'commerciale']
+    roles: ['admin', 'commerciale', 'sales']
   },
   {
     title: 'Prodotti',
@@ -34,7 +34,7 @@ const quickActions = [
     hoverColor: 'hover:bg-green-600',
     borderHover: 'hover:border-green-500',
     textHover: 'group-hover:text-green-600',
-    roles: ['admin', 'commerciale', 'lettore']
+    roles: ['admin', 'commerciale', 'lettore', 'sales']
   },
   {
     title: 'Listini',
@@ -45,7 +45,7 @@ const quickActions = [
     hoverColor: 'hover:bg-purple-600',
     borderHover: 'hover:border-purple-500',
     textHover: 'group-hover:text-purple-600',
-    roles: ['admin', 'commerciale']
+    roles: ['admin', 'commerciale', 'sales']
   },
   {
     title: 'Ordini',
@@ -56,7 +56,7 @@ const quickActions = [
     hoverColor: 'hover:bg-orange-600',
     borderHover: 'hover:border-orange-500',
     textHover: 'group-hover:text-orange-600',
-    roles: ['admin', 'commerciale']
+    roles: ['admin', 'commerciale', 'sales']
   },
   {
     title: 'Garden',
@@ -67,7 +67,7 @@ const quickActions = [
     hoverColor: 'hover:bg-emerald-600',
     borderHover: 'hover:border-emerald-500',
     textHover: 'group-hover:text-emerald-600',
-    roles: ['admin', 'commerciale', 'production']
+    roles: ['admin', 'commerciale', 'production', 'sales']
   },
   {
     title: 'Campionatura',
@@ -78,7 +78,7 @@ const quickActions = [
     hoverColor: 'hover:bg-red-600',
     borderHover: 'hover:border-red-500',
     textHover: 'group-hover:text-red-600',
-    roles: ['admin', 'commerciale']
+    roles: ['admin', 'commerciale', 'sales']
   },
   {
     title: 'Report',
@@ -89,7 +89,7 @@ const quickActions = [
     hoverColor: 'hover:bg-indigo-600',
     borderHover: 'hover:border-indigo-500',
     textHover: 'group-hover:text-indigo-600',
-    roles: ['admin', 'commerciale', 'lettore']
+    roles: ['admin', 'commerciale', 'lettore', 'sales']
   }
 ];
 

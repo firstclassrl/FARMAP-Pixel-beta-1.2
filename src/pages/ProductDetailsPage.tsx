@@ -267,7 +267,7 @@ export default function ProductDetailsPage() {
     }
   };
 
-  const canViewDocuments = profile?.role === 'admin' || profile?.role === 'customer_user';
+  const canViewDocuments = profile?.role === 'admin' || profile?.role === 'customer_user' || profile?.role === 'sales';
   const canUploadImage = profile?.role === 'admin' || profile?.role === 'production';
 
   if (loading) {

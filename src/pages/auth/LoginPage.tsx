@@ -146,6 +146,7 @@ export const LoginPage = () => {
                     id="email"
                     type="email"
                     placeholder="nome@farmap.com"
+                    autoComplete="email"
                     {...register('email')}
                     className={`pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:bg-white/20 focus:border-white/40 ${errors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : ''}`}
                     disabled={isLoading}
@@ -167,6 +168,7 @@ export const LoginPage = () => {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
+                    autoComplete="current-password"
                     {...register('password')}
                     className={`pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:bg-white/20 focus:border-white/40 ${errors.password ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : ''}`}
                     disabled={isLoading}
