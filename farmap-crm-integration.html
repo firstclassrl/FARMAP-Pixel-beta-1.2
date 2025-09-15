@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel CRM - FARMAP Industry</title>
+    <meta name="description" content="Sistema di gestione commerciale FARMAP - Gestisci clienti, prodotti, ordini e listini">
+    <meta name="keywords" content="CRM, FARMAP, gestione commerciale, clienti, prodotti, ordini">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Pixel CRM - FARMAP Industry">
+    <meta property="og:description" content="Sistema di gestione commerciale FARMAP">
+    <meta property="og:url" content="https://crm.farmapindustry.it">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://www.farmapindustry.it/images/pixel-crm-og.jpg">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Pixel CRM - FARMAP Industry">
+    <meta name="twitter:description" content="Sistema di gestione commerciale FARMAP">
+    <meta name="twitter:image" content="https://www.farmapindustry.it/images/pixel-crm-og.jpg">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .crm-header {
+            text-align: center;
+            margin-bottom: 60px;
+            color: white;
+        }
+        
+        .crm-header img {
+            width: 200px;
+            height: auto;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+        }
+        
+        .crm-header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .crm-header p {
+            font-size: 1.3rem;
+            opacity: 0.9;
+        }
+        
+        .crm-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            color: #dc2626;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .crm-demo {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+        
+        .crm-demo h2 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .crm-demo p {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+        
+        .demo-button {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 18px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3);
+        }
+        
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(220, 38, 38, 0.4);
+        }
+        
+        .credentials {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 30px 0;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .credentials h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .credential-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .credential-item:last-child {
+            border-bottom: none;
+        }
+        
+        .credential-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .credential-value {
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 6px;
+            color: #333;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            opacity: 0.8;
+            margin-top: 40px;
+        }
+        
+        .footer a {
+            color: white;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            .crm-header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .crm-features {
+                grid-template-columns: 1fr;
+            }
+            
+            .crm-demo {
+                padding: 30px 20px;
+            }
+            
+            .credential-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="crm-header">
+            <img src="logo-farmap-industry.png" alt="FARMAP Industry Logo">
+            <h1>Pixel CRM</h1>
+            <p>Sistema di gestione commerciale completo per FARMAP</p>
+        </div>
+        
+        <!-- Features -->
+        <div class="crm-features">
+            <div class="feature-card">
+                <div class="feature-icon">👥</div>
+                <h3>Gestione Clienti</h3>
+                <p>Database clienti completo con informazioni dettagliate, contatti e storico ordini</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3>Gestione Prodotti</h3>
+                <p>Catalogo prodotti con codici, descrizioni, prezzi e gestione scorte</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3>Listini Prezzi</h3>
+                <p>Creazione e gestione listini personalizzati per ogni cliente</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🛒</div>
+                <h3>Gestione Ordini</h3>
+                <p>Creazione ordini, tracking stato e generazione documenti</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Report e Analytics</h3>
+                <p>Dashboard con statistiche vendite e performance commerciali</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔐</div>
+                <h3>Sicurezza</h3>
+                <p>Accesso sicuro con autenticazione e gestione ruoli utenti</p>
+            </div>
+        </div>
+        
+        <!-- Demo Section -->
+        <div class="crm-demo">
+            <h2>Prova Pixel CRM</h2>
+            <p>Accedi alla demo e scopri tutte le funzionalità del sistema</p>
+            
+            <div class="credentials">
+                <h3>🔐 Credenziali Demo</h3>
+                <div class="credential-item">
+                    <span class="credential-label">Email:</span>
+                    <span class="credential-value">admin@admin.it</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Password:</span>
+                    <span class="credential-value">admin123</span>
+                </div>
+            </div>
+            
+            <a href="https://crm.farmapindustry.it" class="demo-button" target="_blank">
+                🚀 Accedi al CRM
+            </a>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>
+                <strong>FARMAP INDUSTRY S.r.l.</strong><br>
+                Via Nazionale, 66 - 65012 Cepagatti (PE)<br>
+                <a href="https://www.farmapindustry.it">www.farmapindustry.it</a>
+            </p>
+        </div>
+    </div>
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GA_MEASUREMENT_ID');
+        
+        // Traccia click su demo button
+        document.querySelector('.demo-button').addEventListener('click', function() {
+            gtag('event', 'crm_demo_click', {
+                'event_category': 'engagement',
+                'event_label': 'pixel_crm_demo'
+            });
+        });
+    </script>
+</body>
+</html>
