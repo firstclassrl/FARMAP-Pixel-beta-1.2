@@ -19,7 +19,7 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import { GardenLoginPage } from './pages/GardenLoginPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { NotificationToast } from './components/NotificationToast';
+import Toast from './components/Toast';
 import { LoadingFallback } from './components/LoadingFallback';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -96,7 +96,7 @@ function App() {
           )}
         </Routes>
       </BrowserRouter>
-      <NotificationToast />
+      <Toast />
     </ErrorBoundary>
   );
 }

@@ -61,10 +61,10 @@ import { z } from 'zod';
 
 type Product = Database['public']['Tables']['products']['Row'];
 type Customer = Database['public']['Tables']['customers']['Row'];
+type Category = Database['public']['Tables']['categories']['Row'];
 type ProductInsert = Database['public']['Tables']['products']['Insert'];
 
-// Start with empty categories - completely user-defined
-const categories: string[] = [];
+// Database categories will be loaded dynamically
 
 const categorySchema = z.object({
   name: z.string().min(2, 'Nome categoria richiesto')
@@ -75,7 +75,7 @@ type CategoryForm = z.infer<typeof categorySchema>;
 export const ProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductFormModal, setShowProductFormModal] = useState(false);
@@ -102,8 +102,27 @@ export const ProductsPage = () => {
     resolver: zodResolver(categorySchema)
   });
 
-  // Combine default and custom categories
-  const allCategories = [...categories, ...customCategories];
+  // Get category names from database
+  const allCategories = categories.filter(cat => cat.is_active).map(cat => cat.name);
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile caricare le categorie'
+      });
+    }
+  }, [addNotification]);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -115,14 +134,6 @@ export const ProductsPage = () => {
 
       if (error) throw error;
       setProducts(data || []);
-
-      // Extract unique custom categories from products
-      const productCategories = data
-        ?.map(p => p.category)
-        .filter((cat): cat is string => cat !== null && cat !== undefined && !categories.includes(cat))
-        .filter((cat, index, arr) => arr.indexOf(cat) === index) || [];
-      
-      setCustomCategories(productCategories);
     } catch (error) {
       console.error('Error loading products:', error);
       addNotification({
@@ -151,9 +162,10 @@ export const ProductsPage = () => {
   }, []);
 
   useEffect(() => {
+    loadCategories();
     loadProducts();
     loadCustomers();
-  }, [loadProducts, loadCustomers]);
+  }, [loadCategories, loadProducts, loadCustomers]);
 
   const handleEdit = (product: Product) => {
     if (!user?.id) {
@@ -236,20 +248,50 @@ export const ProductsPage = () => {
   };
 
   const onSubmitCategory = async (data: CategoryForm) => {
-    if (!customCategories.includes(data.name) && !categories.includes(data.name)) {
-      setCustomCategories(prev => [...prev, data.name]);
+    if (!user?.id) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Devi essere autenticato per creare categorie'
+      });
+      return;
+    }
+
+    // Check if category already exists
+    if (categories.some(cat => cat.name.toLowerCase() === data.name.toLowerCase())) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Questa categoria esiste già'
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .insert([{
+          name: data.name,
+          created_by: user.id
+        }]);
+
+      if (error) throw error;
+
       addNotification({
         type: 'success',
         title: 'Categoria aggiunta',
         message: `La categoria "${data.name}" è stata aggiunta`
       });
+      
       resetCategory();
       setShowCategoryDialog(false);
-    } else {
+      loadCategories(); // Reload categories
+    } catch (error) {
+      console.error('Error creating category:', error);
       addNotification({
         type: 'error',
         title: 'Errore',
-        message: 'Questa categoria esiste già'
+        message: 'Impossibile creare la categoria'
       });
     }
   };
@@ -288,8 +330,13 @@ export const ProductsPage = () => {
         if (error) throw error;
       }
 
-      // Remove from custom categories
-      setCustomCategories(prev => prev.filter(cat => cat !== categoryName));
+      // Delete from database
+      const { error: deleteError } = await supabase
+        .from('categories')
+        .delete()
+        .eq('name', categoryName);
+
+      if (deleteError) throw deleteError;
       
       addNotification({
         type: 'success',
@@ -299,7 +346,8 @@ export const ProductsPage = () => {
           : `La categoria "${categoryName}" è stata eliminata`
       });
       
-      // Reload products to reflect changes
+      // Reload data to reflect changes
+      await loadCategories();
       await loadProducts();
       
     } catch (error: any) {
@@ -357,8 +405,13 @@ export const ProductsPage = () => {
         if (error) throw error;
       }
 
-      // Clear all custom categories
-      setCustomCategories([]);
+      // Delete all categories from database
+      const { error: deleteError } = await supabase
+        .from('categories')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (deleteError) throw deleteError;
       
       addNotification({
         type: 'success',
@@ -368,7 +421,8 @@ export const ProductsPage = () => {
           : `Tutte le ${totalCategories} categorie sono state eliminate`
       });
       
-      // Reload products to reflect changes
+      // Reload data to reflect changes
+      await loadCategories();
       await loadProducts();
       
     } catch (error: any) {
@@ -422,7 +476,7 @@ export const ProductsPage = () => {
         { key: 'regulation', label: 'Normativa' },
         { key: 'product_notes', label: 'Note Prodotto' },
         { key: 'created_at', label: 'Data Creazione', format: formatDate },
-        { key: 'image_url', label: 'URL Immagine' }
+        { key: 'photo_url', label: 'URL Foto' }
       ];
 
       const success = exportToExcel(filteredProducts, columns, `prodotti_${new Date().toISOString().split('T')[0]}`);
@@ -469,7 +523,7 @@ export const ProductsPage = () => {
         { key: 'regulation', label: 'Normativa' },
         { key: 'product_notes', label: 'Note Prodotto' },
         { key: 'created_at', label: 'Data Creazione', format: formatDate },
-        { key: 'image_url', label: 'URL Immagine' }
+        { key: 'photo_url', label: 'URL Foto' }
       ];
 
       const success = exportToCSV(filteredProducts, columns, `prodotti_${new Date().toISOString().split('T')[0]}`);
@@ -518,7 +572,7 @@ export const ProductsPage = () => {
         { csvKey: 'Tipo Cartone', dbKey: 'packaging_type' },
         { csvKey: 'Normativa', dbKey: 'regulation' },
         { csvKey: 'Note Prodotto', dbKey: 'product_notes' },
-        { csvKey: 'URL Immagine', dbKey: 'image_url' }
+        { csvKey: 'URL Foto', dbKey: 'photo_url' }
       ];
 
       const result = await parseCSV<ProductInsert>(file, columns);
@@ -772,7 +826,7 @@ export const ProductsPage = () => {
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t">
-                      {product.image_url ? (
+                      {product.photo_url ? (
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200 liquid-glass-badge">
                           <FileImage className="w-3 h-3 inline mr-1" />
                           Con foto
@@ -824,8 +878,9 @@ export const ProductsPage = () => {
       <ProductFormModal
         isOpen={showProductFormModal}
         onClose={handleProductFormClose}
-        product={productToEdit}
+        editingProduct={productToEdit}
         onSaveSuccess={handleProductSaveSuccess}
+        categories={allCategories}
       />
 
       {/* Category Management Dialog */}
@@ -881,7 +936,6 @@ export const ProductsPage = () => {
                 ) : (
                   <div className="divide-y">
                     {allCategories.map((category, index) => {
-                      const isCustom = customCategories.includes(category);
                       const productsUsingCategory = products.filter(p => p.category === category).length;
                       
                       return (
@@ -894,7 +948,7 @@ export const ProductsPage = () => {
                               <div>
                                 <p className="font-medium text-gray-900">{category}</p>
                                 <p className="text-xs text-gray-500">
-                                  {isCustom ? 'Categoria personalizzata' : 'Categoria da prodotti esistenti'}
+                                  Categoria salvata nel database
                                   {productsUsingCategory > 0 && (
                                     <span className="ml-2">• {productsUsingCategory} prodotto{productsUsingCategory > 1 ? 'i' : ''}</span>
                                   )}
@@ -902,12 +956,8 @@ export const ProductsPage = () => {
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                isCustom 
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {isCustom ? 'Personalizzata' : 'Da Prodotti'}
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Database
                               </span>
                               <Button
                                 variant="ghost"

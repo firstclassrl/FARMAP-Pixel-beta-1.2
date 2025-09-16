@@ -109,13 +109,13 @@ export default function ProductDetailsPage() {
       // Update product with new image URL
       const { error: updateError } = await supabase
         .from('products')
-        .update({ image_url: publicUrl })
+        .update({ photo_url: publicUrl })
         .eq('id', product.id);
 
       if (updateError) throw updateError;
 
       // Update local state
-      setProduct(prev => ({ ...prev, image_url: publicUrl }));
+      setProduct(prev => ({ ...prev, photo_url: publicUrl }));
 
       addNotification({
         type: 'success',
@@ -354,10 +354,10 @@ export default function ProductDetailsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {product.image_url ? (
+                {product.photo_url ? (
                   <div className="relative">
                     <img
-                      src={product.image_url}
+                      src={product.photo_url}
                       alt={product.name}
                       className="w-full h-[600px] object-contain rounded-lg border border-white/20 bg-white/10"
                     />
@@ -367,7 +367,7 @@ export default function ProductDetailsPage() {
                           size="sm"
                           variant="outline"
                           className="bg-red-500/80 backdrop-blur-sm border-red-400/60 text-white hover:bg-red-500/90 h-6 text-xs px-2"
-                          onClick={() => window.open(product.image_url, '_blank')}
+                          onClick={() => window.open(product.photo_url, '_blank')}
                         >
                           <Download className="w-3 h-3 mr-1" />
                           Download foto

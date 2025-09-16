@@ -36,7 +36,8 @@ const initialFormData = {
   tax_code: '',
   payment_terms: 30,
   discount_percentage: 0,
-  notes: ''
+  notes: '',
+  code_prefix: ''
 };
 
 export default function CustomersPage() {
@@ -123,7 +124,8 @@ export default function CustomersPage() {
       tax_code: customer.tax_code || '',
       payment_terms: customer.payment_terms || 30,
       discount_percentage: Number(customer.discount_percentage) || 0,
-      notes: customer.notes || ''
+      notes: customer.notes || '',
+      code_prefix: customer.code_prefix || ''
     });
     setIsFormOpen(true);
   };
@@ -319,6 +321,26 @@ export default function CustomersPage() {
                   placeholder="Nome del referente"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="code_prefix">Prefisso Codice Prodotto</Label>
+                <Input
+                  id="code_prefix"
+                  value={formData.code_prefix}
+                  onChange={e => {
+                    const value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').substring(0, 2);
+                    setFormData({ ...formData, code_prefix: value });
+                  }}
+                  placeholder="Es: PB"
+                  maxLength={2}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Due lettere per identificare i prodotti di questo cliente (es: PB0001)
+                </p>
+              </div>
+              <div></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

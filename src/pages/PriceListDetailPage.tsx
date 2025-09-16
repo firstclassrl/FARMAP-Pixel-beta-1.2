@@ -25,6 +25,7 @@ import { formatCurrency } from '../lib/exportUtils';
 import { Loader2, FileText, Package, Plus, Edit, Trash2, X, Building, Check } from 'lucide-react';
 import type { Database } from '../types/database.types';
 import { CustomerSelectionModal } from '../components/CustomerSelectionModal';
+import ProductSelectionModal from '../components/ProductSelectionModal';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
 type PriceListInsert = Database['public']['Tables']['price_lists']['Insert'];
@@ -95,6 +96,7 @@ export function PriceListDetailPage({
   const [showItemForm, setShowItemForm] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [isNewPriceListCreated, setIsNewPriceListCreated] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
@@ -564,13 +566,58 @@ export function PriceListDetailPage({
     setShowCustomerModal(false);
   };
 
+
   const handleOpenCustomerModal = () => {
     setShowCustomerModal(true);
   };
 
+  const handlePriceChange = async (itemId: string, newPrice: number) => {
+    try {
+      const { error } = await supabase
+        .from('price_list_items')
+        .update({ price: newPrice })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      // Aggiorna lo stato locale
+      if (currentPriceList) {
+        const updatedItems = currentPriceList.price_list_items.map(item =>
+          item.id === itemId ? { ...item, price: newPrice } : item
+        );
+        setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
+      }
+    } catch (error) {
+      console.error('Errore nell\'aggiornamento del prezzo:', error);
+      addNotification('Errore nell\'aggiornamento del prezzo', 'error');
+    }
+  };
+
+  const handleMOQChange = async (itemId: string, newMOQ: number) => {
+    try {
+      const { error } = await supabase
+        .from('price_list_items')
+        .update({ min_quantity: newMOQ })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      // Aggiorna lo stato locale
+      if (currentPriceList) {
+        const updatedItems = currentPriceList.price_list_items.map(item =>
+          item.id === itemId ? { ...item, min_quantity: newMOQ } : item
+        );
+        setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
+      }
+    } catch (error) {
+      console.error('Errore nell\'aggiornamento del MOQ:', error);
+      addNotification('Errore nell\'aggiornamento del MOQ', 'error');
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {priceListId ? 'Modifica Listino' : 'Nuovo Listino'}
@@ -582,68 +629,50 @@ export function PriceListDetailPage({
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="h-full overflow-y-auto space-y-6 p-1">
             {/* Informazioni Listino Section */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-4">
-                <FileText className="w-5 h-5 text-red-600" />
-                <h3 className="text-lg font-semibold text-red-800">Informazioni Listino</h3>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-red-600" />
+                  <h3 className="text-sm font-semibold text-red-800">Informazioni Listino</h3>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => setShowProductModal(true)}
+                  className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Inserisci Prodotti
+                </Button>
               </div>
               
-              <form onSubmit={handleSubmit(handleMainFormSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit(handleMainFormSubmit)} className="mt-2">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                   <div>
-                    <Label htmlFor="name">Nome Listino *</Label>
+                    <Label htmlFor="name" className="text-xs font-medium text-gray-700">
+                      Nome Listino *
+                    </Label>
                     <Input
                       id="name"
                       {...register('name')}
-                      className={errors.name ? 'border-red-500' : ''}
+                      className={`h-6 text-xs ${errors.name ? 'border-red-500' : ''}`}
+                      placeholder="es. Listino 2024"
                     />
                     {errors.name && (
-                      <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                      <p className="text-xs text-red-600 mt-1">{errors.name.message}</p>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="customer_id">Cliente *</Label>
-                    <div className="space-y-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleOpenCustomerModal}
-                        className={`w-full justify-start h-auto p-3 ${errors.customer_id ? 'border-red-500' : ''}`}
-                      >
+                    <Label className="text-xs font-medium text-gray-700">Cliente *</Label>
+                    <div className="flex items-center space-x-1">
                         {selectedCustomer ? (
-                          <div className="flex items-center space-x-3 w-full">
-                            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                              <Building className="w-4 h-4 text-primary-600" />
-                            </div>
-                            <div className="flex-1 text-left">
-                              <div className="font-medium text-gray-900">
+                        <div className="flex items-center space-x-1 bg-white border rounded px-1 py-0.5 h-6 flex-1">
+                          <Building className="w-3 h-3 text-gray-500" />
+                          <span className="text-xs text-gray-700 truncate">
                                 {selectedCustomer.company_name}
-                              </div>
-                              {selectedCustomer.contact_person && (
-                                <div className="text-xs text-gray-500">
-                                  {selectedCustomer.contact_person}
-                                </div>
-                              )}
-                              {selectedCustomer.city && (
-                                <div className="text-xs text-gray-500">
-                                  {selectedCustomer.city}, {selectedCustomer.province}
-                                </div>
-                              )}
-                            </div>
-                            <Check className="w-4 h-4 text-primary-600" />
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-2 text-gray-500">
-                            <Building className="w-4 h-4" />
-                            <span>Clicca per selezionare un cliente</span>
-                          </div>
-                        )}
-                      </Button>
-                      
-                      {selectedCustomer && (
+                          </span>
                         <Button
                           type="button"
                           variant="ghost"
@@ -653,306 +682,165 @@ export function PriceListDetailPage({
                             setSelectedCustomerId('');
                             setValue('customer_id', '');
                           }}
-                          className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-3 w-3 p-0 hover:bg-gray-100"
+                          >
+                            <X className="h-2 w-2" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleOpenCustomerModal}
+                          className={`h-6 text-xs flex-1 justify-start px-1 ${errors.customer_id ? 'border-red-500' : ''}`}
                         >
-                          <X className="w-4 h-4 mr-2" />
-                          Rimuovi cliente assegnato
+                          <Building className="w-3 h-3 mr-1" />
+                          Cliente
                         </Button>
                       )}
                     </div>
                     {errors.customer_id && (
-                      <p className="mt-1 text-sm text-red-600">{errors.customer_id.message}</p>
+                      <p className="text-xs text-red-600 mt-1">{errors.customer_id.message}</p>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="currency">Valuta</Label>
-                    <Select onValueChange={(value) => setValue('currency', value)} defaultValue="EUR">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EUR">EUR (€)</SelectItem>
-                        <SelectItem value="USD">USD ($)</SelectItem>
-                        <SelectItem value="GBP">GBP (£)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="md:col-span-1">
-                    <Label htmlFor="valid_from">Valido dal *</Label>
+                    <Label htmlFor="valid_from" className="text-xs font-medium text-gray-700">
+                      Valido dal *
+                    </Label>
                     <Input
                       id="valid_from"
                       type="date"
                       {...register('valid_from')}
-                      className={errors.valid_from ? 'border-red-500' : ''}
+                      className={`h-6 text-xs ${errors.valid_from ? 'border-red-500' : ''}`}
                     />
                     {errors.valid_from && (
-                      <p className="mt-1 text-sm text-red-600">{errors.valid_from.message}</p>
+                      <p className="text-xs text-red-600 mt-1">{errors.valid_from.message}</p>
                     )}
                   </div>
 
-                  <div className="md:col-span-2">
-                    <Label htmlFor="valid_until">Valido fino al</Label>
+                  <div>
+                    <Label htmlFor="valid_until" className="text-xs font-medium text-gray-700">
+                      Valido fino al
+                    </Label>
                     <Input
                       id="valid_until"
                       type="date"
                       {...register('valid_until')}
+                      className="h-6 text-xs"
                     />
                   </div>
 
-                  <div className="md:col-span-2">
-                    <Label htmlFor="description">Descrizione</Label>
-                    <textarea
-                      id="description"
-                      {...register('description')}
-                      className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="Descrizione del listino..."
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        id="is_default"
-                        type="checkbox"
-                        {...register('is_default')}
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                      />
-                      <Label htmlFor="is_default">Listino predefinito</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex justify-end space-x-2">
-                  <Button type="submit" disabled={isSubmitting}>
+                  <div className="flex items-end">
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="h-6 text-xs px-3 bg-green-600 hover:bg-green-700"
+                    >
                     {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvataggio...
-                      </>
+                        <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
-                      currentPriceList ? 'Aggiorna Listino' : 'Salva Dettagli Listino'
+                        currentPriceList ? 'Aggiorna' : 'Salva'
                     )}
                   </Button>
+                  </div>
                 </div>
               </form>
             </div>
 
-            {/* Prodotti nel Listino Section - SEMPRE VISIBILE */}
-            <div ref={productsSectionRef} className="bg-red-50 border border-red-200 rounded-lg p-4">
+            {/* Prodotti nel Listino Section - CON VISUALIZZAZIONE */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
-                  <Package className="w-5 h-5 text-red-600" />
-                  <h3 className="text-lg font-semibold text-red-800">
-                    Prodotti nel Listino {currentPriceList?.customer ? `per ${currentPriceList.customer.company_name}` : ''}
+                  <Package className="w-5 h-5 text-green-600" />
+                  <h3 className="text-lg font-semibold text-green-800">
+                    Prodotti nel Listino ({currentPriceList?.price_list_items?.length || 0})
                   </h3>
                 </div>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddProduct}
-                  className="flex items-center space-x-1"
+                  onClick={() => setShowProductModal(true)}
+                  className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Aggiungi Prodotto</span>
+                  <Plus className="w-3 h-3 mr-1" />
+                  Aggiungi Prodotti
                 </Button>
               </div>
 
-              {/* Messaggio informativo se il listino non è ancora salvato */}
-              {!currentPriceList && (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Nota:</strong> Salva prima le informazioni del listino per poter aggiungere i prodotti.
+              {!currentPriceList ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                  <p className="text-sm text-green-700">
+                    Salva prima le informazioni del listino per gestire i prodotti
                   </p>
                 </div>
-              )}
-
-              {/* Lista prodotti */}
+              ) : currentPriceList.price_list_items && currentPriceList.price_list_items.length > 0 ? (
               <div className="space-y-2">
-                {currentPriceList?.price_list_items?.length === 0 && (
-                  <div className="text-center py-8 text-gray-500 bg-white border rounded-lg">
-                    <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p>Nessun prodotto in questo listino.</p>
-                    <p className="text-sm">Clicca "Aggiungi Prodotto" per iniziare.</p>
-                  </div>
-                )}
-
-                {currentPriceList?.price_list_items?.map((item) => (
-                  <div key={item.id} className="bg-white border rounded-lg p-3">
+                  {currentPriceList.price_list_items.map((item) => (
+                    <div key={item.id} className="bg-white border border-green-200 rounded-lg p-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1 grid grid-cols-5 gap-4 items-center">
+                        <div className="flex-1 grid grid-cols-4 gap-4 items-center">
                         <div>
-                          <p className="font-medium text-gray-900">{item.products.name}</p>
+                            <p className="font-medium text-gray-900 text-sm">{item.products.name}</p>
                           <p className="text-xs text-gray-500">{item.products.code}</p>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                            {item.products.category || 'Categoria'}
-                          </span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="text-gray-600">Prezzo:</span>
-                          <div className="font-medium">{formatCurrency(item.price)}</div>
-                        </div>
-                        <div className="text-sm">
-                          <span className="text-gray-600">MOQ:</span>
-                          <div className="font-medium">{item.min_quantity} {item.products.unit}</div>
-                        </div>
+                          <div className="text-sm">
+                            <span className="text-gray-600">Prezzo:</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.price}
+                              onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
+                              className="h-6 text-xs w-20 mt-1"
+                            />
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-600">MOQ:</span>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.min_quantity}
+                              onChange={(e) => handleMOQChange(item.id, parseInt(e.target.value) || 1)}
+                              className="h-6 text-xs w-16 mt-1"
+                            />
+                            <span className="text-xs text-gray-500 ml-1">{item.products.unit}</span>
+                          </div>
                         <div className="text-sm">
                           {item.discount_percentage > 0 && (
-                            <span className="text-red-600 text-xs">Sconto {item.discount_percentage}%</span>
+                              <div>
+                                <span className="text-gray-600">Sconto:</span>
+                                <div className="font-medium text-green-600">{item.discount_percentage}%</div>
+                              </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-1 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditItem(item)}
-                          className="h-8 w-8"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                        <div className="flex items-center space-x-2 ml-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="h-6 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Form Aggiungi/Modifica Prodotto */}
-            {showItemForm && (
-              <div className="bg-gray-50 border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-md font-medium">
-                    {editingItemId ? 'Modifica Prodotto' : 'Aggiungi Nuovo Prodotto'}
-                  </h4>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleCancelItemForm}
-                    className="h-8 w-8"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <form onSubmit={handleSubmitItem(handleItemFormSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <Label htmlFor="product_id">Prodotto *</Label>
-                      <Select
-                        value={watchItem('product_id') || ''}
-                        onValueChange={(value) => setItemValue('product_id', value)}
-                        disabled={!!editingItemId}
-                      >
-                        <SelectTrigger className={itemErrors.product_id ? 'border-red-500' : ''}>
-                          <SelectValue placeholder="Seleziona prodotto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.code} - {product.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {itemErrors.product_id && (
-                        <p className="mt-1 text-sm text-red-600">{itemErrors.product_id.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="price">Prezzo (€) *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        {...registerItem('price', { valueAsNumber: true })}
-                        className={itemErrors.price ? 'border-red-500' : ''}
-                      />
-                      {itemErrors.price && (
-                        <p className="mt-1 text-sm text-red-600">{itemErrors.price.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="min_quantity">MOQ</Label>
-                      <Input
-                        id="min_quantity"
-                        type="number"
-                        min="1"
-                        {...registerItem('min_quantity', { valueAsNumber: true })}
-                        className={itemErrors.min_quantity ? 'border-red-500' : ''}
-                      />
-                      {itemErrors.min_quantity && (
-                        <p className="mt-1 text-sm text-red-600">{itemErrors.min_quantity.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="discount_percentage">Sconto (%)</Label>
-                      <Input
-                        id="discount_percentage"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        {...registerItem('discount_percentage', { valueAsNumber: true })}
-                        className={itemErrors.discount_percentage ? 'border-red-500' : ''}
-                      />
-                      {itemErrors.discount_percentage && (
-                        <p className="mt-1 text-sm text-red-600">{itemErrors.discount_percentage.message}</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleCancelItemForm}
-                    >
-                      Annulla
-                    </Button>
-                    <Button type="submit" disabled={isItemSubmitting}>
-                      {isItemSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Salvataggio...
-                        </>
-                      ) : (
-                        editingItemId ? 'Aggiorna Prodotto' : 'Aggiungi Prodotto'
-                      )}
-                    </Button>
-                  </div>
-                </form>
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                  <p className="text-sm text-green-700 mb-4">
+                    Nessun prodotto in questo listino
+                  </p>
+                  <p className="text-xs text-green-600">
+                    Clicca "Aggiungi Prodotti" per iniziare
+                  </p>
               </div>
-            )}
-
-            {/* Footer con pulsante Chiudi */}
-            <div className="flex justify-end pt-4 border-t">
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={handleClose}>
-                  Annulla
-                </Button>
-                {(currentPriceList || isNewPriceListCreated) && (
-                  <Button onClick={handleFinishPriceList}>
-                    Fatto
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -967,6 +855,18 @@ export function PriceListDetailPage({
         title="Seleziona Cliente per Listino"
         description="Scegli il cliente a cui assegnare questo listino prezzi"
       />
+
+      {/* Product Selection Modal */}
+      {currentPriceList && (
+        <ProductSelectionModal
+          isOpen={showProductModal}
+          onClose={() => setShowProductModal(false)}
+          onProductSelect={() => {}} // Non usato in questa implementazione
+          priceListId={currentPriceList.id}
+          currentCustomer={currentPriceList.customer}
+        />
+      )}
+
     </Dialog>
   );
 }

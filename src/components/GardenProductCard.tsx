@@ -14,7 +14,7 @@ interface GardenProductCardProps {
     base_price: number;
     unit?: string;
     brand_name?: string;
-    image_url?: string;
+    photo_url?: string;
   };
   onViewDetails?: (product: any) => void;
   onDownload?: (product: any) => void;

@@ -38,6 +38,35 @@ export interface Database {
           updated_at?: string
         }
       }
+      categories: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+          created_by: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string
+        }
+      }
       customers: {
         Row: {
           id: string
@@ -133,6 +162,12 @@ export interface Database {
           regulation: string | null
           product_notes: string | null
           customer_id: string | null
+          cartone: string | null
+          pallet: string | null
+          strati: number | null
+          scadenza: string | null
+          iva: number | null
+          ean: string | null
           created_at: string
           updated_at: string
           created_by: string | null
@@ -163,6 +198,12 @@ export interface Database {
           regulation?: string | null
           product_notes?: string | null
           customer_id?: string | null
+          cartone?: string | null
+          pallet?: string | null
+          strati?: number | null
+          scadenza?: string | null
+          iva?: number | null
+          ean?: string | null
           created_at?: string
           updated_at?: string
           created_by?: string | null
@@ -193,6 +234,12 @@ export interface Database {
           regulation?: string | null
           product_notes?: string | null
           customer_id?: string | null
+          cartone?: string | null
+          pallet?: string | null
+          strati?: number | null
+          scadenza?: string | null
+          iva?: number | null
+          ean?: string | null
           created_at?: string
           updated_at?: string
           created_by?: string | null

@@ -51,7 +51,7 @@ export default function GardenPage() {
         console.log('Tentativo fallback: caricamento diretto dalla tabella products...');
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('products')
-          .select('id, name, code, description, category, base_price, unit, image_url, brand_name')
+          .select('id, name, code, description, category, base_price, unit, photo_url, brand_name')
           .eq('is_active', true);
           
         if (fallbackError) {

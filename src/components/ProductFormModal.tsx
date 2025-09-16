@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, X, PackagePlus, Package } from 'lucide-react';
+import { Loader2, X, PackagePlus, Package, Upload, Image, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../store/useStore';
 import { supabase } from '../lib/supabase';
@@ -21,23 +22,18 @@ type Product = Database['public']['Tables']['products']['Row'];
 
 const productSchema = z.object({
   name: z.string().min(2, 'Nome prodotto richiesto'),
-  description: z.string().optional(),
-  category: z.string().optional(),
   unit: z.string().default('pz'),
   base_price: z.number().min(0, 'Prezzo deve essere maggiore di 0').default(0),
   cost: z.number().min(0, 'Costo deve essere maggiore di 0').default(0),
   weight: z.number().min(0).optional(),
   dimensions: z.string().optional(),
-  image_url: z.string().url('URL immagine non valido').optional().or(z.literal('')),
   code: z.string().min(1, 'Codice prodotto richiesto'),
-  brand_name: z.string().optional(),
-  client_product_code: z.string().optional(),
-  supplier_product_code: z.string().optional(),
-  barcode: z.string().optional(),
-  packaging_type: z.string().optional(),
-  regulation: z.string().optional(),
-  product_notes: z.string().optional(),
-  customer_id: z.string().optional()
+  cartone: z.string().optional(),
+  pallet: z.string().optional(),
+  strati: z.number().min(0).optional(),
+  scadenza: z.string().optional(),
+  iva: z.number().min(0).max(100).default(22),
+  ean: z.string().optional()
 });
 
 type ProductForm = z.infer<typeof productSchema>;
@@ -47,15 +43,22 @@ interface ProductFormModalProps {
   onClose: () => void;
   editingProduct?: Product | null;
   onSaveSuccess: () => void;
+  categories?: string[];
 }
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
   onClose,
   editingProduct,
-  onSaveSuccess
+  onSaveSuccess,
+  categories = []
 }) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [selectedCategory, setSelectedCategory] = React.useState<string>('');
+  const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
+  const [selectedPhoto, setSelectedPhoto] = React.useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = React.useState<string | null>(null);
   const { addNotification } = useNotifications();
   const { user } = useAuth();
 
@@ -70,7 +73,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     defaultValues: {
       unit: 'pz',
       base_price: 0,
-      cost: 0
+      cost: 0,
+      iva: 22
     }
   });
 
@@ -83,14 +87,116 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           setValue(key as keyof ProductForm, value as any);
         }
       });
+      setSelectedCategory(editingProduct.category || '');
+      
+      // Set existing photo URL if available
+      if (editingProduct.photo_url) {
+        console.log('📸 Found existing photo URL:', editingProduct.photo_url);
+        setUploadedPhotoUrl(editingProduct.photo_url);
+        setPhotoPreview(editingProduct.photo_url);
+      } else {
+        console.log('📸 No existing photo URL found for product');
+      }
     } else {
       reset({
         unit: 'pz',
         base_price: 0,
-        cost: 0
+        cost: 0,
+        iva: 22
       });
+      setSelectedCategory('');
+      setUploadedPhotoUrl(null);
+      setPhotoPreview(null);
     }
   }, [editingProduct, setValue, reset]);
+
+  const handlePhotoSelect = (file: File) => {
+    setSelectedPhoto(file);
+    setUploadedPhotoUrl(null); // Reset uploaded URL when new photo is selected
+
+    try {
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      addNotification({
+        type: 'success',
+        title: 'Foto selezionata',
+        message: 'Clicca "Carica Foto" per caricarla nel database'
+      });
+    } catch (error: any) {
+      console.error('Errore nella selezione foto:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile selezionare la foto'
+      });
+    }
+  };
+
+  const handlePhotoDelete = () => {
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+    setUploadedPhotoUrl(null);
+  };
+
+  const handleUploadPhoto = async () => {
+    if (!selectedPhoto || !user?.id) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Seleziona una foto e assicurati di essere autenticato'
+      });
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    try {
+      // Generate a temporary ID for the photo
+      const tempId = `temp_${Date.now()}`;
+      const fileExt = selectedPhoto.name.split('.').pop();
+      const fileName = `product_photo.${fileExt}`;
+      const filePath = `${tempId}/${fileName}`;
+
+      console.log('📁 Uploading to bucket product-photos with path:', filePath);
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-photos')
+        .upload(filePath, selectedPhoto, { upsert: true });
+
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('product-photos')
+        .getPublicUrl(filePath);
+
+      console.log('✅ Photo uploaded successfully:', data.publicUrl);
+      setUploadedPhotoUrl(data.publicUrl);
+
+      addNotification({
+        type: 'success',
+        title: 'Foto caricata',
+        message: 'Foto caricata con successo nel database'
+      });
+    } catch (error: any) {
+      console.error('Errore upload foto:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile caricare la foto'
+      });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const onSubmit = async (data: ProductForm) => {
     if (!user?.id) {
@@ -108,33 +214,38 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const productData = {
         code: data.code,
         name: data.name,
-        description: data.description || null,
-        category: data.category || null,
+        category: selectedCategory && selectedCategory.trim() !== '' ? selectedCategory : null,
         unit: data.unit || 'pz',
         base_price: data.base_price || 0,
         cost: data.cost || 0,
         weight: data.weight || null,
         dimensions: data.dimensions || null,
-        image_url: data.image_url || null,
-        brand_name: data.brand_name || null,
-        client_product_code: data.client_product_code || null,
-        supplier_product_code: data.supplier_product_code || null,
-        barcode: data.barcode || null,
-        packaging_type: data.packaging_type || null,
-        regulation: data.regulation || null,
-        product_notes: data.product_notes || null,
-        customer_id: data.customer_id || null,
+        cartone: data.cartone || null,
+        pallet: data.pallet || null,
+        strati: data.strati || null,
+        scadenza: data.scadenza || null,
+        iva: data.iva || 22,
+        ean: data.ean || null,
+        photo_url: uploadedPhotoUrl,
         created_by: user.id
       };
 
+      console.log('📦 Product data to save:', productData);
+
       if (editingProduct) {
         // Update existing product
+        console.log('🔄 Updating product with data:', productData);
         const { error } = await supabase
           .from('products')
           .update(productData)
           .eq('id', editingProduct.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Update error:', error);
+          throw error;
+        }
+        
+        console.log('✅ Product updated successfully');
 
         addNotification({
           type: 'success',
@@ -143,11 +254,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         });
       } else {
         // Create new product
+        console.log('💾 Saving product to database...');
         const { error } = await supabase
           .from('products')
           .insert([productData]);
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Database error:', error);
+          throw error;
+        }
+
+        console.log('✅ Product saved successfully');
 
         addNotification({
           type: 'success',
@@ -158,6 +275,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       // Reset form and call success callback
       reset();
+      setSelectedCategory('');
+      setSelectedPhoto(null);
+      setPhotoPreview(null);
+      setUploadedPhotoUrl(null);
       onSaveSuccess();
       onClose();
 
@@ -175,11 +296,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   const handleClose = () => {
     reset();
+    setSelectedCategory('');
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+    setUploadedPhotoUrl(null);
     onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -196,6 +321,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </>
               )}
             </DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleClose}
+              className="h-6 w-6"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </DialogHeader>
 
@@ -209,8 +342,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <Input
                   id="code"
                   {...register('code')}
-                  placeholder="es. PROD001"
+                  placeholder="es. PB0001 (2 lettere + 4 numeri)"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Formato: 2 lettere (prefisso cliente) + 4 numeri. Es: PB0001, AB0001
+                </p>
                 {errors.code && (
                   <p className="text-sm text-red-600 mt-1">{errors.code.message}</p>
                 )}
@@ -228,23 +364,22 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="description">Descrizione</Label>
-              <Input
-                id="description"
-                {...register('description')}
-                placeholder="Descrizione dettagliata del prodotto"
-              />
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="category">Categoria</Label>
-                <Input
-                  id="category"
-                  {...register('category')}
-                  placeholder="es. Fertilizzanti"
-                />
+                <Select value={selectedCategory || undefined} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona categoria (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="unit">Unità di Misura</Label>
@@ -294,65 +429,94 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
+          {/* Photo Upload */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Foto Prodotto</h3>
+            
+            {photoPreview ? (
+              <div className="space-y-3">
+                <div className="relative">
+                  <img
+                    src={photoPreview}
+                    alt="Anteprima foto prodotto"
+                    className="w-full max-w-md h-48 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={handlePhotoDelete}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                {uploadedPhotoUrl ? (
+                  <div className="flex items-center space-x-2 text-green-600">
+                    <Check className="w-4 h-4" />
+                    <span className="text-sm">Foto caricata nel database</span>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={handleUploadPhoto}
+                    disabled={uploadingPhoto}
+                    className="w-full"
+                  >
+                    {uploadingPhoto ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Caricamento...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Carica Foto nel Database
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <Image className="w-8 h-8 mx-auto mb-3 text-gray-400" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Carica una foto del prodotto
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  Formati supportati: JPG, PNG, GIF (max 5MB)
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handlePhotoSelect(file);
+                    }
+                  }}
+                  className="hidden"
+                  id="photo-upload"
+                  disabled={uploadingPhoto}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('photo-upload')?.click()}
+                  disabled={uploadingPhoto}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Seleziona Foto
+                </Button>
+              </div>
+            )}
+          </div>
+
           {/* Additional Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Informazioni Aggiuntive</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="brand_name">Marchio</Label>
-                <Input
-                  id="brand_name"
-                  {...register('brand_name')}
-                  placeholder="Nome del marchio"
-                />
-              </div>
-              <div>
-                <Label htmlFor="client_product_code">Codice Cliente</Label>
-                <Input
-                  id="client_product_code"
-                  {...register('client_product_code')}
-                  placeholder="Codice del cliente"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="supplier_product_code">Codice Fornitore</Label>
-                <Input
-                  id="supplier_product_code"
-                  {...register('supplier_product_code')}
-                  placeholder="Codice fornitore"
-                />
-              </div>
-              <div>
-                <Label htmlFor="barcode">Barcode</Label>
-                <Input
-                  id="barcode"
-                  {...register('barcode')}
-                  placeholder="Codice a barre"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="packaging_type">Tipo Cartone</Label>
-                <Input
-                  id="packaging_type"
-                  {...register('packaging_type')}
-                  placeholder="Tipo di imballaggio"
-                />
-              </div>
-              <div>
-                <Label htmlFor="regulation">Normativa</Label>
-                <Input
-                  id="regulation"
-                  {...register('regulation')}
-                  placeholder="Normativa di riferimento"
-                />
-              </div>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -363,25 +527,74 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   placeholder="es. 30x20x15 cm"
                 />
               </div>
+              <div></div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="image_url">URL Immagine</Label>
+                <Label htmlFor="cartone">Cartone</Label>
                 <Input
-                  id="image_url"
-                  {...register('image_url')}
-                  placeholder="https://..."
+                  id="cartone"
+                  {...register('cartone')}
+                  placeholder="Tipo di cartone"
+                />
+              </div>
+              <div>
+                <Label htmlFor="pallet">Pallet</Label>
+                <Input
+                  id="pallet"
+                  {...register('pallet')}
+                  placeholder="Informazioni pallet"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="product_notes">Note Prodotto</Label>
-              <textarea
-                id="product_notes"
-                {...register('product_notes')}
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Note aggiuntive sul prodotto..."
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="strati">Strati</Label>
+                <Input
+                  id="strati"
+                  type="number"
+                  {...register('strati', { valueAsNumber: true })}
+                  placeholder="Numero strati"
+                />
+              </div>
+              <div>
+                <Label htmlFor="scadenza">Scadenza</Label>
+                <Input
+                  id="scadenza"
+                  {...register('scadenza')}
+                  placeholder="es. 3 anni"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Durata di scadenza (es. 3 anni, 2 anni, 1 anno)
+                </p>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="iva">IVA (%)</Label>
+                <Input
+                  id="iva"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  {...register('iva', { valueAsNumber: true })}
+                  placeholder="22.00"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ean">EAN</Label>
+                <Input
+                  id="ean"
+                  {...register('ean')}
+                  placeholder="Codice EAN"
+                />
+              </div>
+            </div>
+
           </div>
 
           {/* Form Actions */}

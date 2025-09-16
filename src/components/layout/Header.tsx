@@ -193,7 +193,7 @@ export const Header = () => {
               ) : (
                 <div className="max-h-80 overflow-y-auto">
                   {recentNotifications.map((notification) => {
-                    const Icon = typeIcons[notification.type];
+                    const Icon = typeIcons[notification.type] || CheckCircle;
                     
                     return (
                       <div
