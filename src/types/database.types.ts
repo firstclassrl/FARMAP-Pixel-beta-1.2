@@ -81,7 +81,7 @@ export interface Database {
           country: string
           vat_number: string | null
           tax_code: string | null
-          payment_terms: number
+          payment_terms: string
           discount_percentage: number
           price_list_id: string | null
           notes: string | null
@@ -89,6 +89,7 @@ export interface Database {
           created_at: string
           updated_at: string
           created_by: string
+          codice_cliente: string | null
         }
         Insert: {
           id?: string
@@ -103,7 +104,7 @@ export interface Database {
           country?: string
           vat_number?: string | null
           tax_code?: string | null
-          payment_terms?: number
+          payment_terms?: string
           discount_percentage?: number
           price_list_id?: string | null
           notes?: string | null
@@ -111,6 +112,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
           created_by: string
+          codice_cliente?: string | null
         }
         Update: {
           id?: string
@@ -125,7 +127,7 @@ export interface Database {
           country?: string
           vat_number?: string | null
           tax_code?: string | null
-          payment_terms?: number
+          payment_terms?: string
           discount_percentage?: number
           price_list_id?: string | null
           notes?: string | null
@@ -133,6 +135,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
           created_by?: string
+          codice_cliente?: string | null
         }
       }
       products: {

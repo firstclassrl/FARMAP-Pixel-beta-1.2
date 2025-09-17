@@ -20,6 +20,7 @@ import { useAuth } from '../hooks/useAuth';
 import type { Customer } from '../types/database.types';
 import { exportToExcel } from '../lib/exportUtils';
 import { importFromExcel } from '../lib/importUtils';
+import ImportCustomersModal from '../components/ImportCustomersModal';
 
 // Stato iniziale pulito per il modulo
 const initialFormData = {
@@ -34,10 +35,11 @@ const initialFormData = {
   country: 'Italia',
   vat_number: '',
   tax_code: '',
-  payment_terms: 30,
+  payment_terms: '30 giorni',
   discount_percentage: 0,
   notes: '',
-  code_prefix: ''
+  code_prefix: '',
+  codice_cliente: ''
 };
 
 export default function CustomersPage() {
@@ -48,6 +50,7 @@ export default function CustomersPage() {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null); // Nuovo stato per la conferma di eliminazione
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState(initialFormData);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const { addNotification } = useStore();
   const { user } = useAuth();
@@ -122,10 +125,11 @@ export default function CustomersPage() {
       country: customer.country || 'Italia',
       vat_number: customer.vat_number || '',
       tax_code: customer.tax_code || '',
-      payment_terms: customer.payment_terms || 30,
+      payment_terms: customer.payment_terms || '30 giorni',
       discount_percentage: Number(customer.discount_percentage) || 0,
       notes: customer.notes || '',
-      code_prefix: customer.code_prefix || ''
+      code_prefix: customer.code_prefix || '',
+      codice_cliente: customer.codice_cliente || ''
     });
     setIsFormOpen(true);
   };
@@ -247,50 +251,85 @@ export default function CustomersPage() {
           <Button variant="outline" onClick={() => document.getElementById('import-customers')?.click()}><Upload className="w-4 h-4 mr-2" /> Importa</Button>
           <input type="file" id="import-customers" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
           
+          <Button 
+            variant="outline" 
+            onClick={() => setShowImportModal(true)}
+            className="mr-2"
+          >
+            <Upload className="w-4 h-4 mr-2" /> Importa CSV
+          </Button>
           <Button onClick={openNewForm}><Plus className="w-4 h-4 mr-2" /> Nuovo Cliente</Button>
         </div>
       </div>
 
       <Input placeholder="Cerca clienti..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
 
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {filteredCustomers.map((customer) => (
-          <Card key={customer.id} className="p-6 flex justify-between items-start">
-            <div>
-              <h3 className="text-lg font-semibold">{customer.company_name}</h3>
-              <div className="mt-2 space-y-1 text-sm text-gray-600">
-                {customer.contact_person && (
-                  <p className="flex items-center">
-                    <User className="w-4 h-4 mr-2" />
-                    {customer.contact_person}
+          <Card key={customer.id} className="p-3 hover:shadow-xl hover:shadow-red-300/80 transition-all duration-200 cursor-pointer hover:scale-[1.02]">
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-gray-900 truncate" title={customer.company_name}>
+                  {customer.company_name}
+                </h3>
+                {customer.codice_cliente && (
+                  <p className="text-xs text-blue-600 font-medium mt-1">
+                    {customer.codice_cliente}
                   </p>
-                )}
-                {customer.email && (
-                  <p className="flex items-center">
-                    <span className="w-4 h-4 mr-2">@</span>
-                    {customer.email}
-                  </p>
-                )}
-                {customer.phone && (
-                  <p className="flex items-center">
-                    <span className="w-4 h-4 mr-2">📞</span>
-                    {customer.phone}
-                  </p>
-                )}
-                {customer.city && (
-                  <p className="flex items-center">
-                    <span className="w-4 h-4 mr-2">📍</span>
-                    {customer.city}, {customer.province || ''} {customer.postal_code || ''}
-                  </p>
-                )}
-                {customer.vat_number && (
-                  <p className="text-xs text-gray-500">P.IVA: {customer.vat_number}</p>
                 )}
               </div>
+              <div className="flex gap-1 ml-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => openEditForm(customer)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Edit className="w-3 h-3" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCustomerToDelete(customer)} 
+                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => openEditForm(customer)}><Edit className="w-4 h-4" /></Button>
-              <Button variant="outline" size="sm" onClick={() => setCustomerToDelete(customer)} className="text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
+            
+            <div className="space-y-1 text-xs text-gray-600">
+              {customer.contact_person && (
+                <p className="flex items-center truncate">
+                  <User className="w-3 h-3 mr-1 flex-shrink-0" />
+                  <span className="truncate" title={customer.contact_person}>{customer.contact_person}</span>
+                </p>
+              )}
+              {customer.email && (
+                <p className="flex items-center truncate">
+                  <span className="w-3 h-3 mr-1 flex-shrink-0">@</span>
+                  <span className="truncate" title={customer.email}>{customer.email}</span>
+                </p>
+              )}
+              {customer.phone && (
+                <p className="flex items-center truncate">
+                  <span className="w-3 h-3 mr-1 flex-shrink-0">📞</span>
+                  <span className="truncate" title={customer.phone}>{customer.phone}</span>
+                </p>
+              )}
+              {customer.city && (
+                <p className="flex items-center truncate">
+                  <span className="w-3 h-3 mr-1 flex-shrink-0">📍</span>
+                  <span className="truncate" title={`${customer.city}, ${customer.province || ''} ${customer.postal_code || ''}`}>
+                    {customer.city}{customer.province && `, ${customer.province}`}
+                  </span>
+                </p>
+              )}
+              {customer.vat_number && (
+                <p className="text-xs text-gray-500 truncate" title={`P.IVA: ${customer.vat_number}`}>
+                  P.IVA: {customer.vat_number}
+                </p>
+              )}
             </div>
           </Card>
         ))}
@@ -303,6 +342,22 @@ export default function CustomersPage() {
           <form onSubmit={handleFormSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <Label htmlFor="codice_cliente">Codice Cliente</Label>
+                <Input
+                  id="codice_cliente"
+                  value={formData.codice_cliente}
+                  onChange={e => {
+                    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 20);
+                    setFormData({ ...formData, codice_cliente: value });
+                  }}
+                  placeholder="Es: CLI001"
+                  maxLength={20}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Codice univoco del cliente (es: CLI001, CLI002)
+                </p>
+              </div>
+              <div>
                 <Label htmlFor="company_name">Ragione Sociale *</Label>
                 <Input
                   id="company_name"
@@ -310,15 +365,6 @@ export default function CustomersPage() {
                   onChange={e => setFormData({ ...formData, company_name: e.target.value })}
                   placeholder="Nome dell'azienda"
                   required
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_person">Persona di Contatto</Label>
-                <Input
-                  id="contact_person"
-                  value={formData.contact_person}
-                  onChange={e => setFormData({ ...formData, contact_person: e.target.value })}
-                  placeholder="Nome del referente"
                 />
               </div>
             </div>
@@ -340,8 +386,17 @@ export default function CustomersPage() {
                   Due lettere per identificare i prodotti di questo cliente (es: PB0001)
                 </p>
               </div>
-              <div></div>
+              <div>
+                <Label htmlFor="contact_person">Persona di Contatto</Label>
+                <Input
+                  id="contact_person"
+                  value={formData.contact_person}
+                  onChange={e => setFormData({ ...formData, contact_person: e.target.value })}
+                  placeholder="Nome del referente"
+                />
+              </div>
             </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -438,15 +493,16 @@ export default function CustomersPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="payment_terms">Termini di Pagamento (giorni)</Label>
+                <Label htmlFor="payment_terms">Termini di Pagamento</Label>
                 <Input
                   id="payment_terms"
-                  type="number"
-                  min="0"
                   value={formData.payment_terms}
-                  onChange={e => setFormData({ ...formData, payment_terms: parseInt(e.target.value) || 30 })}
-                  placeholder="30"
+                  onChange={e => setFormData({ ...formData, payment_terms: e.target.value })}
+                  placeholder="Es: 30 giorni, FOB, CIF, Contanti"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Termini di pagamento in formato alfanumerico
+                </p>
               </div>
               <div>
                 <Label htmlFor="discount_percentage">Sconto Predefinito (%)</Label>
@@ -505,6 +561,16 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Customers Modal */}
+      <ImportCustomersModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportComplete={() => {
+          fetchCustomers();
+          setShowImportModal(false);
+        }}
+      />
     </div>
   );
 }

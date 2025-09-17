@@ -1,197 +1,141 @@
-# Pixel - FARMAP CRM
+# Pixel CRM - FARMAP Industry
 
-Una moderna applicazione full-stack per la gestione commerciale di FARMAP, costruita con React, Supabase e tecnologie all'avanguardia.
+**Versione:** 1.1.0 Beta  
+**Data:** 17 Gennaio 2025
 
-## 🚀 Caratteristiche Principali
+## Descrizione
 
-- **CRM Completo**: Gestione clienti, prodotti, listini e ordini
-- **Dashboard Interattiva**: KPI, grafici e analytics in tempo reale
-- **Autenticazione Sicura**: Login con email/password e ruoli utente
-- **PWA Ready**: Installabile e funzionante offline
-- **OCR Integration**: Parsing automatico di documenti e ordini
-- **PDF Generation**: Creazione e firma digitale di preventivi/ordini
-- **Export Data**: Excel e CSV per tutti i dati
-- **Email Automation**: Invio automatico di conferme ordini
-- **Responsive Design**: Ottimizzato per desktop, tablet e mobile
+Pixel CRM è un'applicazione full-stack per la gestione commerciale di FARMAP Industry. L'applicazione fornisce un sistema completo per la gestione di clienti, prodotti, listini prezzi, ordini e richieste campioni.
 
-## 🛠️ Stack Tecnologico
+## Caratteristiche Principali
 
-### Frontend
-- **React 18** con TypeScript
-- **Vite** per build tool e dev server
-- **React Router** per navigazione
-- **Zustand** per state management
-- **Tailwind CSS** + **shadcn/ui** per UI
-- **React Hook Form** + **Zod** per validazioni
-- **Recharts** per grafici e analytics
+### 🏢 Gestione Clienti
+- Anagrafica clienti completa
+- Import/Export clienti
+- Gestione contatti e informazioni commerciali
 
-### Backend & Database
-- **Supabase** per database PostgreSQL, auth e storage
-- **Row Level Security (RLS)** per sicurezza avanzata
-- **Edge Functions** per API serverless
-- **Real-time subscriptions** per aggiornamenti live
+### 📦 Gestione Prodotti
+- Catalogo prodotti con foto
+- Categorie e codici prodotto
+- Gestione prezzi base e unità di misura
 
-### Funzionalità Avanzate
-- **Tesseract.js** per OCR
-- **pdf-lib** per generazione PDF
-- **XLSX** per export Excel
-- **PWA** con service worker
-- **Vitest** + **Playwright** per testing
+### 💰 Listini Prezzi
+- Creazione e modifica listini personalizzati
+- **NUOVO in v1.1.0**: Pulsante anteprima nella modale di modifica
+- Assegnazione clienti specifici
+- Gestione validità temporale
 
-## 📁 Struttura del Progetto
+### 📋 Ordini
+- Creazione ordini da listini
+- Gestione stato ordini
+- Export ordini
 
-```
-src/
-├── components/          # Componenti riutilizzabili
-│   ├── ui/             # Componenti base (Button, Input, etc.)
-│   ├── layout/         # Layout e navigazione
-│   └── auth/           # Componenti autenticazione
-├── pages/              # Pagine dell'applicazione
-│   ├── auth/           # Login, signup, reset password
-│   ├── Dashboard.tsx   # Dashboard principale
-│   └── ...             # Altre pagine
-├── hooks/              # Custom React hooks
-├── lib/                # Utilities e configurazioni
-├── store/              # Zustand store
-├── types/              # TypeScript types
-└── test-setup.ts       # Configurazione test
+### 📊 Dashboard
+- KPI in tempo reale
+- Statistiche vendite
+- Monitoraggio performance
 
-supabase/
-├── migrations/         # Migrazioni database
-└── seed.sql           # Dati di esempio
+### 🔐 Autenticazione
+- Sistema di login sicuro
+- Gestione utenti
+- Reset password
 
-functions/              # Edge functions (coming soon)
-├── email-automation/   # Automazioni email
-├── pdf-generation/     # Generazione PDF
-└── ocr-processing/     # Elaborazione OCR
-```
+## Tecnologie Utilizzate
 
-## 🚀 Quick Start
+- **Frontend**: React 18, TypeScript, Vite
+- **UI**: Tailwind CSS, Radix UI, Lucide React
+- **Backend**: Supabase (PostgreSQL, Auth, Storage)
+- **State Management**: Zustand
+- **Forms**: React Hook Form + Zod
+- **PWA**: Vite PWA Plugin
 
-### 1. Installa le dipendenze
+## Installazione
 
 ```bash
+# Clona il repository
+git clone https://github.com/firstclassrl/pixel-beta.git
+
+# Installa le dipendenze
 npm install
-```
 
-### 2. Configura Supabase
-
-1. Clicca il pulsante "Connect to Supabase" in alto a destra per configurare Supabase
-2. Le variabili d'ambiente verranno configurate automaticamente
-
-### 3. Setup Database
-
-Esegui le migrazioni SQL nel tuo progetto Supabase:
-
-1. Vai su Supabase Dashboard > SQL Editor
-2. Copia e esegui il contenuto di `supabase/migrations/001_initial_schema.sql`
-3. (Opzionale) Esegui `supabase/seed.sql` per dati di esempio
-
-### 4. Avvia il server di sviluppo
-
-```bash
+# Avvia il server di sviluppo
 npm run dev
 ```
 
+## Script Disponibili
 
-## 📋 Funzionalità per Ruolo
+- `npm run dev` - Avvia il server di sviluppo
+- `npm run build` - Build per produzione
+- `npm run preview` - Anteprima build di produzione
+- `npm run lint` - Esegue il linting del codice
+- `npm run test` - Esegue i test
 
-### Admin
-- ✅ Accesso completo a tutte le funzionalità
-- ✅ Gestione utenti e ruoli
-- ✅ Report e analytics avanzati
-- ✅ Configurazioni di sistema
+## Changelog
 
-### Commerciale
-- ✅ CRUD su clienti e ordini
-- ✅ Gestione preventivi
-- ✅ Visualizzazione prodotti e listini
-- ✅ Dashboard vendite
+### v1.1.0 Beta (17 Gennaio 2025)
 
-### Lettore
-- ✅ Visualizzazione dati (sola lettura)
-- ✅ Export dati
-- ✅ Dashboard base
+#### ✨ Nuove Funzionalità
+- Pulsante "Anteprima" nella modale di modifica listino
+- Integrazione con PriceListPrintView per l'anteprima dei listini
 
-## 🧪 Testing
+#### 🔧 Miglioramenti
+- UX migliorata con pulsante anteprima sempre visibile
+- Codice ottimizzato e pulito
 
-```bash
-# Unit e integration test
-npm run test
+#### 🗑️ Rimosso
+- Pulsante "Stampa" dalla modale di modifica listino
+- Codice non utilizzato e funzioni obsolete
 
-# Test con UI
-npm run test:ui
+#### 🧹 Pulizia Codice
+- Rimossi ~100 righe di codice non utilizzato
+- Import e tipi ottimizzati
+- Variabili di stato non utilizzate rimosse
 
-# Coverage
-npm run test:coverage
+### v1.0.0 (16 Gennaio 2025)
+- Versione iniziale del CRM Pixel per FARMAP
+- Sistema completo di gestione commerciale
 
-# E2E test
-npm run e2e
+## Configurazione
+
+1. Crea un file `.env.local` nella root del progetto
+2. Configura le variabili d'ambiente per Supabase:
+
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## 📱 PWA (Progressive Web App)
+## Struttura del Progetto
 
-L'applicazione è configurata come PWA e può essere installata su desktop e mobile:
+```
+src/
+├── components/          # Componenti React riutilizzabili
+│   ├── auth/           # Componenti di autenticazione
+│   ├── layout/         # Componenti di layout
+│   └── ui/             # Componenti UI base
+├── hooks/              # Custom React hooks
+├── lib/                # Utilities e configurazioni
+├── pages/              # Pagine dell'applicazione
+├── store/              # State management (Zustand)
+└── types/              # Definizioni TypeScript
+```
 
-- **Service Worker**: Cache intelligente per performance offline
-- **Manifest**: Configurazione per installazione
-- **Offline Support**: Funzionalità base disponibili offline
+## Contribuire
 
-## 🔐 Sicurezza
-
-- **Row Level Security**: Controllo accessi a livello database
-- **JWT Authentication**: Token sicuri per autenticazione
-- **Role-based Access**: Permissions granulari per ruolo
-- **Input Validation**: Validazione lato client e server
-- **HTTPS Enforced**: Connessioni sicure obbligatorie
-
-## 🚀 Roadmap
-
-### Phase 1 - MVP ✅
-- [x] Setup progetto e autenticazione
-- [x] Dashboard base con KPI
-- [x] Layout e navigazione
-- [x] Database schema e RLS
-
-### Phase 2 - Core Features (In Progress)
-- [ ] CRUD Clienti completo
-- [ ] CRUD Prodotti e magazzino
-- [ ] Gestione listini multi-livello
-- [ ] Preventivi e ordini
-
-### Phase 3 - Advanced Features
-- [ ] OCR per parsing documenti
-- [ ] PDF generation e firma digitale
-- [ ] Email automation
-- [ ] Import/Export avanzati
-- [ ] Ricerca globale
-- [ ] Analytics avanzati
-
-### Phase 4 - Optimizations
-- [ ] Performance optimization
-- [ ] Mobile app (React Native)
-- [ ] API integrations
-- [ ] Advanced reporting
-
-## 🤝 Contribuire
-
-1. Fork del progetto
-2. Crea un feature branch (`git checkout -b feature/AmazingFeature`)
+1. Fork del repository
+2. Crea un branch per la tua feature (`git checkout -b feature/AmazingFeature`)
 3. Commit delle modifiche (`git commit -m 'Add some AmazingFeature'`)
 4. Push al branch (`git push origin feature/AmazingFeature`)
 5. Apri una Pull Request
 
-## 📄 Licenza
+## Licenza
 
-Questo progetto è sotto licenza MIT. Vedi il file `LICENSE` per dettagli.
+Questo progetto è di proprietà di FARMAP INDUSTRY S.r.l. Tutti i diritti riservati.
 
-## 🆘 Supporto
+## Supporto
 
-Per supporto e domande:
-- Crea un issue su GitHub
-- Email: support@farmap.com
-- Documentazione: [docs.farmap.com](https://docs.farmap.com)
+Per supporto tecnico o domande, contattare il team di sviluppo FARMAP.
 
 ---
 
-**Pixel CRM** - *Gestione commerciale semplificata per FARMAP* 🚀
+**© 2025 FARMAP INDUSTRY S.r.l. - Tutti i diritti riservati**

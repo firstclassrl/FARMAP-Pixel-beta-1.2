@@ -244,7 +244,7 @@ export const LoginPage = () => {
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="text-sm text-gray-300">Pixel CRM v1.0.0</span>
+            <span className="text-sm text-gray-300">Pixel CRM v1.1.0 Beta</span>
           </div>
           <p className="text-xs text-gray-400">
             © 2025 FARMAP INDUSTRY S.r.l. Tutti i diritti riservati.

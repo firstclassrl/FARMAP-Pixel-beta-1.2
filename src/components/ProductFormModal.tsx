@@ -307,29 +307,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center space-x-2">
-              {editingProduct ? (
-                <>
-                  <Package className="w-5 h-5" />
-                  <span>Modifica Prodotto</span>
-                </>
-              ) : (
-                <>
-                  <PackagePlus className="w-5 h-5" />
-                  <span>Nuovo Prodotto</span>
-                </>
-              )}
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="h-6 w-6"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="flex items-center space-x-2">
+            {editingProduct ? (
+              <>
+                <Package className="w-5 h-5" />
+                <span>Modifica Prodotto</span>
+              </>
+            ) : (
+              <>
+                <PackagePlus className="w-5 h-5" />
+                <span>Nuovo Prodotto</span>
+              </>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,27 +11,18 @@ import {
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../store/useStore';
 import { supabase } from '../lib/supabase';
-import { formatCurrency } from '../lib/exportUtils';
-import { Loader2, FileText, Package, Plus, Edit, Trash2, X, Building, Check } from 'lucide-react';
+import { Loader2, FileText, Package, Plus, Trash2, X, Building, Mail, Eye } from 'lucide-react';
 import type { Database } from '../types/database.types';
 import { CustomerSelectionModal } from '../components/CustomerSelectionModal';
 import ProductSelectionModal from '../components/ProductSelectionModal';
+import { PriceListPrintView } from './PriceListPrintView';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
-type PriceListInsert = Database['public']['Tables']['price_lists']['Insert'];
 type PriceListItem = Database['public']['Tables']['price_list_items']['Row'];
 type Customer = Database['public']['Tables']['customers']['Row'];
-type CustomerUpdate = Database['public']['Tables']['customers']['Update'];
 
 interface Product {
   id: string;
@@ -66,15 +57,7 @@ const priceListSchema = z.object({
   is_default: z.boolean().default(false),
 });
 
-const priceListItemSchema = z.object({
-  product_id: z.string().min(1, 'Prodotto richiesto'),
-  price: z.number().min(0.01, 'Prezzo deve essere maggiore di 0'),
-  discount_percentage: z.number().min(0).max(100).default(0),
-  min_quantity: z.number().min(1).default(1),
-});
-
 type PriceListFormData = z.infer<typeof priceListSchema>;
-type PriceListItemFormData = z.infer<typeof priceListItemSchema>;
 
 export function PriceListDetailPage({
   isOpen,
@@ -88,17 +71,14 @@ export function PriceListDetailPage({
   const productsSectionRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isItemSubmitting, setIsItemSubmitting] = useState(false);
   const [currentPriceList, setCurrentPriceList] = useState<PriceListWithItems | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [showItemForm, setShowItemForm] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [isNewPriceListCreated, setIsNewPriceListCreated] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Main form
   const {
@@ -107,7 +87,6 @@ export function PriceListDetailPage({
     formState: { errors },
     reset,
     setValue,
-    watch,
   } = useForm<PriceListFormData>({
     resolver: zodResolver(priceListSchema),
     defaultValues: {
@@ -117,21 +96,6 @@ export function PriceListDetailPage({
     },
   });
 
-  // Item form
-  const {
-    register: registerItem,
-    handleSubmit: handleSubmitItem,
-    formState: { errors: itemErrors },
-    reset: resetItem,
-    setValue: setItemValue,
-    watch: watchItem,
-  } = useForm<PriceListItemFormData>({
-    resolver: zodResolver(priceListItemSchema),
-    defaultValues: {
-      discount_percentage: 0,
-      min_quantity: 1,
-    },
-  });
 
   const loadData = async () => {
     try {
@@ -146,17 +110,8 @@ export function PriceListDetailPage({
 
       if (customersError) throw customersError;
 
-      // Load products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('id, code, name, category, unit, base_price')
-        .eq('is_active', true)
-        .order('name');
-
-      if (productsError) throw productsError;
 
       setCustomers(customersData || []);
-      setProducts(productsData || []);
 
       // Load price list if editing
       if (priceListId) {
@@ -346,13 +301,12 @@ export function PriceListDetailPage({
         // Mark as new price list created
         setIsNewPriceListCreated(true);
 
-        // Auto-scroll to products section and show add product form
+        // Auto-scroll to products section
         setTimeout(() => {
           productsSectionRef.current?.scrollIntoView({ 
             behavior: 'smooth', 
             block: 'start' 
           });
-          setShowItemForm(true);
         }, 500);
       }
 
@@ -372,100 +326,6 @@ export function PriceListDetailPage({
     }
   };
 
-  const handleItemFormSubmit = async (data: PriceListItemFormData) => {
-    if (!currentPriceList) return;
-
-    setIsItemSubmitting(true);
-    try {
-      if (editingItemId) {
-        // Update existing item
-        const { error } = await supabase
-          .from('price_list_items')
-          .update({
-            price: data.price,
-            discount_percentage: data.discount_percentage || 0,
-            min_quantity: data.min_quantity || 1,
-          })
-          .eq('id', editingItemId);
-
-        if (error) throw error;
-
-        addNotification({
-          type: 'success',
-          title: 'Prodotto aggiornato',
-          message: 'Il prodotto è stato aggiornato nel listino',
-        });
-      } else {
-        // Check if product already exists in the price list
-        const existingItem = currentPriceList.price_list_items?.find(
-          item => item.product_id === data.product_id
-        );
-
-        if (existingItem) {
-          // Update existing item instead of creating new one
-          const { error } = await supabase
-            .from('price_list_items')
-            .update({
-              price: data.price,
-              discount_percentage: data.discount_percentage || 0,
-              min_quantity: data.min_quantity || 1,
-            })
-            .eq('id', existingItem.id);
-
-          if (error) throw error;
-
-          addNotification({
-            type: 'success',
-            title: 'Prodotto aggiornato',
-            message: 'Il prodotto esistente è stato aggiornato nel listino',
-          });
-        } else {
-        // Create new item
-        const { error } = await supabase
-          .from('price_list_items')
-          .insert({
-            price_list_id: currentPriceList.id,
-            product_id: data.product_id,
-            price: data.price,
-            discount_percentage: data.discount_percentage || 0,
-            min_quantity: data.min_quantity || 1,
-          });
-
-        if (error) throw error;
-
-        addNotification({
-          type: 'success',
-          title: 'Prodotto aggiunto',
-          message: 'Il prodotto è stato aggiunto al listino',
-        });
-        }
-      }
-
-      // Refresh the price list data
-      await fetchPriceListDetails(currentPriceList.id);
-      resetItem();
-      setEditingItemId(null);
-      setShowItemForm(false);
-    } catch (error: any) {
-      console.error('Error saving price list item:', error);
-      addNotification({
-        type: 'error',
-        title: 'Errore',
-        message: error.message || 'Errore durante il salvataggio del prodotto',
-      });
-    } finally {
-      setIsItemSubmitting(false);
-    }
-  };
-
-  const handleEditItem = (item: PriceListItem & { products: Product }) => {
-    setItemValue('product_id', item.product_id);
-    setItemValue('price', item.price);
-    setItemValue('discount_percentage', item.discount_percentage);
-    setItemValue('min_quantity', item.min_quantity);
-    setEditingItemId(item.id);
-    setShowItemForm(true);
-  };
 
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo prodotto dal listino?')) return;
@@ -498,59 +358,15 @@ export function PriceListDetailPage({
     }
   };
 
-  const handleAddProduct = () => {
-    if (!currentPriceList) {
-      addNotification({
-        type: 'warning',
-        title: 'Attenzione',
-        message: 'Salva prima le informazioni del listino per poter aggiungere prodotti',
-      });
-      return;
-    }
-    resetItem();
-    setEditingItemId(null);
-    setShowItemForm(true);
-  };
 
   const handleClose = () => {
     reset();
-    resetItem();
-    setEditingItemId(null);
-    setShowItemForm(false);
     setCurrentPriceList(null);
     setSelectedCustomerId('');
     setIsNewPriceListCreated(false);
     onClose();
   };
 
-  const handleCancelItemForm = () => {
-    resetItem();
-    setEditingItemId(null);
-    setShowItemForm(false);
-  };
-
-  const handleFinishPriceList = () => {
-    if (!currentPriceList) return;
-    
-    if (currentPriceList.price_list_items.length === 0) {
-      addNotification({
-        type: 'warning',
-        title: 'Attenzione',
-        message: 'Aggiungi almeno un prodotto al listino prima di completare',
-      });
-      return;
-    }
-
-    addNotification({
-      type: 'success',
-      title: 'Listino completato',
-      message: `Il listino "${currentPriceList.name}" è stato creato con successo con ${currentPriceList.price_list_items.length} prodotti`,
-    });
-
-    // Call success callback and close
-    onSaveSuccess();
-    handleClose();
-  };
 
   const handleCustomerChange = (customerId: string) => {
     setValue('customer_id', customerId);
@@ -570,6 +386,47 @@ export function PriceListDetailPage({
   const handleOpenCustomerModal = () => {
     setShowCustomerModal(true);
   };
+
+  const handleSendEmail = () => {
+    if (!currentPriceList || !currentPriceList.customer) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Cliente non selezionato per il listino'
+      });
+      return;
+    }
+
+    if (!currentPriceList.customer.email) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Email del cliente non disponibile'
+      });
+      return;
+    }
+
+    const subject = encodeURIComponent(`Listino Prezzi - ${currentPriceList.name}`);
+    const body = encodeURIComponent(`
+Gentile ${currentPriceList.customer.contact_person || 'Cliente'},
+
+In allegato il listino prezzi "${currentPriceList.name}" valido dal ${new Date(currentPriceList.valid_from).toLocaleDateString('it-IT')}${currentPriceList.valid_until ? ` al ${new Date(currentPriceList.valid_until).toLocaleDateString('it-IT')}` : ''}.
+
+Cordiali saluti,
+Il Team
+    `);
+
+    const mailtoLink = `mailto:${currentPriceList.customer.email}?subject=${subject}&body=${body}`;
+    window.open(mailtoLink, '_blank');
+
+    addNotification({
+      type: 'success',
+      title: 'Email aperta',
+      message: `Client email aperta per ${currentPriceList.customer.email}`
+    });
+  };
+
+
 
   const handlePriceChange = async (itemId: string, newPrice: number) => {
     try {
@@ -617,11 +474,30 @@ export function PriceListDetailPage({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>
-            {priceListId ? 'Modifica Listino' : 'Nuovo Listino'}
-          </DialogTitle>
+      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-2">
+        <DialogHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <DialogTitle>
+                {priceListId ? 'Modifica Listino' : 'Nuovo Listino'}
+              </DialogTitle>
+              {currentPriceList && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendEmail}
+                    className="h-7 text-xs px-3 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                    title="Invia listino via email"
+                  >
+                    <Mail className="w-3 h-3 mr-1" />
+                    Invia Mail
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
         </DialogHeader>
 
         {isLoading ? (
@@ -629,9 +505,9 @@ export function PriceListDetailPage({
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <div className="h-full overflow-y-auto space-y-6 p-1">
-            {/* Informazioni Listino Section */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+          <div className="h-full flex flex-col">
+            {/* Informazioni Listino Section - Immediatamente sotto i pulsanti */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2 mx-1 mt-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <FileText className="w-4 h-4 text-red-600" />
@@ -749,8 +625,8 @@ export function PriceListDetailPage({
               </form>
             </div>
 
-            {/* Prodotti nel Listino Section - CON VISUALIZZAZIONE */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            {/* Prodotti nel Listino Section - Espansa per riempire tutto lo spazio */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mx-1 mt-1 mb-0 flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
                   <Package className="w-5 h-5 text-green-600" />
@@ -776,38 +652,50 @@ export function PriceListDetailPage({
                   </p>
                 </div>
               ) : currentPriceList.price_list_items && currentPriceList.price_list_items.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                   {currentPriceList.price_list_items.map((item) => (
-                    <div key={item.id} className="bg-white border border-green-200 rounded-lg p-3">
+                    <div key={item.id} className="bg-white border border-green-200 rounded p-2">
                     <div className="flex items-center justify-between">
-                        <div className="flex-1 grid grid-cols-4 gap-4 items-center">
-                        <div>
-                            <p className="font-medium text-gray-900 text-sm">{item.products.name}</p>
-                          <p className="text-xs text-gray-500">{item.products.code}</p>
-                        </div>
-                          <div className="text-sm">
-                            <span className="text-gray-600">Prezzo:</span>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={item.price}
-                              onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
-                              className="h-6 text-xs w-20 mt-1"
+                        <div className="flex-1 grid grid-cols-4 gap-3 items-center">
+                        <div className="flex items-center space-x-2">
+                          {item.products.photo_url && (
+                            <img 
+                              src={item.products.photo_url} 
+                              alt={item.products.name}
+                              className="w-8 h-8 object-cover rounded border"
                             />
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900 text-xs">{item.products.name}</p>
+                            <p className="text-xs text-gray-500">{item.products.code}</p>
                           </div>
-                          <div className="text-sm">
-                            <span className="text-gray-600">MOQ:</span>
+                        </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs text-gray-600">Prezzo:</span>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.price}
+                                onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
+                                className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                              <span className="absolute right-1 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">€</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs text-gray-600">MOQ:</span>
                             <Input
                               type="number"
                               min="1"
                               value={item.min_quantity}
                               onChange={(e) => handleMOQChange(item.id, parseInt(e.target.value) || 1)}
-                              className="h-6 text-xs w-16 mt-1"
+                              className="h-5 text-xs w-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
-                            <span className="text-xs text-gray-500 ml-1">{item.products.unit}</span>
+                            <span className="text-xs text-gray-500">{item.products.unit}</span>
                           </div>
-                        <div className="text-sm">
+                        <div className="text-xs">
                           {item.discount_percentage > 0 && (
                               <div>
                                 <span className="text-gray-600">Sconto:</span>
@@ -816,12 +704,12 @@ export function PriceListDetailPage({
                           )}
                         </div>
                       </div>
-                        <div className="flex items-center space-x-2 ml-4">
+                        <div className="flex items-center space-x-1 ml-2">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDeleteItem(item.id)}
-                            className="h-6 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-5 text-xs px-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -844,6 +732,26 @@ export function PriceListDetailPage({
             </div>
           </div>
         )}
+
+        {/* Pulsanti in basso a destra - Footer minimo */}
+        <div className="flex justify-end gap-2 border-t bg-gray-50">
+          <Button
+            type="button"
+            onClick={() => setShowPreviewModal(true)}
+            className="h-7 text-xs px-4 bg-blue-600 hover:bg-blue-700 text-white m-0.5"
+            disabled={!priceListId}
+          >
+            <Eye className="w-3 h-3 mr-1" />
+            Anteprima
+          </Button>
+          <Button
+            type="button"
+            onClick={handleClose}
+            className="h-7 text-xs px-4 bg-green-600 hover:bg-green-700 text-white m-0.5"
+          >
+            Salva e Chiudi
+          </Button>
+        </div>
       </DialogContent>
       
       {/* Customer Selection Modal */}
@@ -866,6 +774,13 @@ export function PriceListDetailPage({
           currentCustomer={currentPriceList.customer}
         />
       )}
+
+      {/* Price List Preview Modal */}
+      <PriceListPrintView
+        isOpen={showPreviewModal && !!priceListId}
+        onClose={() => setShowPreviewModal(false)}
+        priceListId={priceListId || ''}
+      />
 
     </Dialog>
   );

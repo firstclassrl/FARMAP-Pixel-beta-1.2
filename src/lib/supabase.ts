@@ -17,7 +17,7 @@ console.log('🔍 Key starts with:', anon.slice(0, 8))
 export const supabase = createClient<Database>(url, anon, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
   db: { schema: 'public' },
-  global: { headers: { 'X-Client-Info': 'pixel-crm@1.0.0' } },
+  global: { headers: { 'X-Client-Info': 'pixel-crm@1.1.0-beta' } },
 })
 
 // DEBUG: esponi il client in Console (rimuovi in produzione)

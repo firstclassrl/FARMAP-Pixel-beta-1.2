@@ -21,6 +21,7 @@ import {
   X,
   Sprout
 } from 'lucide-react';
+import ImportProductsModal from '../components/ImportProductsModal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -82,6 +83,7 @@ export const ProductsPage = () => {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
+  const [showImportModal, setShowImportModal] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
   const [isExporting, setIsExporting] = useState(false);
@@ -699,6 +701,13 @@ export const ProductsPage = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           {/* Public access - new product always available */}
+          <Button 
+            variant="outline" 
+            onClick={() => setShowImportModal(true)}
+            className="mr-2"
+          >
+            <Upload className="w-4 h-4 mr-2" /> Importa CSV
+          </Button>
           <Button onClick={handleNewProduct} disabled={!user?.id}>
             <Plus className="w-4 h-4 mr-2" />
             Nuovo Prodotto
@@ -1042,6 +1051,16 @@ export const ProductsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Products Modal */}
+      <ImportProductsModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportComplete={() => {
+          loadProducts();
+          setShowImportModal(false);
+        }}
+      />
     </div>
   );
 };

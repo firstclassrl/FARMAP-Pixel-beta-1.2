@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ShoppingCart, Plus, Loader2, Search, Edit, Trash2, Package, Calendar, 
-  Building, AlertTriangle, CheckCircle, Clock, Truck, AlertCircle as AlertIcon, Eye
+  Building, AlertTriangle, CheckCircle, Clock, Truck, AlertCircle as AlertIcon, Eye, Download
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -15,6 +15,7 @@ import type { Database } from '../types/database.types';
 import { formatDate, formatCurrency } from '../lib/exportUtils';
 import OrderFormModal from '../components/OrderFormModal';
 import { CreateOrderFromPriceListModal } from '../components/CreateOrderFromPriceListModal';
+import ExportOrdersModal from '../components/ExportOrdersModal';
 
 // Definizione dei tipi di dati
 type Order = Database['public']['Tables']['orders']['Row'];
@@ -50,6 +51,7 @@ export function OrdersPage() {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const { addNotification } = useNotifications();
   const { user } = useAuth();
@@ -148,7 +150,13 @@ export function OrdersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Ordini</h1>
           <p className="text-gray-600 mt-1">Gestisci e visualizza tutti gli ordini</p>
         </div>
-        <div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowExportModal(true)}
+          >
+            <Download className="w-4 h-4 mr-2" /> Esporta CSV
+          </Button>
           <Button onClick={handleCreateOrderFromPriceList}>
             <Plus className="w-4 h-4 mr-2" /> Nuovo Ordine
           </Button>
@@ -227,6 +235,12 @@ export function OrdersPage() {
         isOpen={showCreateOrderModal} 
         onClose={handleCloseCreateOrderModal} 
         onOrderCreated={handleOrderCreated}
+      />
+
+      {/* Export Orders Modal */}
+      <ExportOrdersModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
       />
     </div>
   );
