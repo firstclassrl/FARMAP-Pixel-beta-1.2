@@ -1,6 +1,6 @@
-# Pixel CRM - FARMAP Industry
+# Pixel - Farmap
 
-**Versione:** 1.1.0 Beta  
+**Versione:** 1.2.0  
 **Data:** 17 Gennaio 2025
 
 ## Descrizione
@@ -71,6 +71,27 @@ npm run dev
 - `npm run test` - Esegue i test
 
 ## Changelog
+
+### v1.2.0 (17 Gennaio 2025)
+
+#### ✨ Nuove Funzionalità
+- **Sistema Calendario Completo**: Gestione appuntamenti, chiamate e promemoria
+- **Dashboard Impegni Giornalieri**: Vista rapida degli appuntamenti del giorno
+- **Modal Creazione Appuntamenti**: Form completo per gestire eventi
+- **Filtri Calendario Avanzati**: Ricerca e filtri per tipo e data
+- **Card Calendario Dashboard**: Accesso rapido al calendario con tema giallo
+
+#### 🎨 Miglioramenti UI/UX
+- **Layout Dashboard Ottimizzato**: Card ridimensionate per layout 4x2
+- **Texture Header**: Nuova texture di linee per l'header
+- **Colori Tematici**: Schema colori coerente per calendario (giallo)
+- **Responsive Design**: Ottimizzazione per tutti i dispositivi
+
+#### 🔧 Miglioramenti Tecnici
+- **Componenti UI Aggiuntivi**: Badge, Textarea, Calendar types
+- **Routing Aggiornato**: Nuova rotta `/calendar` protetta
+- **Tipi TypeScript**: Interfacce complete per sistema calendario
+- **Performance**: Ottimizzazioni build e bundle
 
 ### v1.1.0 Beta (17 Gennaio 2025)
 

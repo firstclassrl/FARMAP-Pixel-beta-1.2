@@ -9,6 +9,7 @@ import CustomersPage from './pages/CustomersPage';
 import ProductsPage from './pages/ProductsPage';
 import PriceListsPage from './pages/PriceListsPage';
 import OrdersPage from './pages/OrdersPage';
+import CalendarPage from './pages/CalendarPage';
 import SampleRequestsPage from './pages/SampleRequestsPage';
 import ReportsPage from './pages/ReportsPage';
 import NotificationsPage from './pages/NotificationsPage';
@@ -79,6 +80,7 @@ function App() {
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="price-lists" element={<PriceListsPage />} />
                 <Route path="orders" element={<OrdersPage />} />
+                <Route path="calendar" element={<CalendarPage />} />
                 <Route path="sample-requests" element={<SampleRequestsPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />

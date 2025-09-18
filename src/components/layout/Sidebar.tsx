@@ -12,7 +12,8 @@ import {
   Sprout,
   UserCog,
   Loader2,
-  Building2
+  Building2,
+  Calendar
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useUI } from '../../store/useStore';
@@ -26,6 +27,7 @@ const allNavigationItems = [
   { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'lettore'], color: 'green' },
   { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales'], color: 'purple' },
   { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales'], color: 'orange' },
+  { name: 'Calendario', href: '/calendar', icon: Calendar, roles: ['admin', 'sales'], color: 'yellow' },
   { 
     name: 'Garden',
     href: '/garden',
@@ -104,6 +106,8 @@ export function Sidebar() {
                     orange: isActive ? "bg-orange-600 text-white" : "text-neutral-400 hover:bg-orange-600/20 hover:text-orange-400",
                     emerald: isActive ? "bg-emerald-600 text-white" : "text-neutral-400 hover:bg-emerald-600/20 hover:text-emerald-400",
                     red: isActive ? "bg-red-600 text-white" : "text-neutral-400 hover:bg-red-600/20 hover:text-red-400",
+                    indigo: isActive ? "bg-indigo-600 text-white" : "text-neutral-400 hover:bg-indigo-600/20 hover:text-indigo-400",
+                    yellow: isActive ? "bg-yellow-600 text-white" : "text-neutral-400 hover:bg-yellow-600/20 hover:text-yellow-400",
                     neutral: isActive ? "bg-neutral-700 text-white" : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
                   };
                   return colorMap[color as keyof typeof colorMap] || colorMap.neutral;

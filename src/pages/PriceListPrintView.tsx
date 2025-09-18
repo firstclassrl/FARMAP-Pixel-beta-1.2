@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Printer, Mail, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Printer, Mail, Download } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -32,6 +32,11 @@ interface Product {
   category?: string;
   unit: string;
   base_price: number;
+  photo_url?: string;
+  cartone?: string;
+  pallet?: string;
+  ean?: string;
+  scadenza?: string;
 }
 
 interface PriceListWithItems extends PriceList {
@@ -69,7 +74,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           *,
           price_list_items (
             *,
-            products (id, code, name, description, category, unit, base_price)
+            products (id, code, name, description, category, unit, base_price, photo_url, cartone, pallet, ean, scadenza)
           )
         `)
         .eq('id', priceListId)
@@ -111,10 +116,9 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
     }
     
     try {
-      // Genera il PDF automaticamente
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
-      const pageHeight = 297;
+      // Genera il PDF automaticamente in formato A4 orizzontale
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const pageWidth = 297;
       const margin = 20;
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
@@ -122,8 +126,8 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       // 1. LOGO ORIGINALE FARMAP
       try {
         const logoImg = new Image();
-        logoImg.src = '/logo_farmap industry.jpg';
-        doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
+        logoImg.src = '/logo farmap industry copy.png';
+        doc.addImage(logoImg, 'PNG', margin, yPosition, 50, 20);
         yPosition += 20;
       } catch (logoError) {
         console.warn('Logo non caricato, continuo senza logo');
@@ -131,16 +135,16 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       }
 
       // 2. INTESTAZIONE
-      doc.setFontSize(20);
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('LISTINO PREZZI', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
+      doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 12;
 
       // 3. DETTAGLI LISTINO
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Nome Listino: ${priceList.name}`, margin, yPosition);
-      doc.text(`Data: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      doc.text(`Listino: ${priceList.name}`, margin, yPosition);
+      doc.text(`Data Creazione: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
       yPosition += 6;
       
       if (priceList.customer) {
@@ -157,49 +161,88 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       }
       yPosition += 10;
 
-      // 4. TABELLA PRODOTTI
+      // 4. CARICA IMMAGINI E GENERA TABELLA
+      const tableData = await Promise.all(
+        priceList.price_list_items?.map(async (item) => {
+          const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+          const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
+          
+          let photoBase64 = '';
+          if (item.products?.photo_url) {
+            try {
+              photoBase64 = await loadImageAsBase64(item.products.photo_url);
+            } catch (error) {
+              console.warn('Errore nel caricamento foto:', error);
+            }
+          }
+          
+          return {
+            photo: photoBase64,
+            data: [
+              '', // Placeholder per foto
+              item.products?.code || '',
+              item.products?.name || '',
+              `${item.min_quantity} ${item.products?.unit || ''}`,
+              item.products?.cartone || '-',
+              item.products?.pallet || '-',
+              item.products?.scadenza || '-',
+              item.products?.ean || '-',
+              `${vatRate}%`,
+              `€${finalPrice.toFixed(2)}`
+            ]
+          };
+        }) || []
+      );
+
+      // Genera la tabella con le immagini
       autoTable(doc, {
         startY: yPosition,
-        head: [['Codice', 'Prodotto', 'Categoria', 'Unità', 'Prezzo', 'Qty Min', 'Sconto']],
-        body: priceList.price_list_items?.map(item => [
-          item.products?.code || '',
-          item.products?.name || '',
-          item.products?.category || '',
-          item.products?.unit || '',
-          `€${item.price.toFixed(2)}`,
-          item.min_quantity.toString(),
-          `${item.discount_percentage}%`
-        ]) || [],
+        head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo Cliente']],
+        body: tableData.map(item => item.data),
         theme: 'grid',
         headStyles: { 
-          fillColor: [0, 0, 0], 
+          fillColor: [220, 38, 38], 
           textColor: [255, 255, 255],
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5
+          fontSize: 8
         },
         bodyStyles: { 
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5
+          fontSize: 7
         },
         columnStyles: {
-          0: { cellWidth: 20 },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 15 },
-          4: { cellWidth: 20 },
-          5: { cellWidth: 15 },
-          6: { cellWidth: 15 }
+          0: { cellWidth: 20 }, // Foto
+          1: { cellWidth: 25 }, // Codice
+          2: { cellWidth: 80 }, // Prodotto
+          3: { cellWidth: 20 }, // MOQ
+          4: { cellWidth: 20 }, // Cartone
+          5: { cellWidth: 20 }, // Pedana
+          6: { cellWidth: 25 }, // Scadenza
+          7: { cellWidth: 30 }, // EAN
+          8: { cellWidth: 15 }, // IVA
+          9: { cellWidth: 25 }  // Prezzo Cliente
+        },
+        didDrawCell: (data) => {
+          // Aggiungi le immagini nella colonna Foto
+          if (data.column.index === 0 && data.row.index > 0) {
+            const tableIndex = data.row.index - 1;
+            const photoBase64 = tableData[tableIndex]?.photo;
+            if (photoBase64) {
+              try {
+                doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
+              } catch (error) {
+                console.warn('Errore nell\'inserimento immagine:', error);
+              }
+            }
+          }
         }
       });
 
       // 5. FOOTER
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(
         'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
-        pageHeight - 15,
+        195,
         { align: 'right' }
       );
 
@@ -260,13 +303,12 @@ Team FARMAP`;
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!priceList) return;
 
     try {
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
-      const pageHeight = 297;
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const pageWidth = 297;
       const margin = 20;
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
@@ -274,8 +316,8 @@ Team FARMAP`;
       // 1. LOGO ORIGINALE FARMAP
       try {
         const logoImg = new Image();
-        logoImg.src = '/logo_farmap industry.jpg';
-        doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
+        logoImg.src = '/logo farmap industry copy.png';
+        doc.addImage(logoImg, 'PNG', margin, yPosition, 50, 20);
         yPosition += 20;
       } catch (logoError) {
         console.warn('Logo non caricato, continuo senza logo');
@@ -283,16 +325,16 @@ Team FARMAP`;
       }
 
       // 2. INTESTAZIONE
-      doc.setFontSize(20);
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('LISTINO PREZZI', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
+      doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 12;
 
       // 3. DETTAGLI LISTINO
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Nome Listino: ${priceList.name}`, margin, yPosition);
-      doc.text(`Data: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      doc.text(`Listino: ${priceList.name}`, margin, yPosition);
+      doc.text(`Data Creazione: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
       yPosition += 6;
       
       if (priceList.customer) {
@@ -309,34 +351,78 @@ Team FARMAP`;
       }
       yPosition += 10;
 
-      // 4. TABELLA PRODOTTI
+      // 4. CARICA IMMAGINI E GENERA TABELLA
+      const tableData = await Promise.all(
+        priceList.price_list_items?.map(async (item) => {
+          const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+          const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
+          
+          let photoBase64 = '';
+          if (item.products?.photo_url) {
+            try {
+              photoBase64 = await loadImageAsBase64(item.products.photo_url);
+            } catch (error) {
+              console.warn('Errore nel caricamento foto:', error);
+            }
+          }
+          
+          return {
+            photo: photoBase64,
+            data: [
+              '', // Placeholder per foto
+              item.products?.code || '',
+              item.products?.name || '',
+              `${item.min_quantity} ${item.products?.unit || ''}`,
+              item.products?.cartone || '-',
+              item.products?.pallet || '-',
+              item.products?.scadenza || '-',
+              item.products?.ean || '-',
+              `${vatRate}%`,
+              `€${finalPrice.toFixed(2)}`
+            ]
+          };
+        }) || []
+      );
+
+      // Genera la tabella con le immagini
       autoTable(doc, {
         startY: yPosition,
-        head: [['Codice', 'Prodotto', 'Qty Min', 'Prezzo', 'Sconto %']],
-        body: priceList.items.map((item) => [
-          item.products?.code || '',
-          item.products?.name || '',
-          `${item.min_quantity} ${item.products?.unit || ''}`,
-          formatCurrency(item.price),
-          `${item.discount_percentage}%`
-        ]),
+        head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo Cliente']],
+        body: tableData.map(item => item.data),
         theme: 'grid',
         headStyles: { 
-          fillColor: [0, 0, 0], 
+          fillColor: [220, 38, 38], 
           textColor: [255, 255, 255],
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5
+          fontSize: 8
         },
         bodyStyles: { 
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5
+          fontSize: 7
         },
         columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 20 }
+          0: { cellWidth: 20 }, // Foto
+          1: { cellWidth: 25 }, // Codice
+          2: { cellWidth: 80 }, // Prodotto
+          3: { cellWidth: 20 }, // MOQ
+          4: { cellWidth: 20 }, // Cartone
+          5: { cellWidth: 20 }, // Pedana
+          6: { cellWidth: 25 }, // Scadenza
+          7: { cellWidth: 30 }, // EAN
+          8: { cellWidth: 15 }, // IVA
+          9: { cellWidth: 25 }  // Prezzo Cliente
+        },
+        didDrawCell: (data) => {
+          // Aggiungi le immagini nella colonna Foto
+          if (data.column.index === 0 && data.row.index > 0) {
+            const tableIndex = data.row.index - 1;
+            const photoBase64 = tableData[tableIndex]?.photo;
+            if (photoBase64) {
+              try {
+                doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
+              } catch (error) {
+                console.warn('Errore nell\'inserimento immagine:', error);
+              }
+            }
+          }
         }
       });
 
@@ -363,26 +449,25 @@ Team FARMAP`;
     return basePrice * (1 - discount / 100);
   };
 
-  const calculateAverageDiscount = () => {
-    if (!priceList?.price_list_items?.length) return 0;
-    const totalDiscount = priceList.price_list_items.reduce((sum, item) => sum + item.discount_percentage, 0);
-    return Math.round(totalDiscount / priceList.price_list_items.length);
+  const loadImageAsBase64 = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(dataURL);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = url;
+    });
   };
 
-  const getStatusLabel = () => {
-    if (!priceList) return 'Bozza';
-    
-    const now = new Date();
-    const validFrom = new Date(priceList.valid_from);
-    const validUntil = priceList.valid_until ? new Date(priceList.valid_until) : null;
-    
-    if (validFrom <= now && (!validUntil || validUntil >= now)) {
-      return 'Attivo';
-    } else if (validUntil && validUntil < now) {
-      return 'Scaduto';
-    }
-    return 'Anteprima';
-  };
+
 
   if (!isOpen) return null;
 
@@ -424,12 +509,12 @@ Team FARMAP`;
             display: none !important;
           }
           
-          /* Page setup */
+          /* Page setup - A4 Landscape */
           .print-page {
-            width: 210mm;
-            min-height: 297mm;
+            width: 297mm;
+            min-height: 210mm;
             margin: 0;
-            padding: 20mm;
+            padding: 15mm;
             background: white;
             box-shadow: none;
             page-break-after: always;
@@ -451,9 +536,10 @@ Team FARMAP`;
           .print-table th,
           .print-table td {
             border: 1px solid #e5e7eb;
-            padding: 8px 12px;
+            padding: 12px 16px;
             text-align: left;
             font-size: 12px;
+            vertical-align: top;
           }
           
           .print-table th {
@@ -468,13 +554,13 @@ Team FARMAP`;
         }
         
         @page {
-          size: A4;
+          size: A4 landscape;
           margin: 0;
         }
       `}</style>
 
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="print-modal-container max-w-5xl max-h-[95vh] overflow-y-auto p-0">
+        <DialogContent className="print-modal-container max-w-7xl max-h-[95vh] overflow-y-auto p-0">
           <DialogHeader className="no-print p-6 pb-0">
             <DialogTitle>Anteprima Listino</DialogTitle>
           </DialogHeader>
@@ -485,48 +571,31 @@ Team FARMAP`;
             </div>
           ) : priceList ? (
             <div className="print-content">
-              <div className="print-page bg-white p-8 mx-auto" style={{ width: '210mm', minHeight: '297mm' }}>
-                {/* Header */}
-                <div className="print-header text-center mb-8">
-                  <div className="flex items-center justify-center mb-4">
-                    <div className="w-8 h-8 bg-gray-300 rounded mr-3"></div>
-                    <h1 className="text-2xl font-bold text-gray-700">
+              <div className="print-page bg-white p-6 mx-auto" style={{ width: '297mm', minHeight: '210mm' }}>
+                {/* Header Compatto */}
+                <div className="print-header text-center mb-4">
+                  <div className="flex items-center justify-center mb-2">
+                    <img 
+                      src="/logo farmap industry copy.png" 
+                      alt="Farmap Logo" 
+                      className="h-8 w-auto mr-2"
+                    />
+                    <h1 className="text-lg font-bold text-gray-700">
                       Listino {priceList.customer?.company_name || 'Cliente'}
                     </h1>
                   </div>
-                  
-                  <div className="text-center">
-                    <h2 className="text-4xl font-bold text-red-600 mb-2">FARMAP</h2>
-                    <p className="text-lg text-gray-600">Listino Prezzi Cliente</p>
-                  </div>
                 </div>
 
-                {/* Customer Info */}
-                <div className="mb-8">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">
-                    {priceList.customer?.company_name || 'Cliente Non Specificato'}
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-8 text-sm">
+                {/* Customer Info Compatto */}
+                <div className="mb-4">
+                  <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <div className="mb-2">
-                        <span className="font-medium text-gray-600">Listino:</span>
-                        <span className="ml-2">{priceList.name}</span>
-                      </div>
-                      <div className="mb-2">
-                        <span className="font-medium text-gray-600">Sconto Applicato:</span>
-                        <span className="ml-2 text-red-600 font-medium">{calculateAverageDiscount()}%</span>
-                      </div>
+                      <span className="font-medium text-gray-600">Listino:</span>
+                      <span className="ml-1">{priceList.name}</span>
                     </div>
                     <div>
-                      <div className="mb-2">
-                        <span className="font-medium text-gray-600">Data:</span>
-                        <span className="ml-2">{new Date().toLocaleDateString('it-IT')}</span>
-                      </div>
-                      <div className="mb-2">
-                        <span className="font-medium text-gray-600">Stato:</span>
-                        <span className="ml-2">{getStatusLabel()}</span>
-                      </div>
+                      <span className="font-medium text-gray-600">Data Creazione:</span>
+                      <span className="ml-1">{new Date(priceList.created_at).toLocaleDateString('it-IT')}</span>
                     </div>
                   </div>
                 </div>
@@ -535,13 +604,16 @@ Team FARMAP`;
                 <table className="print-table w-full border-collapse">
                   <thead>
                     <tr className="bg-red-600 text-white">
-                      <th className="border border-gray-300 px-3 py-2 text-left">Codice</th>
-                      <th className="border border-gray-300 px-3 py-2 text-left">Prodotto</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center">Categoria</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center">MOQ</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right">Prezzo Base</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center">IVA</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right">Prezzo Cliente</th>
+                      <th className="border border-gray-300 px-2 py-3 text-center w-20">Foto</th>
+                      <th className="border border-gray-300 px-2 py-3 text-left w-20">Codice</th>
+                      <th className="border border-gray-300 px-2 py-3 text-left w-40">Prodotto</th>
+                      <th className="border border-gray-300 px-2 py-3 text-center w-16">MOQ</th>
+                      <th className="border border-gray-300 px-2 py-3 text-center w-16">Cartone</th>
+                      <th className="border border-gray-300 px-2 py-3 text-center w-16">Pedana</th>
+                      <th className="border border-gray-300 px-2 py-3 text-center w-20">Scadenza</th>
+                      <th className="border border-gray-300 px-2 py-3 text-center w-24">EAN</th>
+                      <th className="border border-gray-300 px-2 py-3 text-center w-16">IVA</th>
+                      <th className="border border-gray-300 px-2 py-3 text-right w-20">Prezzo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -551,12 +623,27 @@ Team FARMAP`;
                       
                       return (
                         <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                          <td className="border border-gray-300 px-3 py-2 font-mono text-sm">
+                          <td className="border border-gray-300 p-0 text-center align-top">
+                            <div className="w-16 h-16 bg-gray-200 overflow-hidden">
+                              {item.products.photo_url ? (
+                                <img 
+                                  src={item.products.photo_url} 
+                                  alt={item.products.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">N/A</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="border border-gray-300 px-2 py-2 font-mono text-xs align-top">
                             {item.products.code}
                           </td>
-                          <td className="border border-gray-300 px-3 py-2">
+                          <td className="border border-gray-300 px-2 py-2 align-top">
                             <div>
-                              <div className="font-medium">{item.products.name}</div>
+                              <div className="font-medium text-xs">{item.products.name}</div>
                               {item.products.description && (
                                 <div className="text-xs text-gray-500 mt-1">
                                   {item.products.description}
@@ -564,19 +651,25 @@ Team FARMAP`;
                               )}
                             </div>
                           </td>
-                          <td className="border border-gray-300 px-3 py-2 text-center text-sm">
-                            {item.products.category || '-'}
-                          </td>
-                          <td className="border border-gray-300 px-3 py-2 text-center">
+                          <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
                             {item.min_quantity} {item.products.unit}
                           </td>
-                          <td className="border border-gray-300 px-3 py-2 text-right">
-                            {formatCurrency(item.price)}
+                          <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                            {item.products.cartone || '-'}
                           </td>
-                          <td className="border border-gray-300 px-3 py-2 text-center">
+                          <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                            {item.products.pallet || '-'}
+                          </td>
+                          <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                            {item.products.scadenza || '-'}
+                          </td>
+                          <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top font-mono">
+                            {item.products.ean || '-'}
+                          </td>
+                          <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
                             {vatRate}%
                           </td>
-                          <td className="border border-gray-300 px-3 py-2 text-right font-medium text-red-600">
+                          <td className="border border-gray-300 px-2 py-2 text-right font-medium text-red-600 text-xs align-top">
                             {formatCurrency(finalPrice)}
                           </td>
                         </tr>

@@ -116,10 +116,10 @@ export const Header = () => {
 
   return (
     <header 
-      className="bg-background border-b border-border px-8 py-4 shadow-sm"
+      className="px-8 py-4 header-line-texture"
       onKeyDown={handleKeyDown}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between header-content">
         {/* Search */}
         <div className="flex-1 max-w-xl" ref={searchRef}>
           <form onSubmit={handleSearchSubmit} className="relative">

@@ -6,11 +6,13 @@ import {
   ArrowRight,
   BarChart3,
   Sprout,
-  Building2
+  Building2,
+  Calendar
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { useAuth } from '../hooks/useAuth';
+import { DailyAppointments } from '../components/DailyAppointments';
 
 // Quick action sections with role-based filtering
 const quickActions = [
@@ -56,6 +58,17 @@ const quickActions = [
     hoverColor: 'hover:bg-orange-600',
     borderHover: 'hover:border-orange-500',
     textHover: 'group-hover:text-orange-600',
+    roles: ['admin', 'commerciale', 'sales']
+  },
+  {
+    title: 'Calendario',
+    description: 'Gestisci appuntamenti, chiamate e promemoria',
+    icon: Calendar,
+    href: '/calendar',
+    color: 'bg-yellow-500',
+    hoverColor: 'hover:bg-yellow-600',
+    borderHover: 'hover:border-yellow-500',
+    textHover: 'group-hover:text-yellow-600',
     roles: ['admin', 'commerciale', 'sales']
   },
   {
@@ -124,8 +137,11 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Daily Appointments */}
+      <DailyAppointments />
+
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {visibleActions.length === 0 ? (
           <div className="col-span-full">
             <Card className="p-8 text-center">
@@ -144,19 +160,19 @@ export default function Dashboard() {
           visibleActions.map((action, index) => (
             <Link key={index} to={action.href} className="group">
               <Card className={`h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer border-2 border-gray-200 ${action.borderHover}`}>
-                <CardContent className="p-8">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className={`w-16 h-16 ${action.color} ${action.hoverColor} rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110`}>
-                      <action.icon className="w-8 h-8 text-white" />
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className={`w-12 h-12 ${action.color} ${action.hoverColor} rounded-lg flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110`}>
+                      <action.icon className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h3 className={`text-xl font-bold text-gray-900 ${action.textHover} transition-colors duration-300`}>
+                      <h3 className={`text-lg font-bold text-gray-900 ${action.textHover} transition-colors duration-300`}>
                         {action.title}
                       </h3>
                     </div>
-                    <ArrowRight className={`w-5 h-5 text-gray-400 ${action.textHover} group-hover:translate-x-1 transition-all duration-300`} />
+                    <ArrowRight className={`w-4 h-4 text-gray-400 ${action.textHover} group-hover:translate-x-1 transition-all duration-300`} />
                   </div>
-                  <p className="text-gray-600 leading-relaxed">
+                  <p className="text-sm text-gray-600 leading-relaxed">
                     {action.description}
                   </p>
                 </CardContent>
