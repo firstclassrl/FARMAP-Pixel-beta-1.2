@@ -84,7 +84,6 @@ export const DailyAppointments: React.FC = () => {
     ];
 
     // Filter appointments for today
-    const today = new Date();
     const todayStart = startOfDay(today);
     const todayEnd = endOfDay(today);
     
