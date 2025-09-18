@@ -7,99 +7,28 @@ import { Link } from 'react-router-dom';
 import { Appointment } from '../types/calendar.types';
 import { format, isToday, startOfDay, endOfDay } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { useAppointmentsStore } from '../store/useAppointmentsStore';
 
 export const DailyAppointments: React.FC = () => {
+  const { getTodayAppointments, updateAppointment, deleteAppointment } = useAppointmentsStore();
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock data - in real app, this would come from Supabase
+  // Load today's appointments from the shared store
   useEffect(() => {
-    const today = new Date();
-    const mockAppointments: Appointment[] = [
-      {
-        id: '1',
-        title: 'Presentazione prodotti FARMAP',
-        description: 'Presentazione del nuovo catalogo prodotti al cliente',
-        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0),
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 11, 30),
-        customerId: 'cust-1',
-        customerName: 'Azienda Agricola Rossi',
-        type: 'appointment',
-        status: 'scheduled',
-        location: 'Via Roma 123, Milano',
-        notes: 'Portare campioni del nuovo fertilizzante',
-        reminderMinutes: 30,
-        createdBy: 'user-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '2',
-        title: 'Chiamata follow-up',
-        description: 'Chiamata di follow-up per ordine in corso',
-        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0),
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 30),
-        customerId: 'cust-2',
-        customerName: 'Cooperativa Verde',
-        type: 'call',
-        status: 'scheduled',
-        reminderMinutes: 15,
-        createdBy: 'user-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '3',
-        title: 'Promemoria: Inviare preventivo',
-        description: 'Inviare preventivo per ordine di 1000kg fertilizzante',
-        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0),
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0),
-        customerId: 'cust-3',
-        customerName: 'AgriTech Solutions',
-        type: 'reminder',
-        status: 'scheduled',
-        notes: 'Preventivo urgente - cliente in attesa',
-        reminderMinutes: 60,
-        createdBy: 'user-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '4',
-        title: 'test',
-        description: 'Appuntamento di test per oggi',
-        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 7),
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 7),
-        customerId: 'cust-4',
-        customerName: 'Cliente Test',
-        type: 'appointment',
-        status: 'scheduled',
-        location: 'pescara',
-        notes: 'Appuntamento di test',
-        reminderMinutes: 30,
-        createdBy: 'user-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
+    const loadTodayAppointments = () => {
+      const appointments = getTodayAppointments();
+      setTodayAppointments(appointments);
+      setLoading(false);
+    };
 
-    // Filter appointments for today
-    const todayStart = startOfDay(today);
-    const todayEnd = endOfDay(today);
+    loadTodayAppointments();
     
-    const filteredAppointments = mockAppointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.startDate);
-      return appointmentDate >= todayStart && appointmentDate <= todayEnd;
-    });
-
-    // Sort by start time
-    filteredAppointments.sort((a, b) => 
-      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    );
-
-    setTodayAppointments(filteredAppointments);
-    setLoading(false);
-  }, []);
+    // Refresh every minute to keep data current
+    const interval = setInterval(loadTodayAppointments, 60000);
+    
+    return () => clearInterval(interval);
+  }, [getTodayAppointments]);
 
   const getAppointmentIcon = (type: string) => {
     switch (type) {
@@ -238,10 +167,27 @@ export const DailyAppointments: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                    <Button variant="outline" size="sm" className="text-xs px-2 py-1 h-7">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs px-2 py-1 h-7"
+                      onClick={() => {
+                        // TODO: Open edit modal
+                        console.log('Edit appointment:', appointment.id);
+                      }}
+                    >
                       Modifica
                     </Button>
-                    <Button variant="outline" size="sm" className="text-xs px-2 py-1 h-7 text-red-600 border-red-300 hover:bg-red-50">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs px-2 py-1 h-7 text-red-600 border-red-300 hover:bg-red-50"
+                      onClick={() => {
+                        if (confirm('Sei sicuro di voler eliminare questo appuntamento?')) {
+                          deleteAppointment(appointment.id);
+                        }
+                      }}
+                    >
                       Elimina
                     </Button>
                   </div>

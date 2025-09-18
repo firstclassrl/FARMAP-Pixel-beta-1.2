@@ -8,12 +8,13 @@ import { AppointmentModal } from '../components/AppointmentModal';
 import { CalendarFilters } from '../components/CalendarFilters';
 import { Appointment, CalendarEvent, AppointmentFormData } from '../types/calendar.types';
 import { useAuth } from '../hooks/useAuth';
+import { useAppointmentsStore } from '../store/useAppointmentsStore';
 import { format, startOfDay, endOfDay, isToday, isTomorrow, isYesterday, addDays, subDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 export default function CalendarPage() {
   const { profile } = useAuth();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const { appointments, addAppointment, updateAppointment, deleteAppointment, getAppointmentsByDate } = useAppointmentsStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -21,69 +22,11 @@ export default function CalendarPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
 
-  // Mock data - in real app, this would come from Supabase
-  useEffect(() => {
-    const mockAppointments: Appointment[] = [
-      {
-        id: '1',
-        title: 'Presentazione prodotti FARMAP',
-        description: 'Presentazione del nuovo catalogo prodotti al cliente',
-        startDate: new Date(2025, 0, 20, 10, 0),
-        endDate: new Date(2025, 0, 20, 11, 30),
-        customerId: 'cust-1',
-        customerName: 'Azienda Agricola Rossi',
-        type: 'appointment',
-        status: 'scheduled',
-        location: 'Via Roma 123, Milano',
-        notes: 'Portare campioni del nuovo fertilizzante',
-        reminderMinutes: 30,
-        createdBy: profile?.id || 'user-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '2',
-        title: 'Chiamata follow-up',
-        description: 'Chiamata di follow-up per ordine in corso',
-        startDate: new Date(2025, 0, 21, 14, 0),
-        endDate: new Date(2025, 0, 21, 14, 30),
-        customerId: 'cust-2',
-        customerName: 'Cooperativa Verde',
-        type: 'call',
-        status: 'scheduled',
-        reminderMinutes: 15,
-        createdBy: profile?.id || 'user-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '3',
-        title: 'Promemoria: Inviare preventivo',
-        description: 'Inviare preventivo per ordine di 1000kg fertilizzante',
-        startDate: new Date(2025, 0, 22, 9, 0),
-        endDate: new Date(2025, 0, 22, 9, 0),
-        customerId: 'cust-3',
-        customerName: 'AgriTech Solutions',
-        type: 'reminder',
-        status: 'scheduled',
-        notes: 'Preventivo urgente - cliente in attesa',
-        reminderMinutes: 60,
-        createdBy: profile?.id || 'user-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-    setAppointments(mockAppointments);
-  }, [profile?.id]);
+  // Get appointments for the selected date
+  const selectedDateAppointments = getAppointmentsByDate(selectedDate);
 
   const getAppointmentsForDate = (date: Date) => {
-    const start = startOfDay(date);
-    const end = endOfDay(date);
-    
-    return appointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.startDate);
-      return appointmentDate >= start && appointmentDate <= end;
-    });
+    return getAppointmentsByDate(date);
   };
 
   const getAppointmentsForWeek = (date: Date) => {
@@ -107,7 +50,7 @@ export default function CalendarPage() {
   };
 
   const getFilteredAppointments = () => {
-    let filtered = appointments;
+    let filtered = selectedDateAppointments;
     
     if (searchTerm) {
       filtered = filtered.filter(appointment =>
@@ -121,34 +64,24 @@ export default function CalendarPage() {
   };
 
   const handleCreateAppointment = (formData: AppointmentFormData) => {
-    const newAppointment: Appointment = {
-      id: Date.now().toString(),
+    addAppointment({
       ...formData,
       status: 'scheduled',
-      createdBy: profile?.id || 'user-1',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    setAppointments(prev => [...prev, newAppointment]);
+      createdBy: profile?.id || 'user-1'
+    });
     setShowAppointmentModal(false);
   };
 
   const handleUpdateAppointment = (formData: AppointmentFormData) => {
     if (!editingAppointment) return;
     
-    setAppointments(prev => prev.map(appointment =>
-      appointment.id === editingAppointment.id
-        ? { ...appointment, ...formData, updatedAt: new Date() }
-        : appointment
-    ));
-    
+    updateAppointment(editingAppointment.id, formData);
     setEditingAppointment(null);
     setShowAppointmentModal(false);
   };
 
   const handleDeleteAppointment = (id: string) => {
-    setAppointments(prev => prev.filter(appointment => appointment.id !== id));
+    deleteAppointment(id);
   };
 
   const getAppointmentIcon = (type: string) => {
