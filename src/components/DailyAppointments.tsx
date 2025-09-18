@@ -14,13 +14,14 @@ export const DailyAppointments: React.FC = () => {
 
   // Mock data - in real app, this would come from Supabase
   useEffect(() => {
+    const today = new Date();
     const mockAppointments: Appointment[] = [
       {
         id: '1',
         title: 'Presentazione prodotti FARMAP',
         description: 'Presentazione del nuovo catalogo prodotti al cliente',
-        startDate: new Date(2025, 0, 17, 10, 0),
-        endDate: new Date(2025, 0, 17, 11, 30),
+        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 11, 30),
         customerId: 'cust-1',
         customerName: 'Azienda Agricola Rossi',
         type: 'appointment',
@@ -36,8 +37,8 @@ export const DailyAppointments: React.FC = () => {
         id: '2',
         title: 'Chiamata follow-up',
         description: 'Chiamata di follow-up per ordine in corso',
-        startDate: new Date(2025, 0, 17, 14, 0),
-        endDate: new Date(2025, 0, 17, 14, 30),
+        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 30),
         customerId: 'cust-2',
         customerName: 'Cooperativa Verde',
         type: 'call',
@@ -51,14 +52,31 @@ export const DailyAppointments: React.FC = () => {
         id: '3',
         title: 'Promemoria: Inviare preventivo',
         description: 'Inviare preventivo per ordine di 1000kg fertilizzante',
-        startDate: new Date(2025, 0, 17, 9, 0),
-        endDate: new Date(2025, 0, 17, 9, 0),
+        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0),
         customerId: 'cust-3',
         customerName: 'AgriTech Solutions',
         type: 'reminder',
         status: 'scheduled',
         notes: 'Preventivo urgente - cliente in attesa',
         reminderMinutes: 60,
+        createdBy: 'user-1',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: '4',
+        title: 'test',
+        description: 'Appuntamento di test per oggi',
+        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 7),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 7),
+        customerId: 'cust-4',
+        customerName: 'Cliente Test',
+        type: 'appointment',
+        status: 'scheduled',
+        location: 'pescara',
+        notes: 'Appuntamento di test',
+        reminderMinutes: 30,
         createdBy: 'user-1',
         createdAt: new Date(),
         updatedAt: new Date()
@@ -189,37 +207,45 @@ export const DailyAppointments: React.FC = () => {
             <div className="space-y-3">
               {todayAppointments.map((appointment) => (
                 <div key={appointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`p-2 rounded-lg ${getAppointmentColor(appointment.type)}`}>
                       {getAppointmentIcon(appointment.type)}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-sm text-gray-900">{appointment.title}</h4>
-                        <Badge className={`text-xs ${getStatusColor(appointment.status)}`}>
+                        <h4 className="font-medium text-sm text-gray-900 truncate">{appointment.title}</h4>
+                        <Badge className={`text-xs ${getAppointmentColor(appointment.type)} flex-shrink-0`}>
+                          {appointment.type}
+                        </Badge>
+                        <Badge className={`text-xs ${getStatusColor(appointment.status)} flex-shrink-0`}>
                           {appointment.status}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {format(new Date(appointment.startDate), 'HH:mm', { locale: it })}
                         </div>
                         {appointment.customerName && (
-                          <span>{appointment.customerName}</span>
+                          <span className="truncate">{appointment.customerName}</span>
                         )}
                         {appointment.location && (
                           <div className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            {appointment.location}
+                            <span className="truncate">{appointment.location}</span>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-                  <Badge className={`text-xs ${getAppointmentColor(appointment.type)}`}>
-                    {appointment.type}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                    <Button variant="outline" size="sm" className="text-xs px-2 py-1 h-7">
+                      Modifica
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs px-2 py-1 h-7 text-red-600 border-red-300 hover:bg-red-50">
+                      Elimina
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
