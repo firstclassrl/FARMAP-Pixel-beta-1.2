@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Phone, Bell, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, Phone, Bell, ChevronRight, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -8,11 +8,25 @@ import { Appointment } from '../types/calendar.types';
 import { format, isToday, startOfDay, endOfDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useAppointmentsStore } from '../store/useAppointmentsStore';
+import { AppointmentModal } from './AppointmentModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from './ui/alert-dialog';
 
 export const DailyAppointments: React.FC = () => {
   const { getTodayAppointments, updateAppointment, deleteAppointment } = useAppointmentsStore();
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   // Load today's appointments from the shared store
   useEffect(() => {
@@ -66,6 +80,23 @@ export const DailyAppointments: React.FC = () => {
   };
 
   const nextAppointment = getNextAppointment();
+
+  const handleEditAppointment = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setShowAppointmentModal(true);
+  };
+
+  const handleUpdateAppointment = (formData: any) => {
+    if (editingAppointment) {
+      updateAppointment(editingAppointment.id, formData);
+      setEditingAppointment(null);
+      setShowAppointmentModal(false);
+    }
+  };
+
+  const handleDeleteAppointment = (id: string) => {
+    deleteAppointment(id);
+  };
 
   if (loading) {
     return (
@@ -166,30 +197,46 @@ export const DailyAppointments: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-3">
                     <Button 
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm" 
-                      className="text-xs px-2 py-1 h-7"
-                      onClick={() => {
-                        // TODO: Open edit modal
-                        console.log('Edit appointment:', appointment.id);
-                      }}
+                      className="text-xs p-1 h-6 w-6 hover:bg-blue-50"
+                      onClick={() => handleEditAppointment(appointment)}
+                      title="Modifica appuntamento"
                     >
-                      Modifica
+                      <Edit className="w-3 h-3 text-blue-600" />
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-xs px-2 py-1 h-7 text-red-600 border-red-300 hover:bg-red-50"
-                      onClick={() => {
-                        if (confirm('Sei sicuro di voler eliminare questo appuntamento?')) {
-                          deleteAppointment(appointment.id);
-                        }
-                      }}
-                    >
-                      Elimina
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-xs p-1 h-6 w-6 hover:bg-red-50"
+                          title="Elimina appuntamento"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-600" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Sei sicuro di voler eliminare l'appuntamento "{appointment.title}"? 
+                            Questa azione non può essere annullata.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteAppointment(appointment.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Elimina
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               ))}
@@ -218,6 +265,20 @@ export const DailyAppointments: React.FC = () => {
           </div>
         )}
       </CardContent>
+
+      {/* Appointment Modal */}
+      {showAppointmentModal && (
+        <AppointmentModal
+          isOpen={showAppointmentModal}
+          onClose={() => {
+            setShowAppointmentModal(false);
+            setEditingAppointment(null);
+          }}
+          onSubmit={handleUpdateAppointment}
+          appointment={editingAppointment}
+          mode="edit"
+        />
+      )}
     </Card>
   );
 };

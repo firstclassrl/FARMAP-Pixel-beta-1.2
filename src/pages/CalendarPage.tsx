@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Phone, Bell, Plus, Filter, Search } from 'lucide-react';
+import { Calendar, Clock, MapPin, Phone, Bell, Plus, Filter, Search, Edit, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -165,20 +165,24 @@ export default function CalendarPage() {
             <div className="flex gap-1">
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
+                className="p-1 h-6 w-6 hover:bg-blue-50"
                 onClick={() => {
                   setEditingAppointment(appointment);
                   setShowAppointmentModal(true);
                 }}
+                title="Modifica appuntamento"
               >
-                Modifica
+                <Edit className="w-3 h-3 text-blue-600" />
               </Button>
               <Button
                 size="sm"
-                variant="destructive"
+                variant="ghost"
+                className="p-1 h-6 w-6 hover:bg-red-50"
                 onClick={() => handleDeleteAppointment(appointment.id)}
+                title="Elimina appuntamento"
               >
-                Elimina
+                <Trash2 className="w-3 h-3 text-red-600" />
               </Button>
             </div>
           </div>
@@ -268,20 +272,62 @@ export default function CalendarPage() {
         {/* Today's Appointments */}
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Oggi - {format(selectedDate, 'dd MMMM yyyy', { locale: it })}
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Calendar className="w-4 h-4 text-yellow-600" />
+                Oggi - {format(selectedDate, 'dd MMM', { locale: it })}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               {todayAppointments.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
-                  Nessun appuntamento per oggi
-                </p>
+                <div className="text-center py-6">
+                  <Calendar className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Nessun appuntamento</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {todayAppointments.map(renderAppointmentCard)}
+                <div className="space-y-2">
+                  {todayAppointments.map((appointment) => (
+                    <div key={appointment.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className={`p-1.5 rounded ${getAppointmentColor(appointment.type)}`}>
+                          {getAppointmentIcon(appointment.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm text-gray-900 truncate">{appointment.title}</h4>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <Clock className="w-3 h-3" />
+                            {format(new Date(appointment.startDate), 'HH:mm', { locale: it })}
+                            {appointment.customerName && (
+                              <span className="truncate">• {appointment.customerName}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="p-1 h-5 w-5 hover:bg-blue-50"
+                          onClick={() => {
+                            setEditingAppointment(appointment);
+                            setShowAppointmentModal(true);
+                          }}
+                          title="Modifica"
+                        >
+                          <Edit className="w-3 h-3 text-blue-600" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="p-1 h-5 w-5 hover:bg-red-50"
+                          onClick={() => handleDeleteAppointment(appointment.id)}
+                          title="Elimina"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
