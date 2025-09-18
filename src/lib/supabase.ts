@@ -5,8 +5,17 @@ import type { Database } from '../types/database.types'
 const url = import.meta.env.VITE_SUPABASE_URL as string
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
-if (!url) throw new Error('VITE_SUPABASE_URL missing')
-if (!anon) throw new Error('VITE_SUPABASE_ANON_KEY missing')
+// Fallback per sviluppo locale e deploy senza configurazione
+const fallbackUrl = 'https://placeholder.supabase.co'
+const fallbackKey = 'placeholder-key'
+
+const finalUrl = url || fallbackUrl
+const finalAnon = anon || fallbackKey
+
+if (!url || !anon) {
+  console.warn('⚠️ Supabase credentials missing, using placeholder values')
+  console.warn('⚠️ Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Netlify')
+}
 
 // (log temporanei, utili per capire se le ENV arrivano al browser)
 console.log('🔍 Origin:', window.location.origin)
@@ -14,7 +23,7 @@ console.log('🔍 Supabase URL (dbg):', url)
 console.log('🔍 Key starts with:', anon.slice(0, 8))
 
 // === CLIENT ===
-export const supabase = createClient<Database>(url, anon, {
+export const supabase = createClient<Database>(finalUrl, finalAnon, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
   db: { schema: 'public' },
   global: { headers: { 'X-Client-Info': 'pixel-crm@1.1.0-beta' } },
@@ -29,11 +38,11 @@ console.log('🔧 window.supabase ready?', !!(window as any).supabase)
 // === TEST CONNESSIONE (minimo, per far comparire la richiesta in Network) ===
 export async function testConnection(): Promise<boolean> {
   try {
-    const res = await fetch(`${url}/rest/v1/profiles?limit=1`, { 
+    const res = await fetch(`${finalUrl}/rest/v1/profiles?limit=1`, { 
       method: 'GET',
       headers: {
-        'apikey': anon,
-        'Authorization': `Bearer ${anon}`,
+        'apikey': finalAnon,
+        'Authorization': `Bearer ${finalAnon}`,
         'Content-Type': 'application/json'
       }
     });
