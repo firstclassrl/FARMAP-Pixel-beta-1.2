@@ -75,9 +75,16 @@ export const GardenProductCard: React.FC<GardenProductCardProps> = ({
       
       {/* Content */}
       <CardContent className="relative z-10 p-4">
+        {/* Product Name */}
+        <div className="mb-3">
+          <h3 className="text-lg font-bold text-gray-800 group-hover:text-emerald-700 transition-colors duration-300 text-center">
+            {product.name}
+          </h3>
+        </div>
+
         {/* Product Code */}
         <div className="mb-4">
-          <div className="flex items-center space-x-2 mb-3">
+          <div className="flex items-center justify-center space-x-2 mb-3">
             <Hash className="w-4 h-4 text-emerald-500" />
             <span className="text-sm font-mono text-gray-700 bg-white/40 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/50">
               {product.code}
