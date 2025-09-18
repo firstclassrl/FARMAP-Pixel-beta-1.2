@@ -1,4 +1,4 @@
-# Pixel CRM - FARMAP Industry
+# Pixel - Farmap
 
 **Versione:** 1.2.0  
 **Data:** 17 Gennaio 2025
