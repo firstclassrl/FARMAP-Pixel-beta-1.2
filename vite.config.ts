@@ -47,6 +47,19 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-select', '@radix-ui/react-label', '@radix-ui/react-alert-dialog'],
+          form: ['react-hook-form', '@hookform/resolvers', 'zod'],
+          data: ['date-fns', 'papaparse', 'xlsx']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 2400
+  },
   server: {
     host: true,
     port: 5173,

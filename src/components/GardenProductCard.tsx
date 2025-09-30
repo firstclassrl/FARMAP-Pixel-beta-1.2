@@ -56,12 +56,6 @@ export const GardenProductCard: React.FC<GardenProductCardProps> = ({
   }, [product.customer_id]);
 
   const handleViewDetails = () => {
-    console.log('🔍 GardenProductCard: Navigating to product details', { 
-      productId: product.id,
-      productName: product.name,
-      currentPath: window.location.pathname,
-      targetPath: `/garden/product/${product.id}`
-    });
     navigate(`/garden/product/${product.id}`);
   };
 

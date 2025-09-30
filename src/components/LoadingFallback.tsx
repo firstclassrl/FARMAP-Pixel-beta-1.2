@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
-import { checkAppHealth } from '../lib/debugUtils';
+// Removed debug health check to reduce bundle size and noise
 
 interface LoadingFallbackProps {
   message?: string;
@@ -13,7 +13,7 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
   timeout = 15000 
 }) => {
   const [showTimeout, setShowTimeout] = useState(false);
-  const [healthCheck, setHealthCheck] = useState<any>(null);
+  const [healthCheck] = useState<any>(null);
   const [dots, setDots] = useState('');
 
   // Animated loading dots
@@ -26,8 +26,6 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowTimeout(true);
-      // Run health check when timeout occurs
-      checkAppHealth().then(setHealthCheck);
     }, timeout);
 
     return () => clearTimeout(timer);

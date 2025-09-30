@@ -122,16 +122,12 @@ export function useAuth() {
   const signIn = async (email: string, password: string) => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     
-    // DEMO MODE: Bypass authentication for local development
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      console.log('🔧 DEMO MODE: Bypassing authentication for local development');
-      const mockUser = {
-        id: 'demo-user',
-        email: email,
-        user_metadata: { full_name: 'Demo User' }
-      };
-      setAuthState(prev => ({ ...prev, loading: false, user: mockUser, hasUser: true }));
-      return { data: { user: mockUser }, error: null };
+    // DEMO MODE: enable only when explicitly requested via env flag
+    const isDemoAuth = import.meta.env.VITE_DEMO_AUTH === 'true';
+    if (isDemoAuth) {
+      const mockUser = { id: 'demo-user', email, user_metadata: { full_name: 'Demo User' } } as unknown as User;
+      setAuthState(prev => ({ ...prev, loading: false, user: mockUser, hasUser: true } as any));
+      return { data: { user: mockUser } as any, error: null };
     }
     
     try {

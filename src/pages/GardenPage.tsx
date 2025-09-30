@@ -38,33 +38,35 @@ export default function GardenPage() {
         return;
       }
 
-      console.log(`Caricamento dati per ruolo "${profile.role}" dalla vista "${viewName}"...`);
+      try {
+        // 2. Chiediamo i dati alla Vista corretta
+        // Il database farà il lavoro di filtrare le colonne per noi!
+        const { data, error } = await supabase.from(viewName).select('*');
 
-      // 2. Chiediamo i dati alla Vista corretta
-      // Il database farà il lavoro di filtrare le colonne per noi!
-      const { data, error } = await supabase.from(viewName).select('*');
-
-      if (error) {
-        console.error(`Errore nel caricare i dati da ${viewName}:`, error);
-        
-        // Fallback: try to load from products table directly
-        console.log('Tentativo fallback: caricamento diretto dalla tabella products...');
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('products')
-          .select('id, name, code, description, category, base_price, unit, photo_url, brand_name, customer_id')
-          .eq('is_active', true);
+        if (error) {
+          console.error(`Errore nel caricare i dati da ${viewName}:`, error);
           
-        if (fallbackError) {
-          console.error('Errore anche nel fallback:', fallbackError);
+          // Fallback: try to load from products table directly
+          
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('products')
+            .select('id, name, code, description, category, base_price, unit, photo_url, brand_name, customer_id')
+            .eq('is_active', true);
+            
+          if (fallbackError) {
+            console.error('Errore anche nel fallback:', fallbackError);
+          } else {
+            
+            setProducts(fallbackData || []);
+            setFilteredProducts(fallbackData || []);
+          }
         } else {
-          console.log('Fallback riuscito, prodotti caricati:', fallbackData?.length || 0);
-          setProducts(fallbackData || []);
-          setFilteredProducts(fallbackData || []);
+          
+          setProducts(data || []);
+          setFilteredProducts(data || []);
         }
-      } else {
-        console.log(`Dati caricati da ${viewName}:`, data?.length || 0);
-        setProducts(data || []);
-        setFilteredProducts(data || []);
+      } catch (e) {
+        console.error('Errore generico durante il caricamento dei prodotti:', e);
       }
 
       setLoading(false);
@@ -96,12 +98,10 @@ export default function GardenPage() {
 
   const handleViewDetails = (product: any) => {
     // Implement product details view
-    console.log('View details for:', product);
   };
 
-  const handleDownload = (product: any) => {
+  const handleDownloadPDF = (product: any) => {
     // Implement product PDF download
-    console.log('Download PDF for:', product);
   };
 
   if (loading) {
@@ -178,7 +178,7 @@ export default function GardenPage() {
             onSearchChange={setSearchTerm}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
-            onFilterClick={() => console.log('Filter clicked')}
+            onFilterClick={() => {}}
           />
         </div>
 
@@ -210,7 +210,7 @@ export default function GardenPage() {
                   key={product.id}
                   product={product}
                   onViewDetails={handleViewDetails}
-                  onDownload={handleDownload}
+                  onDownload={handleDownloadPDF}
                 />
               ))}
             </div>

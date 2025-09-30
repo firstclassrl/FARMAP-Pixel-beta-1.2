@@ -90,12 +90,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setSelectedCategory(editingProduct.category || '');
       
       // Set existing photo URL if available
-      if (editingProduct.photo_url) {
-        console.log('📸 Found existing photo URL:', editingProduct.photo_url);
+      if (editingProduct?.photo_url) {
         setUploadedPhotoUrl(editingProduct.photo_url);
         setPhotoPreview(editingProduct.photo_url);
       } else {
-        console.log('📸 No existing photo URL found for product');
+        setUploadedPhotoUrl(null);
+        setPhotoPreview(null);
       }
     } else {
       reset({
@@ -162,8 +162,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const fileName = `product_photo.${fileExt}`;
       const filePath = `${tempId}/${fileName}`;
 
-      console.log('📁 Uploading to bucket product-photos with path:', filePath);
-
+      
       const { error: uploadError } = await supabase.storage
         .from('product-photos')
         .upload(filePath, selectedPhoto, { upsert: true });
@@ -178,7 +177,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         .from('product-photos')
         .getPublicUrl(filePath);
 
-      console.log('✅ Photo uploaded successfully:', data.publicUrl);
+      
       setUploadedPhotoUrl(data.publicUrl);
 
       addNotification({
@@ -230,11 +229,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         created_by: user.id
       };
 
-      console.log('📦 Product data to save:', productData);
+      
 
       if (editingProduct) {
         // Update existing product
-        console.log('🔄 Updating product with data:', productData);
+        
         const { error } = await supabase
           .from('products')
           .update(productData)
@@ -245,7 +244,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           throw error;
         }
         
-        console.log('✅ Product updated successfully');
+        
 
         addNotification({
           type: 'success',
@@ -254,7 +253,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         });
       } else {
         // Create new product
-        console.log('💾 Saving product to database...');
+        
         const { error } = await supabase
           .from('products')
           .insert([productData]);
@@ -264,7 +263,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           throw error;
         }
 
-        console.log('✅ Product saved successfully');
+        
 
         addNotification({
           type: 'success',

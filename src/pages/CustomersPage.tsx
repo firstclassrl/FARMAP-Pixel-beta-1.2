@@ -86,11 +86,18 @@ export default function CustomersPage() {
     if (!user) return;
 
     try {
+      // Normalize payload for DB types (e.g. payment_terms as number of days)
+      const normalized: any = { ...formData };
+      if (typeof normalized.payment_terms === 'string') {
+        const match = normalized.payment_terms.match(/\d+/);
+        normalized.payment_terms = match ? Number(match[0]) : 0;
+      }
+
       if (editingCustomer) {
         // In aggiornamento, non inviamo created_by
         const { error } = await supabase
           .from('customers')
-          .update(formData)
+          .update(normalized)
           .eq('id', editingCustomer.id);
         if (error) throw error;
         addNotification({ type: 'success', title: 'Cliente aggiornato' });
@@ -98,7 +105,7 @@ export default function CustomersPage() {
         // In creazione, aggiungiamo created_by
         const { error } = await supabase
           .from('customers')
-          .insert([{ ...formData, created_by: user.id }]);
+          .insert([{ ...normalized, created_by: user.id }]);
         if (error) throw error;
         addNotification({ type: 'success', title: 'Cliente creato' });
       }

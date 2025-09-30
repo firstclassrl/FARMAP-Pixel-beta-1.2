@@ -192,11 +192,7 @@ export const UserManagementPage = () => {
     setIsLoading(true);
     
     try {
-      // Debug: Log current user info
-      console.log('🔍 Current user:', currentUser);
-      console.log('🔍 Current user role from metadata:', currentUser?.user_metadata?.role);
-      
-      // First, ensure current user has admin role in database
+      // Ensure current user role
       if (currentUser?.id) {
         const { error: profileError } = await supabase
           .from('profiles')
@@ -210,20 +206,19 @@ export const UserManagementPage = () => {
         if (profileError) {
           console.warn('Could not ensure admin profile:', profileError);
         } else {
-          console.log('✅ Admin profile ensured');
+          
         }
         
         // Refresh the user session to update metadata
         try {
           await supabase.auth.refreshSession();
-          console.log('✅ Session refreshed');
+          
         } catch (refreshError) {
           console.warn('Could not refresh session:', refreshError);
         }
       }
       
       // Use simple signup method (bypasses Edge Function issues)
-      console.log('🔄 Creating user with simple signup method...');
       
       // Try signup first, if it fails due to disabled signups, create profile only
       const { data: signupData, error: signupError } = await supabase.auth.signUp({
@@ -239,7 +234,6 @@ export const UserManagementPage = () => {
 
       // If signup is disabled, create a profile-only user
       if (signupError && signupError.message.includes('Signups not allowed')) {
-        console.log('⚠️ Signup disabled, creating profile-only user...');
         
         // Create a mock user ID for profile-only user
         const mockUserId = `profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -269,7 +263,7 @@ export const UserManagementPage = () => {
         };
         
         // Continue with success flow
-        console.log('✅ Profile-only user created successfully:', mockUserId);
+        
         addNotification({
           type: 'success',
           title: 'Utente creato (solo profilo)',
@@ -300,7 +294,6 @@ export const UserManagementPage = () => {
         return;
       }
 
-      console.log('✅ User created successfully:', signupData.user.id);
       
       // Try to create profile, but don't fail if it doesn't work
       try {
@@ -316,7 +309,7 @@ export const UserManagementPage = () => {
         if (profileError) {
           console.warn('Profile creation failed, but user was created:', profileError);
         } else {
-          console.log('✅ Profile created successfully');
+          
         }
       } catch (profileInsertError) {
         console.warn('Profile insert failed, but user exists:', profileInsertError);
@@ -427,7 +420,6 @@ export const UserManagementPage = () => {
 
     setIsLoading(true);
     try {
-      console.log('🔄 Deleting user with simple method...');
       
       // Simple method: Delete from profiles table directly
       const { error: profileError } = await supabase
@@ -445,7 +437,6 @@ export const UserManagementPage = () => {
         return;
       }
 
-      console.log('✅ Profile deleted successfully');
       
       addNotification({
         type: 'success',

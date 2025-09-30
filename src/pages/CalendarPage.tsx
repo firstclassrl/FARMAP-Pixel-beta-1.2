@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Phone, Bell, Plus, Filter, Search, Edit, Trash2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Phone, Bell, Plus, Filter, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -22,7 +22,7 @@ export default function CalendarPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
 
-  // Get appointments for the selected date
+  // Get appointments based on view mode
   const selectedDateAppointments = getAppointmentsByDate(selectedDate);
 
   const getAppointmentsForDate = (date: Date) => {
@@ -194,6 +194,49 @@ export default function CalendarPage() {
   const todayAppointments = getAppointmentsForDate(selectedDate);
   const filteredAppointments = getFilteredAppointments();
 
+  const getViewAppointments = () => {
+    switch (viewMode) {
+      case 'day':
+        return getAppointmentsForDate(selectedDate);
+      case 'week':
+        return getAppointmentsForWeek(selectedDate);
+      case 'month':
+        return getAppointmentsForMonth(selectedDate);
+      default:
+        return getAppointmentsForWeek(selectedDate);
+    }
+  };
+
+  const navigatePrev = () => {
+    setSelectedDate(prev => {
+      const next = new Date(prev);
+      if (viewMode === 'day') next.setDate(prev.getDate() - 1);
+      if (viewMode === 'week') next.setDate(prev.getDate() - 7);
+      if (viewMode === 'month') next.setMonth(prev.getMonth() - 1);
+      return next;
+    });
+  };
+
+  const navigateNext = () => {
+    setSelectedDate(prev => {
+      const next = new Date(prev);
+      if (viewMode === 'day') next.setDate(prev.getDate() + 1);
+      if (viewMode === 'week') next.setDate(prev.getDate() + 7);
+      if (viewMode === 'month') next.setMonth(prev.getMonth() + 1);
+      return next;
+    });
+  };
+
+  const viewTitle = () => {
+    if (viewMode === 'day') return format(selectedDate, "EEEE dd MMMM yyyy", { locale: it });
+    if (viewMode === 'week') {
+      const start = startOfDay(subDays(selectedDate, selectedDate.getDay()));
+      const end = endOfDay(addDays(start, 6));
+      return `${format(start, 'dd MMM', { locale: it })} - ${format(end, 'dd MMM yyyy', { locale: it })}`;
+    }
+    return format(selectedDate, 'MMMM yyyy', { locale: it });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -234,16 +277,19 @@ export default function CalendarPage() {
 
       {/* Filters */}
       {showFilters && (
-        <CalendarFilters
-          onFiltersChange={(filters) => {
-            // Implement filter logic
-            console.log('Filters changed:', filters);
-          }}
-        />
+        <CalendarFilters onFiltersChange={() => { /* filter logic to be implemented */ }} />
       )}
 
-      {/* View Mode Toggle */}
+      {/* View Mode Toggle and navigation */}
       <div className="flex items-center gap-2">
+        <Button variant="outline" size="icon" onClick={navigatePrev}>
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <div className="px-2 text-sm text-gray-700 min-w-[180px] text-center">{viewTitle()}</div>
+        <Button variant="outline" size="icon" onClick={navigateNext}>
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+        <div className="w-px h-6 bg-gray-200 mx-2" />
         <Button
           variant={viewMode === 'day' ? 'default' : 'outline'}
           size="sm"
@@ -265,6 +311,7 @@ export default function CalendarPage() {
         >
           Mese
         </Button>
+        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date())}>Oggi</Button>
       </div>
 
       {/* Calendar Content */}
@@ -334,20 +381,24 @@ export default function CalendarPage() {
           </Card>
         </div>
 
-        {/* All Appointments */}
+        {/* Appointments by current view */}
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Tutti gli Appuntamenti</CardTitle>
+              <CardTitle>
+                {viewMode === 'day' && 'Appuntamenti del giorno'}
+                {viewMode === 'week' && 'Appuntamenti della settimana'}
+                {viewMode === 'month' && 'Appuntamenti del mese'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {filteredAppointments.length === 0 ? (
+              {getViewAppointments().length === 0 ? (
                 <p className="text-gray-500 text-center py-8">
                   {searchTerm ? 'Nessun appuntamento trovato' : 'Nessun appuntamento programmato'}
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {filteredAppointments.map(renderAppointmentCard)}
+                  {getViewAppointments().map(renderAppointmentCard)}
                 </div>
               )}
             </CardContent>

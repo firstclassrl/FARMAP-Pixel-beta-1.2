@@ -76,19 +76,12 @@ export default function ProductDetailsPage() {
 
     try {
       setUploading(true);
-      
-      console.log('🔄 Inizio upload immagine:', {
-        fileName: file.name,
-        fileSize: file.size,
-        productId: product.id,
-        userRole: profile.role
-      });
-      
+      // prepare filename and upload
       // Upload to Supabase storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${product.id}_${Date.now()}.${fileExt}`;
 
-      console.log('📁 Uploading to bucket product-images with filename:', fileName);
+      
 
       const { error: uploadError } = await supabase.storage
         .from('product-images')
@@ -99,7 +92,7 @@ export default function ProductDetailsPage() {
         throw uploadError;
       }
 
-      console.log('✅ Upload successful');
+      
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
@@ -140,18 +133,13 @@ export default function ProductDetailsPage() {
     try {
       setUploading(true);
       
-      console.log(`🔄 Inizio upload documento ${documentType}:`, {
-        fileName: file.name,
-        fileSize: file.size,
-        productId: product.id,
-        userRole: profile.role
-      });
+      // proceed to upload
       
       // Upload to Supabase storage (bucket is public, no need to check existence)
       const fileName = `${documentType}.pdf`;
       const filePath = `${product.id}/${fileName}`;
 
-      console.log(`📁 Uploading to bucket technical-data-sheets with path:`, filePath);
+      
 
       const { error: uploadError } = await supabase.storage
         .from('technical-data-sheets')
@@ -162,7 +150,7 @@ export default function ProductDetailsPage() {
         throw uploadError;
       }
 
-      console.log('✅ Document upload successful');
+      
 
       addNotification({
         type: 'success',
@@ -185,7 +173,6 @@ export default function ProductDetailsPage() {
     if (!product) return;
     
     try {
-      console.log('🔄 Inizio download ST per prodotto:', product.id);
       
       // Download ST file from storage
       const { data, error } = await supabase.storage
@@ -197,7 +184,7 @@ export default function ProductDetailsPage() {
         throw error;
       }
 
-      console.log('✅ Download ST successful');
+      
 
       // Create download link
       const url = URL.createObjectURL(data);
@@ -228,7 +215,6 @@ export default function ProductDetailsPage() {
     if (!product) return;
     
     try {
-      console.log('🔄 Inizio download SDS per prodotto:', product.id);
       
       // Download SDS file from storage
       const { data, error } = await supabase.storage
@@ -240,7 +226,7 @@ export default function ProductDetailsPage() {
         throw error;
       }
 
-      console.log('✅ Download SDS successful');
+      
 
       // Create download link
       const url = URL.createObjectURL(data);

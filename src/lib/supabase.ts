@@ -4,35 +4,25 @@ import type { Database } from '../types/database.types'
 // === ENV ===
 const url = import.meta.env.VITE_SUPABASE_URL as string
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+const isDemoAuth = import.meta.env.VITE_DEMO_AUTH === 'true'
 
-// Fallback per sviluppo locale e deploy senza configurazione
-const fallbackUrl = 'https://placeholder.supabase.co'
-const fallbackKey = 'placeholder-key'
-
-const finalUrl = url || fallbackUrl
-const finalAnon = anon || fallbackKey
-
-if (!url || !anon) {
-  console.warn('⚠️ Supabase credentials missing, using placeholder values')
-  console.warn('⚠️ Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Netlify')
+if ((!url || !anon) && !isDemoAuth) {
+  throw new Error('Supabase credentials missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
 }
 
-// (log temporanei, utili per capire se le ENV arrivano al browser)
-console.log('🔍 Origin:', window.location.origin)
-console.log('🔍 Supabase URL (dbg):', url)
-console.log('🔍 Key starts with:', anon.slice(0, 8))
+const finalUrl = url
+const finalAnon = anon
+
+// Minimal runtime logs; avoid leaking sensitive info
 
 // === CLIENT ===
 export const supabase = createClient<Database>(finalUrl, finalAnon, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
   db: { schema: 'public' },
-  global: { headers: { 'X-Client-Info': 'pixel-crm@1.1.0-beta' } },
+  global: { headers: { 'X-Client-Info': 'pixel-crm@1.2.0' } },
 })
 
-// DEBUG: esponi il client in Console (rimuovi in produzione)
-;(window as any).supabase = supabase
-;(globalThis as any).supabase = supabase
-console.log('🔧 window.supabase ready?', !!(window as any).supabase)
+// Do not expose client globally in production
 
 
 // === TEST CONNESSIONE (minimo, per far comparire la richiesta in Network) ===
