@@ -20,6 +20,18 @@ export const useSmartSearch = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
+  
+  // Debounce control
+  useEffect(() => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      searchAll(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchAll]);
 
   const searchAll = useCallback(async (term: string) => {
     if (!term.trim() || term.length < 2) {
@@ -88,11 +100,8 @@ export const useSmartSearch = () => {
       // Search Orders
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select(`
-          id, order_number, order_date, total_amount, status,
-          customers!inner(company_name)
-        `)
-        .or(`order_number.ilike.%${term}%,customers.company_name.ilike.%${term}%`)
+        .select('id, order_number, order_date, total_amount, status')
+        .or(`order_number.ilike.%${term}%`)
         .limit(5);
 
       if (!ordersError && orders) {
@@ -104,7 +113,7 @@ export const useSmartSearch = () => {
             id: order.id,
             type: 'order',
             title: `Ordine ${order.order_number}`,
-            subtitle: order.customers?.company_name || 'Ordine',
+            subtitle: 'Ordine',
             description: `€${order.total_amount} | ${new Date(order.order_date).toLocaleDateString('it-IT')}`,
             url: `/orders`,
             icon: '🛒',
@@ -116,7 +125,7 @@ export const useSmartSearch = () => {
       // Search Price Lists
       const { data: priceLists, error: priceListsError } = await supabase
         .from('price_lists')
-        .select('id, name, description, valid_from, valid_to')
+        .select('id, name, description, valid_from, valid_until')
         .or(`name.ilike.%${term}%,description.ilike.%${term}%`)
         .limit(5);
 
@@ -141,11 +150,8 @@ export const useSmartSearch = () => {
       // Search Sample Requests
       const { data: sampleRequests, error: sampleRequestsError } = await supabase
         .from('sample_requests')
-        .select(`
-          id, request_number, status, request_date,
-          customers!inner(company_name)
-        `)
-        .or(`request_number.ilike.%${term}%,customers.company_name.ilike.%${term}%`)
+        .select('id, request_number, status, request_date')
+        .or(`request_number.ilike.%${term}%`)
         .limit(5);
 
       if (!sampleRequestsError && sampleRequests) {
@@ -157,7 +163,7 @@ export const useSmartSearch = () => {
             id: request.id,
             type: 'sample_request',
             title: `Campionatura ${request.request_number}`,
-            subtitle: request.customers?.company_name || 'Richiesta campioni',
+            subtitle: 'Richiesta campioni',
             description: `${request.status} | ${new Date(request.request_date).toLocaleDateString('it-IT')}`,
             url: `/sample-requests`,
             icon: '🧪',
@@ -209,8 +215,7 @@ export const useSmartSearch = () => {
 
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term);
-    searchAll(term);
-  }, [searchAll]);
+  }, []);
 
   const handleResultClick = useCallback((result: SearchResult) => {
     navigate(result.url);
