@@ -38,8 +38,15 @@ pg_dump -h db.xxx.supabase.co -U postgres -d postgres > backup_$(date +%Y%m%d).s
 ### 2. Fix Enum Values (se necessario)
 Se ottieni errore `invalid input value for enum user_role`:
 1. Apri Supabase Dashboard → SQL Editor
-2. Esegui `FIX_USER_ROLE_ENUM.sql`
-3. Verifica che tutti i valori siano presenti: admin, commerciale, lettore, label_user
+2. Esegui `FIX_USER_ROLE_ENUM.sql` **un blocco alla volta**
+3. In Supabase ogni query auto-commit, quindi esegui:
+   - Prima query: verifica valori esistenti
+   - Seconda query: aggiungi 'admin' (se manca)
+   - Terza query: aggiungi 'commerciale'
+   - Quarta query: aggiungi 'lettore'
+   - Quinta query: aggiungi 'label_user'
+   - Ultima query: verifica finale
+4. ⚠️ **NON eseguire tutto insieme** (causerebbe l'errore "unsafe use")
 
 ### 3. Esegui Script RLS
 1. Apri Supabase Dashboard
