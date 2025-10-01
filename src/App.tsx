@@ -1,24 +1,24 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { Layout } from './components/layout/Layout';
-const GardenPage = lazy(() => import('./pages/GardenPage'));
-const ProductDetailsPage = lazy(() => import('./pages/ProductDetailsPage'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const CustomersPage = lazy(() => import('./pages/CustomersPage'));
-const ProductsPage = lazy(() => import('./pages/ProductsPage'));
-const PriceListsPage = lazy(() => import('./pages/PriceListsPage'));
-const OrdersPage = lazy(() => import('./pages/OrdersPage'));
-const CalendarPage = lazy(() => import('./pages/CalendarPage'));
-const SampleRequestsPage = lazy(() => import('./pages/SampleRequestsPage'));
-const ReportsPage = lazy(() => import('./pages/ReportsPage'));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
-const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
-const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
-const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
-const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
-const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
-const GardenLoginPage = lazy(() => import('./pages/GardenLoginPage').then(m => ({ default: m.GardenLoginPage })));
+import GardenPage from './pages/GardenPage';
+import ProductDetailsPage from './pages/ProductDetailsPage';
+import Dashboard from './pages/Dashboard';
+import CustomersPage from './pages/CustomersPage';
+import ProductsPage from './pages/ProductsPage';
+import PriceListsPage from './pages/PriceListsPage';
+import OrdersPage from './pages/OrdersPage';
+import CalendarPage from './pages/CalendarPage';
+import SampleRequestsPage from './pages/SampleRequestsPage';
+import ReportsPage from './pages/ReportsPage';
+import NotificationsPage from './pages/NotificationsPage';
+import UserManagementPage from './pages/UserManagementPage';
+import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import { GardenLoginPage } from './pages/GardenLoginPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Toast from './components/Toast';
 import { LoadingFallback } from './components/LoadingFallback';
@@ -42,7 +42,6 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Suspense fallback={<LoadingFallback message="Caricamento..." /> }>
         <Routes>
           {/* Always make auth routes available */}
           <Route path="/auth/login" element={<LoginPage />} />
@@ -90,7 +89,6 @@ function App() {
             </>
           )}
         </Routes>
-        </Suspense>
       </BrowserRouter>
       <Toast />
     </ErrorBoundary>
