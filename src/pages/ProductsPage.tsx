@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   Tag,
   X,
-  Sprout
+  Sprout,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
