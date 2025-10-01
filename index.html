@@ -8,6 +8,26 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Neutralizza React DevTools in produzione per evitare conflitti
+      (function () {
+        try {
+          var isLocalhost = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+          if (!isLocalhost) {
+            if (typeof window !== 'undefined' && '__REACT_DEVTOOLS_GLOBAL_HOOK__' in window) {
+              try { delete window.__REACT_DEVTOOLS_GLOBAL_HOOK__; } catch (_) {}
+              try {
+                Object.defineProperty(window, '__REACT_DEVTOOLS_GLOBAL_HOOK__', {
+                  value: undefined,
+                  configurable: false,
+                  writable: false
+                });
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Hard SW opt-out: if a service worker exists but PWA is disabled, unregister
