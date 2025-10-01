@@ -35,14 +35,20 @@
 pg_dump -h db.xxx.supabase.co -U postgres -d postgres > backup_$(date +%Y%m%d).sql
 ```
 
-### 2. Esegui Script RLS
+### 2. Fix Enum Values (se necessario)
+Se ottieni errore `invalid input value for enum user_role`:
+1. Apri Supabase Dashboard → SQL Editor
+2. Esegui `FIX_USER_ROLE_ENUM.sql`
+3. Verifica che tutti i valori siano presenti: admin, commerciale, lettore, label_user
+
+### 3. Esegui Script RLS
 1. Apri Supabase Dashboard
 2. Vai a SQL Editor
 3. Apri `ENABLE_RLS_SECURITY.sql`
 4. Esegui lo script
 5. Verifica errori
 
-### 3. Verifica RLS Attivo
+### 4. Verifica RLS Attivo
 ```sql
 -- Controlla quali tabelle hanno RLS attivo
 SELECT schemaname, tablename, rowsecurity 
@@ -51,7 +57,7 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 ```
 
-### 4. Test con Utenti Diversi
+### 5. Test con Utenti Diversi
 
 #### Test come Admin
 ```sql
@@ -77,13 +83,13 @@ SELECT * FROM price_list_items;
 -- Dovrebbe vedere solo in lettura
 ```
 
-### 5. Test dall'Applicazione
+### 6. Test dall'Applicazione
 - [ ] Login come admin → Verificare accesso completo
 - [ ] Login come commerciale → Verificare restrizioni
 - [ ] Login come lettore → Verificare solo lettura
 - [ ] Provare a creare/modificare/eliminare dati con ogni ruolo
 
-### 6. Storage Buckets RLS
+### 7. Storage Buckets RLS
 
 Anche i bucket storage necessitano policy:
 
