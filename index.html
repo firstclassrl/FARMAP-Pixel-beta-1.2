@@ -9,6 +9,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Hard SW opt-out: if a service worker exists but PWA is disabled, unregister
+      (function () {
+        try {
+          const pwaEnabled = (window?.__VITE__?.VITE_ENABLE_PWA || (import.meta && import.meta.env && import.meta.env.VITE_ENABLE_PWA)) === 'true';
+          if ('serviceWorker' in navigator && !pwaEnabled) {
+            navigator.serviceWorker.getRegistrations && navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+            caches && caches.keys && caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
+          }
+        } catch (e) {}
+      })();
+    </script>
   </body>
 </html>
 
