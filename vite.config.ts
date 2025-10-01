@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 const enablePwa = process.env.VITE_ENABLE_PWA === 'true';
+const enableSourcemap = process.env.VITE_SOURCEMAP === 'true';
 
 export default defineConfig({
   plugins: [
@@ -50,6 +51,7 @@ export default defineConfig({
     })] : [])
   ],
   build: {
+    sourcemap: enableSourcemap,
     rollupOptions: {
       output: {
         manualChunks: {
