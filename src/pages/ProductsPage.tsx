@@ -21,7 +21,6 @@ import {
   X,
   Sprout
 } from 'lucide-react';
-import ImportProductsModal from '../components/ImportProductsModal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -83,11 +82,9 @@ export const ProductsPage = () => {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
-  const [showImportModal, setShowImportModal] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
   const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const [isDeletingCategory, setIsDeletingCategory] = useState(false);
   const [isClearingAllCategories, setIsClearingAllCategories] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -550,86 +547,12 @@ export const ProductsPage = () => {
     }
   };
 
-  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    try {
-      const columns: ImportColumn[] = [
-        { csvKey: 'Codice', dbKey: 'code', required: true },
-        { csvKey: 'Nome', dbKey: 'name', required: true },
-        { csvKey: 'Descrizione', dbKey: 'description' },
-        { csvKey: 'Categoria', dbKey: 'category' },
-        { csvKey: 'Unità', dbKey: 'unit' },
-        { csvKey: 'Prezzo Base', dbKey: 'base_price', transform: transformToNumber },
-        { csvKey: 'Costo', dbKey: 'cost', transform: transformToNumber },
-        { csvKey: 'Peso (kg)', dbKey: 'weight', transform: transformToNumber },
-        { csvKey: 'Dimensioni', dbKey: 'dimensions' },
-        { csvKey: 'Attivo', dbKey: 'is_active', transform: transformToBoolean },
-        { csvKey: 'Marchio', dbKey: 'brand_name' },
-        { csvKey: 'Codice Cliente', dbKey: 'client_product_code' },
-        { csvKey: 'Codice Fornitore', dbKey: 'supplier_product_code' },
-        { csvKey: 'Barcode', dbKey: 'barcode' },
-        { csvKey: 'Tipo Cartone', dbKey: 'packaging_type' },
-        { csvKey: 'Normativa', dbKey: 'regulation' },
-        { csvKey: 'Note Prodotto', dbKey: 'product_notes' },
-        { csvKey: 'URL Foto', dbKey: 'photo_url' }
-      ];
-
-      const result = await parseCSV<ProductInsert>(file, columns);
-
-      if (!result.success) {
-        addNotification({
-          type: 'error',
-          title: 'Errore import',
-          message: `Errori trovati: ${result.errors.join(', ')}`
-        });
-        return;
-      }
-
-      if (result.data.length === 0) {
-        addNotification({
-          type: 'warning',
-          title: 'Nessun dato',
-          message: 'Il file CSV non contiene dati validi da importare'
-        });
-        return;
-      }
-
-      // Add created_by to each record
-      const dataWithCreatedBy = result.data.map(item => ({
-        ...item,
-        created_by: user?.id || ''
-      }));
-
-      // Insert data into Supabase
-      const { error } = await supabase
-        .from('products')
-        .insert(dataWithCreatedBy);
-
-      if (error) throw error;
-
-      addNotification({
-        type: 'success',
-        title: 'Import completato',
-        message: `${result.data.length} prodotti importati con successo`
-      });
-
-      await loadProducts();
-
-    } catch (error: any) {
-      console.error('Error importing CSV:', error);
-      addNotification({
-        type: 'error',
-        title: 'Errore import',
-        message: error.message || 'Si è verificato un errore durante l\'import'
-      });
-    } finally {
-      setIsImporting(false);
-      // Reset file input
-      event.target.value = '';
-    }
+  const handleRefresh = async () => {
+    await loadProducts();
+    addNotification({
+      type: 'success',
+      title: 'Prodotti aggiornati'
+    });
   };
 
   if (loading) {
@@ -676,22 +599,8 @@ export const ProductsPage = () => {
                 <FileText className="w-4 h-4 mr-2" />
                 Esporta CSV
               </DropdownMenuItem>
-              {/* Public access - import and category management always available */}
+              {/* Public access - category management always available */}
               <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleImportCSV}
-                      disabled={isImporting}
-                      className="hidden"
-                    />
-                    <Upload className="w-4 h-4 mr-2" />
-                    {isImporting ? 'Importando...' : 'Importa CSV'}
-                  </label>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowCategoryDialog(true)}>
                   <FolderPlus className="w-4 h-4 mr-2" />
@@ -703,10 +612,9 @@ export const ProductsPage = () => {
           {/* Public access - new product always available */}
           <Button 
             variant="outline" 
-            onClick={() => setShowImportModal(true)}
-            className="mr-2"
+            onClick={handleRefresh}
           >
-            <Upload className="w-4 h-4 mr-2" /> Importa CSV
+            <RefreshCw className="w-4 h-4 mr-2" /> Aggiorna
           </Button>
           <Button onClick={handleNewProduct} disabled={!user?.id}>
             <Plus className="w-4 h-4 mr-2" />
@@ -1052,15 +960,6 @@ export const ProductsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Import Products Modal */}
-      <ImportProductsModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImportComplete={() => {
-          loadProducts();
-          setShowImportModal(false);
-        }}
-      />
     </div>
   );
 };

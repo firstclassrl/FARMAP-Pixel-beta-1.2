@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Download, Upload, AlertTriangle, User } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, RefreshCw, AlertTriangle, User } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
@@ -14,13 +14,10 @@ import {
   DialogClose
 } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
-import { useStore } from '../store/useStore'; // Nota: Assumendo che useStore fornisca addNotification
+import { useStore } from '../store/useStore';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { Customer } from '../types/database.types';
-import { exportToExcel } from '../lib/exportUtils';
-import { importFromExcel } from '../lib/importUtils';
-import ImportCustomersModal from '../components/ImportCustomersModal';
 
 // Stato iniziale pulito per il modulo
 const initialFormData = {
@@ -50,8 +47,6 @@ export default function CustomersPage() {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null); // Nuovo stato per la conferma di eliminazione
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState(initialFormData);
-  const [showImportModal, setShowImportModal] = useState(false);
-
   const { addNotification } = useStore();
   const { user } = useAuth();
 
@@ -215,31 +210,9 @@ export default function CustomersPage() {
     setCustomerToDelete(null);
   };
 
-  const handleExport = () => exportToExcel(customers, 'clienti');
-
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    try {
-      const importedData = await importFromExcel(file);
-      const customersToImport = importedData.map(row => ({ /* ... la tua logica di mapping ... */ }));
-
-      const { error } = await supabase.from('customers').insert(customersToImport);
-      if (error) throw error;
-
-      addNotification({ type: 'success', title: 'Importazione completata' });
-      fetchCustomers();
-    } catch (error: any) {
-      console.error('Error importing customers:', error);
-      let message = 'Impossibile importare i clienti.';
-      if(error.message?.includes('duplicate key value')){
-        message = 'Errore: uno o più clienti nel file sono già presenti nel sistema.';
-      }
-      addNotification({ type: 'error', title: 'Errore importazione', message });
-    } finally {
-      event.target.value = '';
-    }
+  const handleRefresh = () => {
+    fetchCustomers();
+    addNotification({ type: 'success', title: 'Clienti aggiornati' });
   };
 
   const filteredCustomers = customers.filter(c => 
@@ -253,19 +226,12 @@ export default function CustomersPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Clienti</h1>
         <div className="flex gap-2">
-          {/* Pulsanti Importa/Esporta */}
-          <Button variant="outline" onClick={handleExport}><Download className="w-4 h-4 mr-2" /> Esporta</Button>
-          <Button variant="outline" onClick={() => document.getElementById('import-customers')?.click()}><Upload className="w-4 h-4 mr-2" /> Importa</Button>
-          <input type="file" id="import-customers" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
-          
-          <Button 
-            variant="outline" 
-            onClick={() => setShowImportModal(true)}
-            className="mr-2"
-          >
-            <Upload className="w-4 h-4 mr-2" /> Importa CSV
+          <Button variant="outline" onClick={handleRefresh}>
+            <RefreshCw className="w-4 h-4 mr-2" /> Aggiorna
           </Button>
-          <Button onClick={openNewForm}><Plus className="w-4 h-4 mr-2" /> Nuovo Cliente</Button>
+          <Button onClick={openNewForm}>
+            <Plus className="w-4 h-4 mr-2" /> Nuovo Cliente
+          </Button>
         </div>
       </div>
 
@@ -569,15 +535,6 @@ export default function CustomersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Customers Modal */}
-      <ImportCustomersModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImportComplete={() => {
-          fetchCustomers();
-          setShowImportModal(false);
-        }}
-      />
     </div>
   );
 }
