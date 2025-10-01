@@ -21,18 +21,7 @@ export const useSmartSearch = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   
-  // Debounce control
-  useEffect(() => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    const timer = setTimeout(() => {
-      searchAll(searchTerm);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm, searchAll]);
-
+  // Define searchAll before any hook uses it to avoid temporal-dead-zone errors
   const searchAll = useCallback(async (term: string) => {
     if (!term.trim() || term.length < 2) {
       setSearchResults([]);
@@ -191,7 +180,18 @@ export const useSmartSearch = () => {
     }
   }, [addNotification]);
 
-  const calculateRelevance = (text: string, searchTerm: string): number => {
+  // Debounce control
+  useEffect(() => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      searchAll(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchAll]);
+  function calculateRelevance(text: string, searchTerm: string): number {
     if (!text) return 0;
     
     const textLower = text.toLowerCase();
@@ -211,7 +211,7 @@ export const useSmartSearch = () => {
     if (hasWordMatch) return 40;
     
     return 0;
-  };
+  }
 
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term);
