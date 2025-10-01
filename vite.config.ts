@@ -79,6 +79,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
+      , 'ws': path.resolve(__dirname, './src/shims/empty.ts')
     }
   },
   optimizeDeps: {
