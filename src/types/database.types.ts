@@ -493,6 +493,59 @@ export interface Database {
           created_at?: string
         }
       }
+      appointments: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          start_date: string
+          end_date: string
+          customer_id: string | null
+          customer_name: string | null
+          type: 'appointment' | 'call' | 'reminder'
+          status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+          location: string | null
+          notes: string | null
+          reminder_minutes: number
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          start_date: string
+          end_date: string
+          customer_id?: string | null
+          customer_name?: string | null
+          type: 'appointment' | 'call' | 'reminder'
+          status?: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+          location?: string | null
+          notes?: string | null
+          reminder_minutes?: number
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          start_date?: string
+          end_date?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          type?: 'appointment' | 'call' | 'reminder'
+          status?: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+          location?: string | null
+          notes?: string | null
+          reminder_minutes?: number
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       orders_with_profiles: {

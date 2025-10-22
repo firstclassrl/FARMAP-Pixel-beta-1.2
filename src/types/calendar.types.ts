@@ -34,11 +34,13 @@ export interface AppointmentFormData {
   description: string;
   startDate: Date;
   endDate: Date;
-  customerId: string;
+  customerId?: string;
+  customerName?: string;
   type: 'appointment' | 'call' | 'reminder';
-  location: string;
-  notes: string;
-  reminderMinutes: number;
+  status?: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  location?: string;
+  notes?: string;
+  reminderMinutes?: number;
 }
 
 export interface CalendarFilters {

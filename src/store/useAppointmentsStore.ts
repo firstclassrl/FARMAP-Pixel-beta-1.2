@@ -1,139 +1,209 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { Appointment } from '../types/calendar.types';
+import { supabase } from '../lib/supabase';
+import { Appointment, AppointmentFormData } from '../types/calendar.types';
+import { Database } from '../types/database.types';
+
+type AppointmentRow = Database['public']['Tables']['appointments']['Row'];
+type AppointmentInsert = Database['public']['Tables']['appointments']['Insert'];
+type AppointmentUpdate = Database['public']['Tables']['appointments']['Update'];
 
 interface AppointmentsState {
   appointments: Appointment[];
-  addAppointment: (appointment: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateAppointment: (id: string, updates: Partial<Appointment>) => void;
-  deleteAppointment: (id: string) => void;
-  getTodayAppointments: () => Appointment[];
+  loading: boolean;
+  error: string | null;
+  
+  // Actions
+  fetchAppointments: () => Promise<void>;
+  addAppointment: (appointment: AppointmentFormData & { createdBy: string }) => Promise<void>;
+  updateAppointment: (id: string, appointment: Partial<AppointmentFormData>) => Promise<void>;
+  deleteAppointment: (id: string) => Promise<void>;
   getAppointmentsByDate: (date: Date) => Appointment[];
+  getTodayAppointments: () => Appointment[];
+  clearError: () => void;
 }
 
-export const useAppointmentsStore = create<AppointmentsState>()(
-  persist(
-    (set, get) => ({
-      appointments: [
-        // Appuntamenti di esempio per oggi
-        {
-          id: '1',
-          title: 'Presentazione prodotti FARMAP',
-          description: 'Presentazione del nuovo catalogo prodotti al cliente',
-          startDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 10, 0),
-          endDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 11, 30),
-          customerId: 'cust-1',
-          customerName: 'Azienda Agricola Rossi',
-          type: 'appointment',
-          status: 'scheduled',
-          location: 'Via Roma 123, Milano',
-          notes: 'Portare campioni del nuovo fertilizzante',
-          reminderMinutes: 30,
-          createdBy: 'user-1',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '2',
-          title: 'Chiamata follow-up',
-          description: 'Chiamata di follow-up per ordine in corso',
-          startDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 14, 0),
-          endDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 14, 30),
-          customerId: 'cust-2',
-          customerName: 'Cooperativa Verde',
-          type: 'call',
-          status: 'scheduled',
-          reminderMinutes: 15,
-          createdBy: 'user-1',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '3',
-          title: 'Promemoria: Inviare preventivo',
-          description: 'Inviare preventivo per ordine di 1000kg fertilizzante',
-          startDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 9, 0),
-          endDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 9, 0),
-          customerId: 'cust-3',
-          customerName: 'AgriTech Solutions',
-          type: 'reminder',
-          status: 'scheduled',
-          notes: 'Preventivo urgente - cliente in attesa',
-          reminderMinutes: 60,
-          createdBy: 'user-1',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '4',
-          title: 'test',
-          description: 'Appuntamento di test per oggi',
-          startDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 0, 7),
-          endDate: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 10, 7),
-          customerId: 'cust-4',
-          customerName: 'Cliente Test',
-          type: 'appointment',
-          status: 'scheduled',
-          location: 'pescara',
-          notes: 'Appuntamento di test',
-          reminderMinutes: 30,
-          createdBy: 'user-1',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ],
+// Helper function to convert database row to Appointment
+const rowToAppointment = (row: AppointmentRow): Appointment => ({
+  id: row.id,
+  title: row.title,
+  description: row.description || undefined,
+  startDate: new Date(row.start_date),
+  endDate: new Date(row.end_date),
+  customerId: row.customer_id || undefined,
+  customerName: row.customer_name || undefined,
+  type: row.type,
+  status: row.status,
+  location: row.location || undefined,
+  notes: row.notes || undefined,
+  reminderMinutes: row.reminder_minutes,
+  createdBy: row.created_by,
+  createdAt: new Date(row.created_at),
+  updatedAt: new Date(row.updated_at)
+});
 
-      addAppointment: (appointmentData) => {
-        const newAppointment: Appointment = {
-          ...appointmentData,
-          id: `appointment-${Date.now()}`,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        set((state) => ({
-          appointments: [...state.appointments, newAppointment]
-        }));
-      },
+// Helper function to convert AppointmentFormData to database insert
+const appointmentToInsert = (
+  appointment: AppointmentFormData & { createdBy: string }
+): AppointmentInsert => ({
+  title: appointment.title,
+  description: appointment.description || null,
+  start_date: appointment.startDate.toISOString(),
+  end_date: appointment.endDate.toISOString(),
+  customer_id: appointment.customerId || null,
+  customer_name: appointment.customerName || null,
+  type: appointment.type,
+  status: 'scheduled',
+  location: appointment.location || null,
+  notes: appointment.notes || null,
+  reminder_minutes: appointment.reminderMinutes || 30,
+  created_by: appointment.createdBy
+});
 
-      updateAppointment: (id, updates) => {
-        set((state) => ({
-          appointments: state.appointments.map((appointment) =>
-            appointment.id === id
-              ? { ...appointment, ...updates, updatedAt: new Date() }
-              : appointment
-          )
-        }));
-      },
+export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
+  appointments: [],
+  loading: false,
+  error: null,
 
-      deleteAppointment: (id) => {
-        set((state) => ({
-          appointments: state.appointments.filter((appointment) => appointment.id !== id)
-        }));
-      },
+  fetchAppointments: async () => {
+    set({ loading: true, error: null });
+    
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .order('start_date', { ascending: true });
 
-      getTodayAppointments: () => {
-        const today = new Date();
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
-        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-        
-        return get().appointments.filter((appointment) => {
-          const appointmentDate = new Date(appointment.startDate);
-          return appointmentDate >= todayStart && appointmentDate <= todayEnd;
-        }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-      },
-
-      getAppointmentsByDate: (date) => {
-        const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-        const dateEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
-        
-        return get().appointments.filter((appointment) => {
-          const appointmentDate = new Date(appointment.startDate);
-          return appointmentDate >= dateStart && appointmentDate <= dateEnd;
-        }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+      if (error) {
+        throw error;
       }
-    }),
-    {
-      name: 'appointments-storage',
+
+      const appointments = data?.map(rowToAppointment) || [];
+      set({ appointments, loading: false });
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Errore nel caricamento degli appuntamenti',
+        loading: false 
+      });
     }
-  )
-);
+  },
+
+  addAppointment: async (appointmentData) => {
+    set({ loading: true, error: null });
+    
+    try {
+      const insertData = appointmentToInsert(appointmentData);
+      
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const newAppointment = rowToAppointment(data);
+      set(state => ({
+        appointments: [...state.appointments, newAppointment],
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Error adding appointment:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Errore nel salvataggio dell\'appuntamento',
+        loading: false 
+      });
+    }
+  },
+
+  updateAppointment: async (id, appointmentData) => {
+    set({ loading: true, error: null });
+    
+    try {
+      const updateData: AppointmentUpdate = {};
+      
+      if (appointmentData.title !== undefined) updateData.title = appointmentData.title;
+      if (appointmentData.description !== undefined) updateData.description = appointmentData.description;
+      if (appointmentData.startDate !== undefined) updateData.start_date = appointmentData.startDate.toISOString();
+      if (appointmentData.endDate !== undefined) updateData.end_date = appointmentData.endDate.toISOString();
+      if (appointmentData.customerId !== undefined) updateData.customer_id = appointmentData.customerId;
+      if (appointmentData.customerName !== undefined) updateData.customer_name = appointmentData.customerName;
+      if (appointmentData.type !== undefined) updateData.type = appointmentData.type;
+      if (appointmentData.status !== undefined) updateData.status = appointmentData.status;
+      if (appointmentData.location !== undefined) updateData.location = appointmentData.location;
+      if (appointmentData.notes !== undefined) updateData.notes = appointmentData.notes;
+      if (appointmentData.reminderMinutes !== undefined) updateData.reminder_minutes = appointmentData.reminderMinutes;
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const updatedAppointment = rowToAppointment(data);
+      set(state => ({
+        appointments: state.appointments.map(apt => 
+          apt.id === id ? updatedAppointment : apt
+        ),
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Errore nell\'aggiornamento dell\'appuntamento',
+        loading: false 
+      });
+    }
+  },
+
+  deleteAppointment: async (id) => {
+    set({ loading: true, error: null });
+    
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      set(state => ({
+        appointments: state.appointments.filter(apt => apt.id !== id),
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Errore nell\'eliminazione dell\'appuntamento',
+        loading: false 
+      });
+    }
+  },
+
+  getAppointmentsByDate: (date) => {
+    const appointments = get().appointments;
+    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+    const dateEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+    
+    return appointments.filter((appointment) => {
+      const appointmentDate = new Date(appointment.startDate);
+      return appointmentDate >= dateStart && appointmentDate <= dateEnd;
+    }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  },
+
+  getTodayAppointments: () => {
+    const today = new Date();
+    return get().getAppointmentsByDate(today);
+  },
+
+  clearError: () => set({ error: null })
+}));

@@ -14,13 +14,28 @@ import { it } from 'date-fns/locale';
 
 export default function CalendarPage() {
   const { profile } = useAuth();
-  const { appointments, addAppointment, updateAppointment, deleteAppointment, getAppointmentsByDate } = useAppointmentsStore();
+  const { 
+    appointments, 
+    loading, 
+    error, 
+    fetchAppointments, 
+    addAppointment, 
+    updateAppointment, 
+    deleteAppointment, 
+    getAppointmentsByDate,
+    clearError 
+  } = useAppointmentsStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
+
+  // Carica gli appuntamenti all'avvio del componente
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   // Get appointments based on view mode
   const selectedDateAppointments = getAppointmentsByDate(selectedDate);
@@ -63,25 +78,41 @@ export default function CalendarPage() {
     return filtered;
   };
 
-  const handleCreateAppointment = (formData: AppointmentFormData) => {
-    addAppointment({
-      ...formData,
-      status: 'scheduled',
-      createdBy: profile?.id || 'user-1'
-    });
-    setShowAppointmentModal(false);
+  const handleCreateAppointment = async (formData: AppointmentFormData) => {
+    if (!profile?.id) {
+      console.error('User profile not found');
+      return;
+    }
+    
+    try {
+      await addAppointment({
+        ...formData,
+        createdBy: profile.id
+      });
+      setShowAppointmentModal(false);
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+    }
   };
 
-  const handleUpdateAppointment = (formData: AppointmentFormData) => {
+  const handleUpdateAppointment = async (formData: AppointmentFormData) => {
     if (!editingAppointment) return;
     
-    updateAppointment(editingAppointment.id, formData);
-    setEditingAppointment(null);
-    setShowAppointmentModal(false);
+    try {
+      await updateAppointment(editingAppointment.id, formData);
+      setEditingAppointment(null);
+      setShowAppointmentModal(false);
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+    }
   };
 
-  const handleDeleteAppointment = (id: string) => {
-    deleteAppointment(id);
+  const handleDeleteAppointment = async (id: string) => {
+    try {
+      await deleteAppointment(id);
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+    }
   };
 
   const getAppointmentIcon = (type: string) => {
@@ -263,6 +294,45 @@ export default function CalendarPage() {
           </Button>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="text-red-400 mr-3">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-red-800">Errore</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearError}
+              className="text-red-400 hover:text-red-600"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="text-gray-600">Caricamento appuntamenti...</span>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">

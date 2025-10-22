@@ -38,7 +38,9 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     startDate: new Date(),
     endDate: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
     customerId: '',
+    customerName: '',
     type: 'appointment',
+    status: 'scheduled',
     location: '',
     notes: '',
     reminderMinutes: 30
@@ -54,7 +56,9 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
         startDate: new Date(appointment.startDate),
         endDate: new Date(appointment.endDate),
         customerId: appointment.customerId || '',
+        customerName: appointment.customerName || '',
         type: appointment.type,
+        status: appointment.status,
         location: appointment.location || '',
         notes: appointment.notes || '',
         reminderMinutes: appointment.reminderMinutes || 30
