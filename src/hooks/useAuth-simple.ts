@@ -66,7 +66,7 @@ export function useAuth(): {
             email: user.email || '',
             full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
             avatar_url: null,
-            role: user.raw_user_meta_data?.role || 'admin', // Default to admin for now
+            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' ? 'production' : 'admin'), // Fix per etichette@farmap.it
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -76,7 +76,8 @@ export function useAuth(): {
             email: user.email,
             raw_user_meta_data: user.raw_user_meta_data,
             role: user.raw_user_meta_data?.role,
-            finalRole: simpleProfile.role
+            finalRole: simpleProfile.role,
+            isEtichette: user.email === 'etichette@farmap.it'
           });
           
           if (mounted) {
@@ -116,7 +117,7 @@ export function useAuth(): {
             email: user.email || '',
             full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
             avatar_url: null,
-            role: user.raw_user_meta_data?.role || 'admin', // Default to admin for now
+            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' ? 'production' : 'admin'), // Fix per etichette@farmap.it
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -126,7 +127,8 @@ export function useAuth(): {
             email: user.email,
             raw_user_meta_data: user.raw_user_meta_data,
             role: user.raw_user_meta_data?.role,
-            finalRole: simpleProfile.role
+            finalRole: simpleProfile.role,
+            isEtichette: user.email === 'etichette@farmap.it'
           });
           
           setAuthState(prev => ({ 
