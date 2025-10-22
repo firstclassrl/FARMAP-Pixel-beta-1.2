@@ -60,7 +60,7 @@ export const GardenProductCard: React.FC<GardenProductCardProps> = ({
   };
 
   return (
-    <Card className="group relative overflow-hidden bg-white/30 backdrop-blur-xl border border-white/40 shadow-2xl hover:shadow-emerald-500/25 transition-all duration-500 hover:scale-[1.02] hover:border-emerald-400/70">
+    <Card className="group relative overflow-hidden bg-white/30 backdrop-blur-xl border border-white/40 shadow-2xl hover:shadow-emerald-500/25 transition-all duration-500 hover:scale-[1.02] hover:border-emerald-400/70 touch-manipulation">
       {/* Animated Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       
@@ -68,10 +68,10 @@ export const GardenProductCard: React.FC<GardenProductCardProps> = ({
       <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 via-teal-400/20 to-cyan-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       
       {/* Content */}
-      <CardContent className="relative z-10 p-4">
+      <CardContent className="relative z-10 p-3 sm:p-4">
         {/* Product Name */}
-        <div className="mb-3">
-          <h3 className="text-lg font-bold text-gray-800 group-hover:text-emerald-700 transition-colors duration-300 text-center">
+        <div className="mb-2 sm:mb-3">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 group-hover:text-emerald-700 transition-colors duration-300 text-center leading-tight">
             {product.name}
           </h3>
         </div>
@@ -98,11 +98,11 @@ export const GardenProductCard: React.FC<GardenProductCardProps> = ({
           </div>
         )}
 
-        {/* Action Button */}
+        {/* Action Button - Tablet Optimized */}
         <div className="flex justify-center">
           <Button
             onClick={handleViewDetails}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 h-10 text-sm font-medium"
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 h-11 sm:h-10 text-sm font-medium touch-manipulation"
           >
             <Eye className="w-4 h-4 mr-2" />
             Dettagli

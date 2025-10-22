@@ -150,17 +150,18 @@ export default function GardenPage() {
       <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 rounded-full blur-xl animate-pulse delay-2000" />
       
       <div className="relative z-10">
-        {/* Navigation Buttons */}
-        <div className="max-w-7xl mx-auto px-6 pt-6 flex justify-between items-center">
+        {/* Navigation Buttons - Tablet Optimized */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 flex justify-between items-center">
           {/* Back to Pixel Button - Only for Admin, Commercial and Sales (NOT for production) */}
           {(profile?.role === 'admin' || profile?.role === 'commerciale' || profile?.role === 'sales') && (
             <Button
               onClick={() => window.location.href = '/'}
               variant="outline"
-              className="bg-white/20 backdrop-blur-sm border-white/30 text-gray-300 hover:bg-white/30 h-8 text-sm"
+              className="bg-white/20 backdrop-blur-sm border-white/30 text-gray-300 hover:bg-white/30 h-10 sm:h-8 text-sm px-4 sm:px-3 touch-manipulation"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Torna a Pixel
+              <span className="hidden sm:inline">Torna a Pixel</span>
+              <span className="sm:hidden">Pixel</span>
             </Button>
           )}
           
@@ -172,7 +173,7 @@ export default function GardenPage() {
               window.location.href = '/garden/login';
             }}
             variant="outline"
-            className="bg-red-500/20 backdrop-blur-sm border-red-400/30 text-red-200 hover:bg-red-500/30 h-8 text-sm"
+            className="bg-red-500/20 backdrop-blur-sm border-red-400/30 text-red-200 hover:bg-red-500/30 h-10 sm:h-8 text-sm px-4 sm:px-3 touch-manipulation"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -186,8 +187,8 @@ export default function GardenPage() {
           productCount={filteredProducts.length}
         />
 
-        {/* Filters */}
-        <div className="max-w-7xl mx-auto px-6 mb-8">
+        {/* Filters - Tablet Optimized */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-6 sm:mb-8">
           <GardenFilters
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
@@ -197,8 +198,8 @@ export default function GardenPage() {
           />
         </div>
 
-        {/* Products Grid */}
-        <div className="max-w-7xl mx-auto px-6 pb-12">
+        {/* Products Grid - Tablet Optimized */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-8 sm:pb-12">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16">
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-gray-400 to-gray-500 rounded-2xl shadow-2xl mb-6">
@@ -215,9 +216,9 @@ export default function GardenPage() {
               </p>
             </div>
           ) : (
-            <div className={`grid gap-6 ${
+            <div className={`grid gap-4 sm:gap-6 ${
               viewMode === 'grid' 
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
                 : 'grid-cols-1 max-w-4xl mx-auto'
             }`}>
               {filteredProducts.map((product) => (
