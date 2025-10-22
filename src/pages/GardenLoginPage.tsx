@@ -213,7 +213,7 @@ export const GardenLoginPage: React.FC = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
-            Powered by <span className="font-semibold text-emerald-600">Pixel CRM</span>
+            Powered by <span className="font-semibold text-emerald-600">Pixel v{__APP_VERSION__}</span>
           </p>
         </div>
       </div>
