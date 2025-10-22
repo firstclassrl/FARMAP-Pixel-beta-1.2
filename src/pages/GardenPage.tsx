@@ -166,7 +166,11 @@ export default function GardenPage() {
           
           {/* Logout Button - Visible for all users */}
           <Button
-            onClick={signOut}
+            onClick={async () => {
+              await signOut();
+              // Reindirizza a garden/login dopo logout
+              window.location.href = '/garden/login';
+            }}
             variant="outline"
             className="bg-red-500/20 backdrop-blur-sm border-red-400/30 text-red-200 hover:bg-red-500/30 h-8 text-sm"
           >

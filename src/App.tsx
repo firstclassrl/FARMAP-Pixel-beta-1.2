@@ -49,7 +49,7 @@ function App() {
           <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           
-          {/* Garden routes - accessible without main app authentication */}
+          {/* Garden routes - always accessible */}
           <Route path="/garden/login" element={<GardenLoginPage />} />
           
           {/* Garden routes for authenticated users */}
@@ -64,8 +64,6 @@ function App() {
           ) : profile?.role === 'production' ? (
             // Production users can only access Garden
             <>
-              <Route path="/garden" element={<GardenPage />} />
-              <Route path="/garden/product/:id" element={<ProductDetailsPage />} />
               <Route path="*" element={<Navigate to="/garden" replace />} />
             </>
           ) : (
