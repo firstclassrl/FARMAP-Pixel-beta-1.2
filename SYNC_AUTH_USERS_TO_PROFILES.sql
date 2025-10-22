@@ -7,8 +7,16 @@ SELECT
   u.id,
   u.email,
   COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)) AS full_name,
-  NULLIF(COALESCE(u.raw_user_meta_data->>'avatar_url', u.user_metadata->>'avatar_url'), '') AS avatar_url,
-  COALESCE(NULLIF(u.raw_user_meta_data->>'role', '')::user_role, 'lettore'::user_role) AS role,
+  NULLIF(u.raw_user_meta_data->>'avatar_url', '') AS avatar_url,
+  (
+    CASE 
+      WHEN u.raw_user_meta_data ? 'role' AND (u.raw_user_meta_data->>'role') IN (
+        SELECT enumlabel FROM pg_enum 
+        WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'user_role')
+      ) THEN (u.raw_user_meta_data->>'role')::user_role
+      ELSE 'lettore'::user_role
+    END
+  ) AS role,
   NOW() AS created_at,
   NOW() AS updated_at
 FROM auth.users u
@@ -25,14 +33,20 @@ DECLARE
 BEGIN
   -- Extract optional metadata safely
   BEGIN
-    v_role := COALESCE(NULLIF(NEW.raw_user_meta_data->>'role', '')::user_role, 'lettore');
+    IF NEW.raw_user_meta_data ? 'role' AND (NEW.raw_user_meta_data->>'role') IN (
+      SELECT enumlabel FROM pg_enum 
+      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'user_role')
+    ) THEN
+      v_role := (NEW.raw_user_meta_data->>'role')::user_role;
+    ELSE
+      v_role := 'lettore';
+    END IF;
   EXCEPTION WHEN others THEN
     v_role := 'lettore';
   END;
 
   v_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1));
-  v_avatar := COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.user_metadata->>'avatar_url');
-  IF v_avatar = '' THEN v_avatar := NULL; END IF;
+  v_avatar := NULLIF(NEW.raw_user_meta_data->>'avatar_url', '');
 
   INSERT INTO public.profiles (id, email, full_name, avatar_url, role, created_at, updated_at)
   VALUES (NEW.id, NEW.email, v_full_name, v_avatar, v_role, NOW(), NOW())
@@ -56,5 +70,5 @@ FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 -- Optional: keep email/metadata updates in sync
 DROP TRIGGER IF EXISTS on_auth_user_updated ON auth.users;
 CREATE TRIGGER on_auth_user_updated
-AFTER UPDATE OF email, raw_user_meta_data, user_metadata ON auth.users
+AFTER UPDATE OF email, raw_user_meta_data ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
