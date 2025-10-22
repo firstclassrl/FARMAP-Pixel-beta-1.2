@@ -144,7 +144,7 @@ export function Sidebar() {
           ) : (
             <div className="flex items-center justify-center space-x-2">
               <img src="/Logo Pixel Farmap 2025.png" alt="Pixel Logo" className="h-5 w-auto filter brightness-110" />
-              <span className="text-xs text-neutral-400">Pixel CRM v1.2.1</span>
+              <span className="text-xs text-neutral-400">{`Pixel v ${__APP_VERSION__}`}</span>
             </div>
           )}
         </div>
