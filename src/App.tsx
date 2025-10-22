@@ -25,7 +25,7 @@ import { LoadingFallback } from './components/LoadingFallback';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
-  const { user, loading, error } = useAuth();
+  const { user, profile, loading, error } = useAuth();
 
   // Remove verbose console logs for production readiness
 
@@ -61,8 +61,15 @@ function App() {
             <>
               <Route path="*" element={<Navigate to="/auth/login" replace />} />
             </>
+          ) : profile?.role === 'production' ? (
+            // Production users can only access Garden
+            <>
+              <Route path="/garden" element={<GardenPage />} />
+              <Route path="/garden/product/:id" element={<ProductDetailsPage />} />
+              <Route path="*" element={<Navigate to="/garden" replace />} />
+            </>
           ) : (
-            // Protected routes when authenticated
+            // Protected routes when authenticated (non-production users)
             <>
               
               {/* Main app routes */}
