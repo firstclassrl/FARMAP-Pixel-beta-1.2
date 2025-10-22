@@ -31,7 +31,7 @@ export default defineConfig({
           }
         ]
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'PIXEL ICON.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'Icona Pixel.png'],
       manifest: {
         name: 'Pixel CRM - FARMAP',
         short_name: 'Pixel CRM',
@@ -41,13 +41,13 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: 'PIXEL ICON.png',
+            src: 'Icona Pixel.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: 'PIXEL ICON.png',
+            src: 'Icona Pixel.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
