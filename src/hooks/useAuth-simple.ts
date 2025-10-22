@@ -2,24 +2,40 @@ import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+// Estendi il tipo User per includere raw_user_meta_data
+interface ExtendedUser extends User {
+  raw_user_meta_data?: {
+    full_name?: string;
+    role?: string;
+    [key: string]: any;
+  };
+}
+
 interface Profile {
   id: string;
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: 'admin' | 'commerciale' | 'lettore';
+  role: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales';
   created_at: string;
   updated_at: string;
 }
 
 interface AuthState {
-  user: User | null;
+  user: ExtendedUser | null;
   profile: Profile | null;
   loading: boolean;
   error: string | null;
 }
 
-export function useAuth() {
+export function useAuth(): {
+  user: ExtendedUser | null;
+  profile: Profile | null;
+  loading: boolean;
+  error: string | null;
+  signIn: (email: string, password: string) => Promise<any>;
+  signOut: () => Promise<void>;
+} {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     profile: null,
@@ -43,13 +59,14 @@ export function useAuth() {
         }
 
         if (session?.user) {
+          const user = session.user as ExtendedUser;
           // Create a simple profile from user data without database query
           const simpleProfile: Profile = {
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            id: user.id,
+            email: user.email || '',
+            full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
             avatar_url: null,
-            role: session.user.user_metadata?.role || 'admin', // Default to admin for now
+            role: user.raw_user_meta_data?.role || 'admin', // Default to admin for now
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -57,7 +74,7 @@ export function useAuth() {
           if (mounted) {
             setAuthState(prev => ({ 
               ...prev, 
-              user: session.user, 
+              user: user, 
               profile: simpleProfile, 
               loading: false, 
               error: null 
@@ -84,20 +101,21 @@ export function useAuth() {
         if (!mounted) return;
 
         if (event === 'SIGNED_IN' && session?.user) {
+          const user = session.user as ExtendedUser;
           // Create a simple profile from user data
           const simpleProfile: Profile = {
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            id: user.id,
+            email: user.email || '',
+            full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
             avatar_url: null,
-            role: session.user.user_metadata?.role || 'admin', // Default to admin for now
+            role: user.raw_user_meta_data?.role || 'admin', // Default to admin for now
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
           
           setAuthState(prev => ({ 
             ...prev, 
-            user: session.user, 
+            user: user, 
             profile: simpleProfile, 
             loading: false, 
             error: null 
@@ -125,7 +143,7 @@ export function useAuth() {
     // DEMO MODE: enable only when explicitly requested via env flag
     const isDemoAuth = import.meta.env.VITE_DEMO_AUTH === 'true';
     if (isDemoAuth) {
-      const mockUser = { id: 'demo-user', email, user_metadata: { full_name: 'Demo User' } } as unknown as User;
+      const mockUser = { id: 'demo-user', email, raw_user_meta_data: { full_name: 'Demo User' } } as unknown as ExtendedUser;
       setAuthState(prev => ({ ...prev, loading: false, user: mockUser, hasUser: true } as any));
       return { data: { user: mockUser } as any, error: null };
     }
