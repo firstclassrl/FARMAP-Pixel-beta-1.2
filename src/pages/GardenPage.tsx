@@ -150,8 +150,8 @@ export default function GardenPage() {
       <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 rounded-full blur-xl animate-pulse delay-2000" />
       
       <div className="relative z-10">
-        {/* Back to Pixel Button - Only for Admin and Commercial */}
-        {(profile?.role === 'admin' || profile?.role === 'commerciale') && (
+        {/* Back to Pixel Button - Only for Admin, Commercial and Sales */}
+        {(profile?.role === 'admin' || profile?.role === 'commerciale' || profile?.role === 'sales') && (
           <div className="max-w-7xl mx-auto px-6 pt-6">
             <Button
               onClick={() => window.location.href = '/'}
