@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, LogOut } from 'lucide-react';
 import { GardenHeader } from '../components/GardenHeader';
 import { GardenFilters } from '../components/GardenFilters';
 import { GardenProductCard } from '../components/GardenProductCard';
 import { Button } from '../components/ui/button';
 
 export default function GardenPage() {
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,9 +150,10 @@ export default function GardenPage() {
       <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 rounded-full blur-xl animate-pulse delay-2000" />
       
       <div className="relative z-10">
-        {/* Back to Pixel Button - Only for Admin, Commercial and Sales (NOT for production) */}
-        {(profile?.role === 'admin' || profile?.role === 'commerciale' || profile?.role === 'sales') && (
-          <div className="max-w-7xl mx-auto px-6 pt-6">
+        {/* Navigation Buttons */}
+        <div className="max-w-7xl mx-auto px-6 pt-6 flex justify-between items-center">
+          {/* Back to Pixel Button - Only for Admin, Commercial and Sales (NOT for production) */}
+          {(profile?.role === 'admin' || profile?.role === 'commerciale' || profile?.role === 'sales') && (
             <Button
               onClick={() => window.location.href = '/'}
               variant="outline"
@@ -161,8 +162,18 @@ export default function GardenPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Torna a Pixel
             </Button>
-          </div>
-        )}
+          )}
+          
+          {/* Logout Button - Visible for all users */}
+          <Button
+            onClick={signOut}
+            variant="outline"
+            className="bg-red-500/20 backdrop-blur-sm border-red-400/30 text-red-200 hover:bg-red-500/30 h-8 text-sm"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
 
         {/* Header */}
         <GardenHeader

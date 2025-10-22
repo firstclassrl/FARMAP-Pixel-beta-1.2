@@ -27,14 +27,6 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 function App() {
   const { user, profile, loading, error } = useAuth();
 
-  // Debug: log per verificare il ruolo dell'utente
-  console.log('🔍 App Debug:', {
-    user: user?.email,
-    profile: profile?.role,
-    loading,
-    error
-  });
-
   // Remove verbose console logs for production readiness
 
   // Show loading only for a brief moment, then show login if no user

@@ -71,14 +71,6 @@ export function useAuth(): {
             updated_at: new Date().toISOString()
           };
 
-          // Debug: log per verificare il ruolo letto
-          console.log('🔍 useAuth Debug (initial):', {
-            email: user.email,
-            raw_user_meta_data: user.raw_user_meta_data,
-            role: user.raw_user_meta_data?.role,
-            finalRole: simpleProfile.role,
-            isEtichette: user.email === 'etichette@farmap.it'
-          });
           
           if (mounted) {
             setAuthState(prev => ({ 
@@ -122,14 +114,6 @@ export function useAuth(): {
             updated_at: new Date().toISOString()
           };
 
-          // Debug: log per verificare il ruolo letto
-          console.log('🔍 useAuth Debug (SIGNED_IN):', {
-            email: user.email,
-            raw_user_meta_data: user.raw_user_meta_data,
-            role: user.raw_user_meta_data?.role,
-            finalRole: simpleProfile.role,
-            isEtichette: user.email === 'etichette@farmap.it'
-          });
           
           setAuthState(prev => ({ 
             ...prev, 
