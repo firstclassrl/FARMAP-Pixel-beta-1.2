@@ -66,7 +66,7 @@ export function useAuth(): {
             email: user.email || '',
             full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
             avatar_url: null,
-            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' ? 'production' : 'admin'), // Fix per etichette@farmap.it
+            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' || user.email?.includes('grafica') ? 'production' : 'admin'), // Fix per etichette@farmap.it e utenti grafica
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -109,7 +109,7 @@ export function useAuth(): {
             email: user.email || '',
             full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
             avatar_url: null,
-            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' ? 'production' : 'admin'), // Fix per etichette@farmap.it
+            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' || user.email?.includes('grafica') ? 'production' : 'admin'), // Fix per etichette@farmap.it e utenti grafica
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
