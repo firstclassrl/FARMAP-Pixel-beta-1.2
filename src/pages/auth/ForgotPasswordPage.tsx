@@ -244,7 +244,7 @@ export const ForgotPasswordPage = () => {
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="text-sm text-gray-500">Pixel CRM v1.1.0 Beta</span>
+            <span className="text-sm text-gray-500">Pixel v{__APP_VERSION__}</span>
           </div>
           <p className="text-xs text-gray-400">
             © 2025 FARMAP INDUSTRY S.r.l. Tutti i diritti riservati.
