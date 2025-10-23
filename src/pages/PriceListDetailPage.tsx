@@ -51,7 +51,7 @@ const priceListSchema = z.object({
   name: z.string().min(1, 'Nome listino richiesto'),
   description: z.string().optional(),
   customer_id: z.string().optional(),
-  valid_from: z.string().min(1, 'Data inizio validità richiesta'),
+  valid_from: z.string().optional(),
   valid_until: z.string().optional(),
   currency: z.string().default('EUR'),
   is_default: z.boolean().default(false),
@@ -92,7 +92,6 @@ export function PriceListDetailPage({
     defaultValues: {
       currency: 'EUR',
       is_default: false,
-      valid_from: new Date().toISOString().split('T')[0],
     },
   });
 
@@ -154,12 +153,23 @@ export function PriceListDetailPage({
 
       setCurrentPriceList(data as PriceListWithItems);
 
+      // Converti date dal formato ISO (yyyy-mm-dd) al formato italiano (dd/mm/yyyy)
+      const convertDateToItalian = (dateStr: string | null): string => {
+        if (!dateStr) return '';
+        // Se è in formato ISO, convertilo
+        if (dateStr.includes('-')) {
+          const [year, month, day] = dateStr.split('-');
+          return `${day}/${month}/${year}`;
+        }
+        return dateStr;
+      };
+
       // Pre-fill form
       reset({
         name: data.name,
         description: data.description || '',
-        valid_from: data.valid_from,
-        valid_until: data.valid_until || '',
+        valid_from: convertDateToItalian(data.valid_from),
+        valid_until: convertDateToItalian(data.valid_until),
         currency: data.currency,
         is_default: data.is_default,
         customer_id: customerData?.id || '',
@@ -201,10 +211,24 @@ export function PriceListDetailPage({
       // Extract customer_id from form data - it doesn't belong in price_lists table
       const { customer_id, ...priceListData } = data;
       
+      // Converti date dal formato italiano (dd/mm/yyyy) al formato ISO (yyyy-mm-dd)
+      const convertDateToISO = (dateStr: string | undefined): string | null => {
+        if (!dateStr) return null;
+        // Se è già in formato ISO, restituiscilo
+        if (dateStr.includes('-')) return dateStr;
+        // Se è in formato italiano (dd/mm/yyyy), convertilo
+        if (dateStr.includes('/')) {
+          const [day, month, year] = dateStr.split('/');
+          return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        return dateStr;
+      };
+
       const finalPriceListData = {
         ...priceListData,
         description: data.description || null,
-        valid_until: data.valid_until || null,
+        valid_from: convertDateToISO(data.valid_from),
+        valid_until: convertDateToISO(data.valid_until),
         created_by: user.id,
       };
 
