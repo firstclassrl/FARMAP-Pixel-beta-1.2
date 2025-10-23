@@ -23,6 +23,11 @@ export const supabase = createClient<Database>(finalUrl, finalAnon, {
 })
 
 // Do not expose client globally in production
+// DEBUG: Expose supabase globally for debugging
+if (import.meta.env.DEV) {
+  (window as any).supabase = supabase;
+  console.log('🔍 Supabase exposed globally for debugging');
+}
 
 
 // === TEST CONNESSIONE (minimo, per far comparire la richiesta in Network) ===
