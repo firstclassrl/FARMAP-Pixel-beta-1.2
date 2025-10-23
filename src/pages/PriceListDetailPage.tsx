@@ -48,7 +48,7 @@ interface PriceListDetailPageProps {
 }
 
 const priceListSchema = z.object({
-  name: z.string().min(2, 'Nome listino richiesto'),
+  name: z.string().min(1, 'Nome listino richiesto'),
   description: z.string().optional(),
   customer_id: z.string().optional(),
   valid_from: z.string().min(1, 'Data inizio validità richiesta'),
@@ -184,6 +184,9 @@ export function PriceListDetailPage({
   }, [isOpen, priceListId]);
 
   const handleMainFormSubmit = async (data: PriceListFormData) => {
+    console.log('🔍 Form submit data:', data);
+    console.log('🔍 User:', user);
+    
     if (!user?.id) {
       addNotification({
         type: 'error',
