@@ -610,11 +610,12 @@ Il Team
 
                   <div>
                     <Label htmlFor="valid_from" className="text-xs font-medium text-gray-700">
-                      Valido dal *
+                      Valido dal
                     </Label>
                     <Input
                       id="valid_from"
-                      type="date"
+                      type="text"
+                      placeholder="dd/mm/yyyy"
                       {...register('valid_from')}
                       className={`h-6 text-xs ${errors.valid_from ? 'border-red-500' : ''}`}
                     />
@@ -629,7 +630,8 @@ Il Team
                     </Label>
                     <Input
                       id="valid_until"
-                      type="date"
+                      type="text"
+                      placeholder="dd/mm/yyyy"
                       {...register('valid_until')}
                       className="h-6 text-xs"
                     />
