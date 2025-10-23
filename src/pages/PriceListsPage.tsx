@@ -81,6 +81,7 @@ export const PriceListsPage = () => {
           *,
           price_list_items(count)
         `)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (priceListsError) throw priceListsError;

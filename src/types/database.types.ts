@@ -257,6 +257,7 @@ export interface Database {
           valid_from: string
           valid_until: string | null
           currency: string
+          is_active: boolean
           created_at: string
           updated_at: string
           created_by: string
@@ -269,6 +270,7 @@ export interface Database {
           valid_from?: string
           valid_until?: string | null
           currency?: string
+          is_active?: boolean
           created_at?: string
           updated_at?: string
           created_by: string
@@ -281,6 +283,7 @@ export interface Database {
           valid_from?: string
           valid_until?: string | null
           currency?: string
+          is_active?: boolean
           created_at?: string
           updated_at?: string
           created_by?: string
