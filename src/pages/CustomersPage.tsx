@@ -107,10 +107,18 @@ export default function CustomersPage() {
           }
         }
         
+        // Prepara i dati per l'aggiornamento
+        const updateData: any = { ...normalized };
+        
+        // Se il codice cliente non è stato modificato, non includerlo nell'aggiornamento
+        if (!codiceClienteChanged) {
+          delete updateData.codice_cliente;
+        }
+        
         // In aggiornamento, non inviamo created_by
         const { error } = await supabase
           .from('customers')
-          .update(normalized)
+          .update(updateData)
           .eq('id', editingCustomer.id);
         if (error) throw error;
         addNotification({ type: 'success', title: 'Cliente aggiornato' });
