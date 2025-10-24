@@ -403,29 +403,15 @@ export function PriceListDetailPage({
 
   const handleSaveAndClose = async () => {
     try {
-      // Ottieni i dati del form corrente
-      const formData = getValues();
+      // Usa handleSubmit per validare e salvare i dati del form
+      await handleSubmit(handleMainFormSubmit)();
       
-      // Se c'è un listino esistente, salva le modifiche
-      if (currentPriceList) {
-        const { error } = await supabase
-          .from('price_lists')
-          .update({
-            payment_conditions: formData.payment_conditions || null,
-            shipping_conditions: formData.shipping_conditions || null,
-            delivery_conditions: formData.delivery_conditions || null,
-            brand_conditions: formData.brand_conditions || null,
-          })
-          .eq('id', currentPriceList.id);
-
-        if (error) throw error;
-
-        addNotification({
-          type: 'success',
-          title: 'Listino salvato',
-          message: 'Le modifiche sono state salvate con successo'
-        });
-      }
+      // Se arriviamo qui, il salvataggio è andato a buon fine
+      addNotification({
+        type: 'success',
+        title: 'Listino salvato',
+        message: 'Le modifiche sono state salvate con successo'
+      });
 
       // Chiudi la modale
       handleClose();

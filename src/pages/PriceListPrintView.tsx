@@ -292,13 +292,37 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
         conditionsY += 15;
       }
 
-      // 6. FOOTER
+      // 6. CAMPO ACCETTAZIONE ORDINE
+      const acceptanceY = conditionsY + 20;
+      
+      // Rettangolo per accettazione ordine
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.rect(pageWidth - 80, acceptanceY, 70, 40);
+      
+      // Titolo del campo
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ACCETTAZIONE ORDINE', pageWidth - 75, acceptanceY + 8);
+      
+      // Linee per timbro e firma
+      doc.setLineWidth(0.3);
+      doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
+      doc.text('Timbro', pageWidth - 70, acceptanceY + 20);
+      
+      doc.line(pageWidth - 75, acceptanceY + 25, pageWidth - 15, acceptanceY + 25);
+      doc.text('Firma', pageWidth - 70, acceptanceY + 30);
+      
+      doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
+      doc.text('Data', pageWidth - 70, acceptanceY + 38);
+
+      // 7. FOOTER
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(
         'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
-        conditionsY + 10,
+        acceptanceY + 50,
         { align: 'right' }
       );
 
@@ -538,7 +562,41 @@ Team FARMAP`;
         conditionsY += 15;
       }
 
-      // 6. SALVA IL FILE
+      // 6. CAMPO ACCETTAZIONE ORDINE
+      const acceptanceY = conditionsY + 20;
+      
+      // Rettangolo per accettazione ordine
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.rect(pageWidth - 80, acceptanceY, 70, 40);
+      
+      // Titolo del campo
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ACCETTAZIONE ORDINE', pageWidth - 75, acceptanceY + 8);
+      
+      // Linee per timbro e firma
+      doc.setLineWidth(0.3);
+      doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
+      doc.text('Timbro', pageWidth - 70, acceptanceY + 20);
+      
+      doc.line(pageWidth - 75, acceptanceY + 25, pageWidth - 15, acceptanceY + 25);
+      doc.text('Firma', pageWidth - 70, acceptanceY + 30);
+      
+      doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
+      doc.text('Data', pageWidth - 70, acceptanceY + 38);
+
+      // 7. FOOTER
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
+        pageWidth - margin,
+        acceptanceY + 50,
+        { align: 'right' }
+      );
+
+      // 8. SALVA IL FILE
       doc.save(`listino-${priceList.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 
       addNotification({
@@ -823,6 +881,27 @@ Team FARMAP`;
                     </div>
                   </div>
                 )}
+
+                {/* Campo Accettazione Ordine */}
+                <div className="mt-6 flex justify-end">
+                  <div className="border border-gray-400 p-3 w-48 h-24">
+                    <div className="text-xs font-bold text-center mb-2">ACCETTAZIONE ORDINE</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs">Timbro:</span>
+                        <div className="border-b border-gray-400 w-24"></div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs">Firma:</span>
+                        <div className="border-b border-gray-400 w-24"></div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs">Data:</span>
+                        <div className="border-b border-gray-400 w-24"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Footer */}
                 <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
