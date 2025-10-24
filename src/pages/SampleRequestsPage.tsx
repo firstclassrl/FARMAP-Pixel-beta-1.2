@@ -395,12 +395,32 @@ export function SampleRequestsPage() {
     }
 
     try {
+      console.log('Tentativo eliminazione richiesta:', requestToDelete.id);
+      console.log('Utente corrente:', user?.id);
+      
+      // Prima elimina gli items associati
+      const { error: itemsError } = await supabase
+        .from('sample_request_items')
+        .delete()
+        .eq('sample_request_id', requestToDelete.id);
+
+      if (itemsError) {
+        console.error('Errore eliminazione items:', itemsError);
+        throw new Error(`Errore eliminazione items: ${itemsError.message}`);
+      }
+
+      // Poi elimina la richiesta principale
       const { error } = await supabase
         .from('sample_requests')
         .delete()
         .eq('id', requestToDelete.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Errore eliminazione richiesta:', error);
+        throw new Error(`Errore eliminazione richiesta: ${error.message}`);
+      }
+
+      console.log('Eliminazione completata con successo');
 
       addNotification({
         type: 'success',
