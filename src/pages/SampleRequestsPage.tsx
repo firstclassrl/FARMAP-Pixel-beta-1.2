@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Eye, Package, Calendar, User, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, Package, Calendar, User, FileText, AlertTriangle, Printer } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
@@ -280,6 +280,107 @@ export function SampleRequestsPage() {
     }
   };
 
+  const handlePrintRequest = (request: SampleRequest) => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Richiesta Campioni - ${request.customer?.company_name || 'N/A'}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 24px; font-weight: bold; color: #dc2626; }
+            .title { font-size: 18px; margin: 10px 0; }
+            .details { margin-bottom: 20px; }
+            .detail-row { margin: 5px 0; }
+            .label { font-weight: bold; display: inline-block; width: 150px; }
+            .products { margin-top: 20px; }
+            .product-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .product-table th, .product-table td { border: 1px solid #000; padding: 8px; text-align: left; }
+            .product-table th { background-color: #f3f4f6; font-weight: bold; }
+            .notes { margin-top: 20px; }
+            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">FARMAP INDUSTRY S.r.l.</div>
+            <div class="title">RICHIESA CAMPIONI</div>
+            <div>www.farmapindustry.it</div>
+          </div>
+          
+          <div class="details">
+            <div class="detail-row">
+              <span class="label">Cliente:</span>
+              ${request.customer?.company_name || 'N/A'}
+            </div>
+            <div class="detail-row">
+              <span class="label">Data Richiesta:</span>
+              ${new Date(request.request_date).toLocaleDateString('it-IT')}
+            </div>
+            <div class="detail-row">
+              <span class="label">Stato:</span>
+              ${statusLabels[request.status]}
+            </div>
+            <div class="detail-row">
+              <span class="label">Richiesta N°:</span>
+              ${request.id.slice(0, 8).toUpperCase()}
+            </div>
+          </div>
+
+          <div class="products">
+            <h3>Prodotti Richiesti:</h3>
+            <table class="product-table">
+              <thead>
+                <tr>
+                  <th>Prodotto</th>
+                  <th>Quantità</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${request.sample_request_items?.map(item => `
+                  <tr>
+                    <td>${item.product_name}</td>
+                    <td>${item.quantity}</td>
+                  </tr>
+                `).join('') || '<tr><td colspan="2">Nessun prodotto richiesto</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+
+          ${request.notes ? `
+            <div class="notes">
+              <h3>Note:</h3>
+              <p>${request.notes}</p>
+            </div>
+          ` : ''}
+
+          <div class="footer">
+            <p>Generato il ${new Date().toLocaleDateString('it-IT')} alle ${new Date().toLocaleTimeString('it-IT')}</p>
+            <p>FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for content to load then print
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
+  };
+
   const confirmRequestDelete = async () => {
     if (!requestToDelete || !user?.id) {
       if (!user?.id) {
@@ -313,7 +414,7 @@ export function SampleRequestsPage() {
       addNotification({
         type: 'error',
         title: 'Errore',
-        message: 'Impossibile eliminare la richiesta di campioni'
+        message: `Impossibile eliminare la richiesta: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`
       });
     } finally {
       setRequestToDelete(null);
@@ -556,8 +657,16 @@ export function SampleRequestsPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => handlePrintRequest(request)}
+                    disabled={!user?.id}
+                  >
+                    <Printer className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => openEditDialog(request)}
-                   disabled={!user?.id}
+                    disabled={!user?.id}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -565,7 +674,7 @@ export function SampleRequestsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDeleteRequest(request.id)}
-                   disabled={!user?.id}
+                    disabled={!user?.id}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
