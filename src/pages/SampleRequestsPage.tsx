@@ -9,6 +9,7 @@ import { Label } from '../components/ui/label';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../store/useStore';
+import { CustomerSelectionModal } from '../components/CustomerSelectionModal';
 
 interface SampleRequest {
   id: string;
@@ -29,17 +30,12 @@ interface SampleRequest {
 interface SampleRequestItem {
   id: string;
   sample_request_id: string;
-  product_id: string;
+  product_name: string;
   quantity: number;
   sent_date?: string;
   tracking_number?: string;
   notes?: string;
   created_at: string;
-  product?: {
-    code: string;
-    name: string;
-    description?: string;
-  };
 }
 
 interface Customer {
@@ -80,6 +76,8 @@ export function SampleRequestsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<SampleRequest | null>(null);
   const [requestToDelete, setRequestToDelete] = useState<SampleRequest | null>(null);
+  const [isCustomerSelectionOpen, setIsCustomerSelectionOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const { user } = useAuth();
   const { addNotification } = useNotifications();
@@ -98,9 +96,40 @@ export function SampleRequestsPage() {
     notes: string;
   }[]>([]);
 
+  const [sampleProducts, setSampleProducts] = useState<Array<{
+    product_name: string;
+    quantity: number;
+  }>>(Array(10).fill({ product_name: '', quantity: 1 }));
+
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setFormData({...formData, customer_id: customer.id});
+    setIsCustomerSelectionOpen(false);
+  };
+
+  const handleProductChange = (index: number, field: 'product_name' | 'quantity', value: string | number) => {
+    const newProducts = [...sampleProducts];
+    newProducts[index] = {
+      ...newProducts[index],
+      [field]: value
+    };
+    setSampleProducts(newProducts);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      customer_id: '',
+      request_date: new Date().toISOString().split('T')[0],
+      status: 'pending',
+      notes: ''
+    });
+    setSelectedCustomer(null);
+    setSampleProducts(Array(10).fill({ product_name: '', quantity: 1 }));
+  };
 
   const loadData = async () => {
     try {
@@ -113,8 +142,10 @@ export function SampleRequestsPage() {
           *,
           customer:customers(company_name, contact_person),
           sample_request_items(
-            *,
-            product:products(code, name, description)
+            id,
+            product_name,
+            quantity,
+            notes
           )
         `)
         .order('created_at', { ascending: false });
@@ -183,14 +214,16 @@ export function SampleRequestsPage() {
       if (requestError) throw requestError;
 
       // Create sample request items
-      if (requestItems.length > 0) {
-        const itemsToInsert = requestItems.map(item => ({
+      const itemsToInsert = sampleProducts
+        .filter(item => item.product_name.trim() !== '')
+        .map(item => ({
           sample_request_id: requestData.id,
-          product_id: item.product_id,
+          product_name: item.product_name,
           quantity: item.quantity,
-          notes: item.notes
+          notes: ''
         }));
 
+      if (itemsToInsert.length > 0) {
         const { error: itemsError } = await supabase
           .from('sample_request_items')
           .insert(itemsToInsert);
@@ -287,16 +320,6 @@ export function SampleRequestsPage() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      customer_id: '',
-      request_date: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      notes: ''
-    });
-    setRequestItems([]);
-  };
-
   const openEditDialog = (request: SampleRequest) => {
     setSelectedRequest(request);
     setFormData({
@@ -363,28 +386,14 @@ export function SampleRequestsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="customer">Cliente</Label>
-                  <Select value={formData.customer_id} onValueChange={(value) => setFormData({...formData, customer_id: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={loading ? "Caricamento..." : "Seleziona cliente"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loading ? (
-                        <SelectItem value="loading" disabled>
-                          Caricamento clienti...
-                        </SelectItem>
-                      ) : customers.length > 0 ? (
-                        customers.map(customer => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.company_name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-customers" disabled>
-                          Nessun cliente attivo disponibile
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setIsCustomerSelectionOpen(true)}
+                  >
+                    {selectedCustomer ? selectedCustomer.company_name : "Seleziona cliente"}
+                  </Button>
                 </div>
                 <div>
                   <Label htmlFor="request_date">Data Richiesta</Label>
@@ -406,54 +415,32 @@ export function SampleRequestsPage() {
                 />
               </div>
               
-              {/* Request Items */}
+              {/* Sample Products */}
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <Label>Prodotti Richiesti</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addRequestItem}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Aggiungi Prodotto
-                  </Button>
+                <Label>Prodotti Richiesti</Label>
+                <div className="space-y-2 mt-2">
+                  {sampleProducts.map((product, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-8">
+                        <Input
+                          value={product.product_name}
+                          onChange={(e) => handleProductChange(index, 'product_name', e.target.value)}
+                          placeholder={`Prodotto ${index + 1}`}
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={product.quantity}
+                          onChange={(e) => handleProductChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                          placeholder="Quantità"
+                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                {requestItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                    <div className="col-span-5">
-                      <Select value={item.product_id} onValueChange={(value) => updateRequestItem(index, 'product_id', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona prodotto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map(product => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.code} - {product.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateRequestItem(index, 'quantity', parseInt(e.target.value))}
-                        placeholder="Qtà"
-                      />
-                    </div>
-                    <div className="col-span-4">
-                      <Input
-                        value={item.notes}
-                        onChange={(e) => updateRequestItem(index, 'notes', e.target.value)}
-                        placeholder="Note"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <Button type="button" variant="outline" size="sm" onClick={() => removeRequestItem(index)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
               </div>
 
               <div className="flex justify-end space-x-2">
@@ -556,7 +543,7 @@ export function SampleRequestsPage() {
                       <div className="space-y-1">
                         {request.sample_request_items.map((item) => (
                           <div key={item.id} className="text-sm text-gray-600 flex justify-between">
-                            <span>{item.product?.code} - {item.product?.name}</span>
+                            <span>{item.product_name}</span>
                             <span>Qtà: {item.quantity}</span>
                           </div>
                         ))}
@@ -681,6 +668,15 @@ export function SampleRequestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Customer Selection Modal */}
+      <CustomerSelectionModal
+        isOpen={isCustomerSelectionOpen}
+        onClose={() => setIsCustomerSelectionOpen(false)}
+        onCustomerSelect={handleCustomerSelect}
+        selectedCustomerId={selectedCustomer?.id}
+        title="Seleziona Cliente per Campioni"
+        description="Scegli il cliente per questa richiesta di campioni"
+      />
     </div>
   );
 }
