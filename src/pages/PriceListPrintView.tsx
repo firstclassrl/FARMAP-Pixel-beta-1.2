@@ -116,10 +116,10 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
     }
     
     try {
-      // Genera il PDF automaticamente in formato A4 orizzontale
-      const doc = new jsPDF('l', 'mm', 'a4');
-      const pageWidth = 297;
-      const margin = 20;
+      // Genera il PDF automaticamente in formato A4 verticale
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const margin = 15;
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
 
@@ -127,8 +127,8 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       try {
         const logoImg = new Image();
         logoImg.src = '/logo farmap industry copy.png';
-        doc.addImage(logoImg, 'PNG', margin, yPosition, 50, 20);
-        yPosition += 20;
+        doc.addImage(logoImg, 'PNG', margin, yPosition, 30, 15);
+        yPosition += 15;
       } catch (logoError) {
         console.warn('Logo non caricato, continuo senza logo');
         yPosition += 10;
@@ -238,7 +238,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
 
       // 5. CONDIZIONI DI VENDITA
       const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
-      let conditionsY = finalY + 10;
+      let conditionsY = finalY + 5;
       
       // Aggiungi sezione condizioni di vendita se ci sono dati
       if (priceList.payment_conditions || priceList.shipping_conditions || 
@@ -313,22 +313,22 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
-      const acceptanceY = conditionsY + 20;
+      const acceptanceY = conditionsY + 10;
       
       // Rettangolo per accettazione ordine
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
-      doc.rect(pageWidth - 80, acceptanceY, 70, 40);
+      doc.rect(pageWidth - 60, acceptanceY, 50, 25);
       
       // Titolo del campo
       doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      doc.text('ACCETTAZIONE ORDINE', pageWidth - 75, acceptanceY + 8);
+      doc.text('ACCETTAZIONE ORDINE', pageWidth - 55, acceptanceY + 5);
       
       // Solo campo Data
       doc.setLineWidth(0.3);
-      doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
-      doc.text('Data', pageWidth - 70, acceptanceY + 20);
+      doc.line(pageWidth - 55, acceptanceY + 10, pageWidth - 15, acceptanceY + 10);
+      doc.text('Data', pageWidth - 50, acceptanceY + 15);
       
       // Spazio bianco per firma e timbro
 
@@ -338,7 +338,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       doc.text(
         'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
-        acceptanceY + 50,
+        acceptanceY + 35,
         { align: 'right' }
       );
 
@@ -403,9 +403,9 @@ Team FARMAP`;
     if (!priceList) return;
 
     try {
-      const doc = new jsPDF('l', 'mm', 'a4');
-      const pageWidth = 297;
-      const margin = 20;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const margin = 15;
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
 
@@ -413,8 +413,8 @@ Team FARMAP`;
       try {
         const logoImg = new Image();
         logoImg.src = '/logo farmap industry copy.png';
-        doc.addImage(logoImg, 'PNG', margin, yPosition, 50, 20);
-        yPosition += 20;
+        doc.addImage(logoImg, 'PNG', margin, yPosition, 30, 15);
+        yPosition += 15;
       } catch (logoError) {
         console.warn('Logo non caricato, continuo senza logo');
         yPosition += 10;
@@ -524,7 +524,7 @@ Team FARMAP`;
 
       // 5. CONDIZIONI DI VENDITA
       const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
-      let conditionsY = finalY + 10;
+      let conditionsY = finalY + 5;
       
       // Aggiungi sezione condizioni di vendita se ci sono dati
       if (priceList.payment_conditions || priceList.shipping_conditions || 
@@ -599,22 +599,22 @@ Team FARMAP`;
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
-      const acceptanceY = conditionsY + 20;
+      const acceptanceY = conditionsY + 10;
       
       // Rettangolo per accettazione ordine
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
-      doc.rect(pageWidth - 80, acceptanceY, 70, 40);
+      doc.rect(pageWidth - 60, acceptanceY, 50, 25);
       
       // Titolo del campo
       doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      doc.text('ACCETTAZIONE ORDINE', pageWidth - 75, acceptanceY + 8);
+      doc.text('ACCETTAZIONE ORDINE', pageWidth - 55, acceptanceY + 5);
       
       // Solo campo Data
       doc.setLineWidth(0.3);
-      doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
-      doc.text('Data', pageWidth - 70, acceptanceY + 20);
+      doc.line(pageWidth - 55, acceptanceY + 10, pageWidth - 15, acceptanceY + 10);
+      doc.text('Data', pageWidth - 50, acceptanceY + 15);
       
       // Spazio bianco per firma e timbro
 
@@ -624,7 +624,7 @@ Team FARMAP`;
       doc.text(
         'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
-        acceptanceY + 50,
+        acceptanceY + 35,
         { align: 'right' }
       );
 
@@ -703,12 +703,12 @@ Team FARMAP`;
             display: block !important;
           }
           
-          /* Page setup - A4 Landscape */
+          /* Page setup - A4 Portrait */
           .print-page {
-            width: 297mm;
-            min-height: 210mm;
+            width: 210mm;
+            min-height: 297mm;
             margin: 0;
-            padding: 15mm;
+            padding: 10mm;
             background: white;
             box-shadow: none;
             page-break-after: always;
@@ -765,14 +765,14 @@ Team FARMAP`;
             </div>
           ) : priceList ? (
             <div className="print-content">
-              <div className="print-page bg-white p-6 mx-auto print-visible" style={{ width: '297mm', minHeight: '210mm' }}>
+              <div className="print-page bg-white p-6 mx-auto print-visible" style={{ width: '210mm', minHeight: '297mm' }}>
                 {/* Header Compatto */}
-                <div className="print-header text-center mb-4">
-                  <div className="flex items-center justify-center mb-2">
+                <div className="print-header text-center mb-2">
+                  <div className="flex items-center justify-center mb-1">
                     <img 
                       src="/logo farmap industry copy.png" 
                       alt="Farmap Logo" 
-                      className="h-8 w-auto mr-2"
+                      className="h-6 w-auto mr-2"
                     />
                     <h1 className="text-lg font-bold text-gray-700">
                       Listino {priceList.customer?.company_name || 'Cliente'}
@@ -875,9 +875,9 @@ Team FARMAP`;
                 {/* Condizioni di Vendita */}
                 {(priceList.payment_conditions || priceList.shipping_conditions || 
                   priceList.delivery_conditions || priceList.brand_conditions) && (
-                  <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                    <h3 className="text-sm font-bold text-orange-800 mb-3">CONDIZIONI DI VENDITA</h3>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h3 className="text-sm font-bold text-orange-800 mb-2">CONDIZIONI DI VENDITA</h3>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
                       {priceList.payment_conditions && (
                         <div>
                           <span className="font-bold text-gray-600">Pagamento:</span>
@@ -907,15 +907,15 @@ Team FARMAP`;
                 )}
 
                 {/* Campo Accettazione Ordine */}
-                <div className="mt-6 flex justify-end">
-                  <div className="border-2 border-black p-3 w-48 h-24">
-                    <div className="text-xs font-bold text-center mb-2">ACCETTAZIONE ORDINE</div>
-                    <div className="space-y-2">
+                <div className="mt-2 flex justify-end">
+                  <div className="border-2 border-black p-2 w-32 h-16">
+                    <div className="text-xs font-bold text-center mb-1">ACCETTAZIONE ORDINE</div>
+                    <div className="space-y-1">
                       <div className="flex justify-between items-center">
                         <span className="text-xs">Data:</span>
-                        <div className="border-b border-black w-24"></div>
+                        <div className="border-b border-black w-16"></div>
                       </div>
-                      <div className="mt-4">
+                      <div className="mt-2">
                         {/* Spazio bianco per firma e timbro */}
                       </div>
                     </div>
@@ -923,7 +923,7 @@ Team FARMAP`;
                 </div>
 
                 {/* Footer */}
-                <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
+                <div className="mt-2 pt-2 border-t border-gray-300 text-xs text-gray-500">
                   <div className="flex justify-between">
                     <div>
                       <p>FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)</p>
