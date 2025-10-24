@@ -370,6 +370,9 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
         message: 'Le modifiche sono state salvate con successo.'
       });
 
+      // Close the modal after successful save
+      onClose();
+
       // Refresh the order data
       await fetchOrderDetails();
       

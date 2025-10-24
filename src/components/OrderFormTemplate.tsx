@@ -162,7 +162,7 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
                       step="0.01"
                       value={item.unitPrice}
                       onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      className="w-20 h-6 text-xs"
+                      className="w-20 h-6 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   ) : (
                     formatCurrency(item.unitPrice)
