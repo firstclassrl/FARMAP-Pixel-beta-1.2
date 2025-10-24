@@ -88,8 +88,11 @@ export default function CustomersPage() {
         // In aggiornamento, controlla se il codice cliente è stato modificato
         const codiceClienteChanged = normalized.codice_cliente !== editingCustomer.codice_cliente;
         
-        // Se il codice cliente è stato modificato, verifica che non sia già in uso
-        if (codiceClienteChanged && normalized.codice_cliente) {
+        // Se il codice cliente è stato modificato e non è vuoto, verifica che non sia già in uso
+        if (codiceClienteChanged && 
+            normalized.codice_cliente && 
+            normalized.codice_cliente.trim() !== '' &&
+            normalized.codice_cliente !== editingCustomer.codice_cliente) {
           const { data: existingCustomer } = await supabase
             .from('customers')
             .select('id')
@@ -110,8 +113,11 @@ export default function CustomersPage() {
         // Prepara i dati per l'aggiornamento
         const updateData: any = { ...normalized };
         
-        // Se il codice cliente non è stato modificato, non includerlo nell'aggiornamento
-        if (!codiceClienteChanged) {
+        // Se il codice cliente non è stato modificato, è vuoto, o è uguale al valore originale, non includerlo nell'aggiornamento
+        if (!codiceClienteChanged || 
+            !normalized.codice_cliente || 
+            normalized.codice_cliente.trim() === '' ||
+            normalized.codice_cliente === editingCustomer.codice_cliente) {
           delete updateData.codice_cliente;
         }
         
