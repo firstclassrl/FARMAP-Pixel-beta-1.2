@@ -8,7 +8,7 @@ import { Label } from '../components/ui/label';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../store/useStore';
 import { supabase } from '../lib/supabase';
-import { Loader2, FileText, Package, Plus, Trash2, X, Building, Mail, Eye } from 'lucide-react';
+import { Loader2, FileText, Package, Plus, Trash2, X, Building, Eye } from 'lucide-react';
 import type { Database } from '../types/database.types';
 import { CustomerSelectionModal } from '../components/CustomerSelectionModal';
 import ProductSelectionModal from '../components/ProductSelectionModal';
@@ -408,44 +408,6 @@ export function PriceListDetailPage({
     setShowCustomerModal(true);
   };
 
-  const handleSendEmail = () => {
-    if (!currentPriceList || !currentPriceList.customer) {
-      addNotification({
-        type: 'error',
-        title: 'Errore',
-        message: 'Cliente non selezionato per il listino'
-      });
-      return;
-    }
-
-    if (!currentPriceList.customer.email) {
-      addNotification({
-        type: 'error',
-        title: 'Errore',
-        message: 'Email del cliente non disponibile'
-      });
-      return;
-    }
-
-    const subject = encodeURIComponent(`Listino Prezzi - ${currentPriceList.name}`);
-    const body = encodeURIComponent(`
-Gentile ${currentPriceList.customer.contact_person || 'Cliente'},
-
-In allegato il listino prezzi "${currentPriceList.name}" valido dal ${new Date(currentPriceList.valid_from).toLocaleDateString('it-IT')}${currentPriceList.valid_until ? ` al ${new Date(currentPriceList.valid_until).toLocaleDateString('it-IT')}` : ''}.
-
-Cordiali saluti,
-Il Team
-    `);
-
-    const mailtoLink = `mailto:${currentPriceList.customer.email}?subject=${subject}&body=${body}`;
-    window.open(mailtoLink, '_blank');
-
-    addNotification({
-      type: 'success',
-      title: 'Email aperta',
-      message: `Client email aperta per ${currentPriceList.customer.email}`
-    });
-  };
 
 
 
@@ -506,21 +468,6 @@ Il Team
             <h2 className="text-lg font-semibold">
               {priceListId ? 'Modifica Listino' : 'Nuovo Listino'}
             </h2>
-            {currentPriceList && (
-              <div className="flex items-center space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSendEmail}
-                  className="h-7 text-xs px-3 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
-                  title="Invia listino via email"
-                >
-                  <Mail className="w-3 h-3 mr-1" />
-                  Invia Mail
-                </Button>
-              </div>
-            )}
           </div>
           <Button
             variant="ghost"
