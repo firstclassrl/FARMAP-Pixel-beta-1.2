@@ -231,6 +231,10 @@ export function PriceListDetailPage({
         description: data.description || null,
         valid_from: convertDateToISO(data.valid_from),
         valid_until: convertDateToISO(data.valid_until),
+        payment_conditions: data.payment_conditions || null,
+        shipping_conditions: data.shipping_conditions || null,
+        delivery_conditions: data.delivery_conditions || null,
+        brand_conditions: data.brand_conditions || null,
         created_by: user.id,
       };
 
@@ -741,7 +745,6 @@ export function PriceListDetailPage({
                             value={item.products.cartone || ''}
                             onChange={(e) => handleProductFieldChange(item.id, 'cartone', e.target.value)}
                             className="h-5 text-xs w-20"
-                            placeholder="Tipo cartone"
                           />
                         </div>
                         <div className="flex items-center space-x-1">
@@ -750,7 +753,6 @@ export function PriceListDetailPage({
                             value={item.products.pallet || ''}
                             onChange={(e) => handleProductFieldChange(item.id, 'pallet', e.target.value)}
                             className="h-5 text-xs w-20"
-                            placeholder="Tipo pedana"
                           />
                         </div>
                         <div className="flex items-center space-x-1">
@@ -759,7 +761,6 @@ export function PriceListDetailPage({
                             value={item.products.scadenza || ''}
                             onChange={(e) => handleProductFieldChange(item.id, 'scadenza', e.target.value)}
                             className="h-5 text-xs w-20"
-                            placeholder="es. 3 anni"
                           />
                         </div>
                       </div>
