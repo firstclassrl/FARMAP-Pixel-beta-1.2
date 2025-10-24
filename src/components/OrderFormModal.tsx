@@ -505,7 +505,7 @@ FARMAP INDUSTRY S.r.l.`);
         <DialogHeader className="no-print p-6 pb-2 border-b">
           <div className="flex justify-between items-center pr-8">
             <DialogTitle>{orderData ? `Dettaglio Ordine ${orderData.orderNumber}` : 'Caricamento...'}</DialogTitle>
-            {orderData && (
+            {orderData && mode !== 'edit' && (
               <div className="flex gap-2">
                 <Button onClick={handleDownloadPdf}>
                   <Download className="w-4 h-4 mr-2" /> Scarica PDF

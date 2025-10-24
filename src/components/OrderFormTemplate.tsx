@@ -84,8 +84,8 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
           <div className="space-y-1 text-xs">
             <div><span className="font-semibold">Numero:</span> {orderData.orderNumber}</div>
             <div><span className="font-semibold">Data:</span> {formatDate(orderData.orderDate)}</div>
-            <div><span className="font-semibold">Consegna:</span> {formatDate(orderData.deliveryDate)}</div>
-            <div><span className="font-semibold">Rappresentante:</span> {orderData.salesRepresentative}</div>
+            <div><span className="font-semibold">Tempi di consegna:</span> {formatDate(orderData.deliveryDate)}</div>
+            <div><span className="font-semibold">Commerciale:</span> {orderData.salesRepresentative}</div>
             {orderData.trackingNumber && (
               <div><span className="font-semibold">Tracking:</span> {orderData.trackingNumber}</div>
             )}
@@ -190,11 +190,12 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
           <div className="bg-yellow-100 border border-yellow-300 rounded p-2 h-16">
             <div className="text-xs font-bold text-yellow-800 mb-1">NOTE:</div>
             {mode === 'edit' ? (
-              <Input
+              <textarea
                 value={editableData.notes || ''}
                 onChange={(e) => handleNotesChange(e.target.value)}
                 placeholder="Inserisci note per l'ordine..."
-                className="w-full h-8 text-xs"
+                className="w-full h-16 text-xs resize-none border border-gray-300 rounded px-2 py-1"
+                rows={3}
               />
             ) : (
               <div className="text-xs text-gray-800 leading-tight">{editableData.notes}</div>
@@ -220,9 +221,9 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
                 console.log('Salvataggio modifiche:', editableData);
                 setIsEditing(false);
               }}
-              className="text-xs bg-blue-600 hover:bg-blue-700"
+              className="text-xs bg-green-600 hover:bg-green-700 text-white"
             >
-              Salva Modifiche
+              Salva
             </Button>
           )}
         </div>
