@@ -311,8 +311,6 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       doc.text('Data', pageWidth - 70, acceptanceY + 20);
       
       // Spazio per firma e timbro
-      doc.text('Spazio per firma e timbro:', pageWidth - 70, acceptanceY + 28);
-      doc.line(pageWidth - 75, acceptanceY + 32, pageWidth - 15, acceptanceY + 32);
       doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
 
       // 7. FOOTER
@@ -580,8 +578,6 @@ Team FARMAP`;
       doc.text('Data', pageWidth - 70, acceptanceY + 20);
       
       // Spazio per firma e timbro
-      doc.text('Spazio per firma e timbro:', pageWidth - 70, acceptanceY + 28);
-      doc.line(pageWidth - 75, acceptanceY + 32, pageWidth - 15, acceptanceY + 32);
       doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
 
       // 7. FOOTER
@@ -654,7 +650,13 @@ Team FARMAP`;
           .print-modal-container *,
           .print-content, 
           .print-content * {
-            visibility: visible;
+            visibility: visible !important;
+          }
+          
+          /* Ensure print content is visible */
+          .print-page,
+          .print-visible {
+            visibility: visible !important;
           }
           
           /* Hide modal overlay and close button during print */
@@ -739,7 +741,7 @@ Team FARMAP`;
             </div>
           ) : priceList ? (
             <div className="print-content">
-              <div className="print-page bg-white p-6 mx-auto" style={{ width: '297mm', minHeight: '210mm' }}>
+              <div className="print-page bg-white p-6 mx-auto print-visible" style={{ width: '297mm', minHeight: '210mm' }}>
                 {/* Header Compatto */}
                 <div className="print-header text-center mb-4">
                   <div className="flex items-center justify-center mb-2">
@@ -890,8 +892,6 @@ Team FARMAP`;
                         <div className="border-b border-black w-24"></div>
                       </div>
                       <div className="mt-4">
-                        <div className="text-xs text-gray-600">Spazio per firma e timbro:</div>
-                        <div className="border-b border-black w-full mt-1"></div>
                         <div className="border-b border-black w-full mt-2"></div>
                       </div>
                     </div>
