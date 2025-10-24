@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Printer, Mail, Download } from 'lucide-react';
+import { Mail, Download } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -925,13 +925,6 @@ Team FARMAP`;
               >
                 <Download className="w-4 h-4" />
                 <span>Download PDF</span>
-              </Button>
-              <Button 
-                onClick={handlePrint} 
-                className="flex items-center space-x-2"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Stampa</span>
               </Button>
             </div>
             {!priceList?.customer?.email && (
