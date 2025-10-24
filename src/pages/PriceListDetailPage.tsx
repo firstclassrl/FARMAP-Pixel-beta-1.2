@@ -49,6 +49,10 @@ const priceListSchema = z.object({
   valid_until: z.string().optional(),
   currency: z.string().default('EUR'),
   is_default: z.boolean().default(false),
+  payment_conditions: z.string().optional(),
+  shipping_conditions: z.string().optional(),
+  delivery_conditions: z.string().optional(),
+  brand_conditions: z.string().optional(),
 });
 
 type PriceListFormData = z.infer<typeof priceListSchema>;
@@ -130,7 +134,7 @@ export function PriceListDetailPage({
           *,
           price_list_items (
             *,
-            products (id, code, name, category, unit, base_price)
+            products (id, code, name, category, unit, base_price, cartone, pallet, scadenza)
           )
         `)
         .eq('id', id)
@@ -167,6 +171,10 @@ export function PriceListDetailPage({
         currency: data.currency,
         is_default: data.is_default,
         customer_id: customerData?.id || '',
+        payment_conditions: data.payment_conditions || '',
+        shipping_conditions: data.shipping_conditions || '',
+        delivery_conditions: data.delivery_conditions || '',
+        brand_conditions: data.brand_conditions || '',
       });
 
       setSelectedCustomerId(customerData?.id || '');
@@ -455,6 +463,45 @@ export function PriceListDetailPage({
     }
   };
 
+  const handleProductFieldChange = async (itemId: string, field: 'cartone' | 'pallet' | 'scadenza', value: string) => {
+    try {
+      // Trova il prodotto associato a questo item
+      const item = currentPriceList?.price_list_items?.find(i => i.id === itemId);
+      if (!item?.products?.id) return;
+
+      // Aggiorna il campo nel database
+      const { error } = await supabase
+        .from('products')
+        .update({ [field]: value })
+        .eq('id', item.products.id);
+
+      if (error) throw error;
+
+      // Aggiorna lo stato locale
+      if (currentPriceList) {
+        const updatedItems = currentPriceList.price_list_items.map(i => 
+          i.id === itemId 
+            ? { ...i, products: { ...i.products, [field]: value } }
+            : i
+        );
+        setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'Campo aggiornato',
+        message: `${field} aggiornato con successo`
+      });
+    } catch (error) {
+      console.error(`Errore nell'aggiornamento del campo ${field}:`, error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: `Errore nell'aggiornamento del campo ${field}`
+      });
+    }
+  };
+
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'block' : 'hidden'}`}>
       {/* Overlay */}
@@ -633,7 +680,7 @@ export function PriceListDetailPage({
                   {currentPriceList.price_list_items.map((item) => (
                     <div key={item.id} className="bg-white border border-green-200 rounded p-2">
                     <div className="flex items-center justify-between">
-                        <div className="flex-1 grid grid-cols-4 gap-3 items-center">
+                        <div className="flex-1 grid grid-cols-2 gap-3 items-center">
                         <div className="flex items-center space-x-2">
                           {item.products.photo_url && (
                             <img 
@@ -647,31 +694,6 @@ export function PriceListDetailPage({
                             <p className="text-xs text-gray-500">{item.products.code}</p>
                           </div>
                         </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-xs text-gray-600">Prezzo:</span>
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={item.price}
-                                onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
-                                className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              />
-                              <span className="absolute right-1 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">€</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-xs text-gray-600">MOQ:</span>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.min_quantity}
-                              onChange={(e) => handleMOQChange(item.id, parseInt(e.target.value) || 1)}
-                              className="h-5 text-xs w-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <span className="text-xs text-gray-500">{item.products.unit}</span>
-                          </div>
                         <div className="text-xs">
                           {item.discount_percentage > 0 && (
                               <div>
@@ -679,6 +701,66 @@ export function PriceListDetailPage({
                                 <div className="font-medium text-green-600">{item.discount_percentage}%</div>
                               </div>
                           )}
+                        </div>
+                      </div>
+                      
+                      {/* Seconda riga con campi modificabili */}
+                      <div className="grid grid-cols-2 gap-3 items-center mt-2">
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs text-gray-600">Prezzo:</span>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.price}
+                              onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
+                              className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <span className="absolute right-1 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">€</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs text-gray-600">MOQ:</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.min_quantity}
+                            onChange={(e) => handleMOQChange(item.id, parseInt(e.target.value) || 1)}
+                            className="h-5 text-xs w-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <span className="text-xs text-gray-500">{item.products.unit}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Terza riga con Cartone, Pedana, Scadenza */}
+                      <div className="grid grid-cols-3 gap-3 items-center mt-2">
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs text-gray-600">Cartone:</span>
+                          <Input
+                            value={item.products.cartone || ''}
+                            onChange={(e) => handleProductFieldChange(item.id, 'cartone', e.target.value)}
+                            className="h-5 text-xs w-20"
+                            placeholder="Tipo cartone"
+                          />
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs text-gray-600">Pedana:</span>
+                          <Input
+                            value={item.products.pallet || ''}
+                            onChange={(e) => handleProductFieldChange(item.id, 'pallet', e.target.value)}
+                            className="h-5 text-xs w-20"
+                            placeholder="Tipo pedana"
+                          />
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs text-gray-600">Scadenza:</span>
+                          <Input
+                            value={item.products.scadenza || ''}
+                            onChange={(e) => handleProductFieldChange(item.id, 'scadenza', e.target.value)}
+                            className="h-5 text-xs w-20"
+                            placeholder="es. 3 anni"
+                          />
                         </div>
                       </div>
                         <div className="flex items-center space-x-1 ml-2">
@@ -706,6 +788,64 @@ export function PriceListDetailPage({
                   </p>
               </div>
               )}
+            </div>
+
+            {/* Condizioni di Vendita Section - Arancione */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-1 mt-0 mb-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <FileText className="w-4 h-4 text-orange-600" />
+                <h3 className="text-sm font-semibold text-orange-800">Condizioni di Vendita</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="payment_conditions" className="text-xs font-medium text-gray-700">
+                    Pagamento
+                  </Label>
+                  <Input
+                    id="payment_conditions"
+                    {...register('payment_conditions')}
+                    className="h-6 text-xs"
+                    placeholder="es. 30 giorni, Bonifico anticipato"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="shipping_conditions" className="text-xs font-medium text-gray-700">
+                    Trasporto
+                  </Label>
+                  <Input
+                    id="shipping_conditions"
+                    {...register('shipping_conditions')}
+                    className="h-6 text-xs"
+                    placeholder="es. Franco fabbrica, FOB"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="delivery_conditions" className="text-xs font-medium text-gray-700">
+                    Tempi di consegna
+                  </Label>
+                  <Input
+                    id="delivery_conditions"
+                    {...register('delivery_conditions')}
+                    className="h-6 text-xs"
+                    placeholder="es. 15 giorni, Su richiesta"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="brand_conditions" className="text-xs font-medium text-gray-700">
+                    Marchio
+                  </Label>
+                  <Input
+                    id="brand_conditions"
+                    {...register('brand_conditions')}
+                    className="h-6 text-xs"
+                    placeholder="es. Marchio cliente, White label"
+                  />
+                </div>
+              </div>
             </div>
             </div>
           )}

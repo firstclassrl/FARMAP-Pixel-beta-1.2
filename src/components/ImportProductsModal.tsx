@@ -285,7 +285,7 @@ const ImportProductsModal: React.FC<ImportProductsModalProps> = ({
       '5',
       '3 anni',
       '22',
-      '1234567890123',
+      '02244470684',
       '',
       'true'
     ];

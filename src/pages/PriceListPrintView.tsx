@@ -236,13 +236,70 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
         }
       });
 
-      // 5. FOOTER
+      // 5. CONDIZIONI DI VENDITA
+      const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
+      let conditionsY = finalY + 10;
+      
+      // Aggiungi sezione condizioni di vendita se ci sono dati
+      if (priceList.payment_conditions || priceList.shipping_conditions || 
+          priceList.delivery_conditions || priceList.brand_conditions) {
+        
+        // Titolo sezione
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
+        conditionsY += 8;
+        
+        // Griglia 2x2 per le condizioni
+        const cellWidth = (contentWidth - 10) / 2;
+        const cellHeight = 15;
+        
+        // Prima riga
+        if (priceList.payment_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Pagamento:', margin, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.payment_conditions, margin + 25, conditionsY);
+        }
+        
+        if (priceList.shipping_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Trasporto:', margin + cellWidth + 5, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.shipping_conditions, margin + cellWidth + 30, conditionsY);
+        }
+        
+        conditionsY += 8;
+        
+        // Seconda riga
+        if (priceList.delivery_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Tempi di consegna:', margin, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.delivery_conditions, margin + 40, conditionsY);
+        }
+        
+        if (priceList.brand_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Marchio:', margin + cellWidth + 5, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.brand_conditions, margin + cellWidth + 25, conditionsY);
+        }
+        
+        conditionsY += 15;
+      }
+
+      // 6. FOOTER
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(
         'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
-        195,
+        conditionsY + 10,
         { align: 'right' }
       );
 
@@ -426,7 +483,63 @@ Team FARMAP`;
         }
       });
 
-      // 5. SALVA IL FILE
+      // 5. CONDIZIONI DI VENDITA
+      const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
+      let conditionsY = finalY + 10;
+      
+      // Aggiungi sezione condizioni di vendita se ci sono dati
+      if (priceList.payment_conditions || priceList.shipping_conditions || 
+          priceList.delivery_conditions || priceList.brand_conditions) {
+        
+        // Titolo sezione
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
+        conditionsY += 8;
+        
+        // Griglia 2x2 per le condizioni
+        const cellWidth = (contentWidth - 10) / 2;
+        
+        // Prima riga
+        if (priceList.payment_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Pagamento:', margin, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.payment_conditions, margin + 25, conditionsY);
+        }
+        
+        if (priceList.shipping_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Trasporto:', margin + cellWidth + 5, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.shipping_conditions, margin + cellWidth + 30, conditionsY);
+        }
+        
+        conditionsY += 8;
+        
+        // Seconda riga
+        if (priceList.delivery_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Tempi di consegna:', margin, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.delivery_conditions, margin + 40, conditionsY);
+        }
+        
+        if (priceList.brand_conditions) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Marchio:', margin + cellWidth + 5, conditionsY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(priceList.brand_conditions, margin + cellWidth + 25, conditionsY);
+        }
+        
+        conditionsY += 15;
+      }
+
+      // 6. SALVA IL FILE
       doc.save(`listino-${priceList.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 
       addNotification({
@@ -678,12 +791,46 @@ Team FARMAP`;
                   </tbody>
                 </table>
 
+                {/* Condizioni di Vendita */}
+                {(priceList.payment_conditions || priceList.shipping_conditions || 
+                  priceList.delivery_conditions || priceList.brand_conditions) && (
+                  <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h3 className="text-sm font-bold text-orange-800 mb-3">CONDIZIONI DI VENDITA</h3>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      {priceList.payment_conditions && (
+                        <div>
+                          <span className="font-medium text-gray-600">Pagamento:</span>
+                          <span className="ml-1">{priceList.payment_conditions}</span>
+                        </div>
+                      )}
+                      {priceList.shipping_conditions && (
+                        <div>
+                          <span className="font-medium text-gray-600">Trasporto:</span>
+                          <span className="ml-1">{priceList.shipping_conditions}</span>
+                        </div>
+                      )}
+                      {priceList.delivery_conditions && (
+                        <div>
+                          <span className="font-medium text-gray-600">Tempi di consegna:</span>
+                          <span className="ml-1">{priceList.delivery_conditions}</span>
+                        </div>
+                      )}
+                      {priceList.brand_conditions && (
+                        <div>
+                          <span className="font-medium text-gray-600">Marchio:</span>
+                          <span className="ml-1">{priceList.brand_conditions}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Footer */}
                 <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
                   <div className="flex justify-between">
                     <div>
                       <p>FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)</p>
-                      <p>P.IVA: 12345678901 - Tel: +39 085 1234567</p>
+                      <p>P.IVA: 02244470684 - Tel: +39 085 9774028</p>
                     </div>
                     <div className="text-right">
                       <p>Listino valido dal {new Date(priceList.valid_from).toLocaleDateString('it-IT')}</p>

@@ -81,12 +81,8 @@ export default function CustomersPage() {
     if (!user) return;
 
     try {
-      // Normalize payload for DB types (e.g. payment_terms as number of days)
+      // Use form data directly - payment_terms is now alphanumeric
       const normalized: any = { ...formData };
-      if (typeof normalized.payment_terms === 'string') {
-        const match = normalized.payment_terms.match(/\d+/);
-        normalized.payment_terms = match ? Number(match[0]) : 0;
-      }
 
       if (editingCustomer) {
         // In aggiornamento, non inviamo created_by
@@ -450,7 +446,7 @@ export default function CustomersPage() {
                   id="vat_number"
                   value={formData.vat_number}
                   onChange={e => setFormData({ ...formData, vat_number: e.target.value })}
-                  placeholder="IT12345678901"
+                  placeholder="IT02244470684"
                 />
               </div>
               <div>
