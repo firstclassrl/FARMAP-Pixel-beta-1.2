@@ -400,6 +400,56 @@ export function PriceListDetailPage({
     onClose();
   };
 
+  const handleSaveAndClose = async () => {
+    try {
+      // Salva prima le modifiche del form principale
+      const formData = {
+        name: currentPriceList?.name || '',
+        description: currentPriceList?.description || '',
+        customer_id: selectedCustomerId,
+        valid_from: currentPriceList?.valid_from || '',
+        valid_until: currentPriceList?.valid_until || '',
+        currency: currentPriceList?.currency || 'EUR',
+        is_default: currentPriceList?.is_default || false,
+        payment_conditions: currentPriceList?.payment_conditions || '',
+        shipping_conditions: currentPriceList?.shipping_conditions || '',
+        delivery_conditions: currentPriceList?.delivery_conditions || '',
+        brand_conditions: currentPriceList?.brand_conditions || '',
+      };
+
+      // Se c'è un listino esistente, salva le modifiche
+      if (currentPriceList) {
+        const { error } = await supabase
+          .from('price_lists')
+          .update({
+            payment_conditions: formData.payment_conditions || null,
+            shipping_conditions: formData.shipping_conditions || null,
+            delivery_conditions: formData.delivery_conditions || null,
+            brand_conditions: formData.brand_conditions || null,
+          })
+          .eq('id', currentPriceList.id);
+
+        if (error) throw error;
+
+        addNotification({
+          type: 'success',
+          title: 'Listino salvato',
+          message: 'Le modifiche sono state salvate con successo'
+        });
+      }
+
+      // Chiudi la modale
+      handleClose();
+    } catch (error) {
+      console.error('Errore nel salvataggio:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Errore nel salvataggio delle modifiche'
+      });
+    }
+  };
+
 
   const handleCustomerChange = (customerId: string) => {
     setValue('customer_id', customerId);
@@ -738,29 +788,29 @@ export function PriceListDetailPage({
                       </div>
                       
                       {/* Terza riga con Cartone, Pedana, Scadenza */}
-                      <div className="grid grid-cols-3 gap-3 items-center mt-2">
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-600">Cartone:</span>
+                      <div className="grid grid-cols-3 gap-4 items-center mt-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-600 min-w-[50px]">Cartone:</span>
                           <Input
                             value={item.products.cartone || ''}
                             onChange={(e) => handleProductFieldChange(item.id, 'cartone', e.target.value)}
-                            className="h-5 text-xs w-20"
+                            className="h-5 text-xs flex-1"
                           />
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-600">Pedana:</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-600 min-w-[50px]">Pedana:</span>
                           <Input
                             value={item.products.pallet || ''}
                             onChange={(e) => handleProductFieldChange(item.id, 'pallet', e.target.value)}
-                            className="h-5 text-xs w-20"
+                            className="h-5 text-xs flex-1"
                           />
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-600">Scadenza:</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-600 min-w-[50px]">Scadenza:</span>
                           <Input
                             value={item.products.scadenza || ''}
                             onChange={(e) => handleProductFieldChange(item.id, 'scadenza', e.target.value)}
-                            className="h-5 text-xs w-20"
+                            className="h-5 text-xs flex-1"
                           />
                         </div>
                       </div>
@@ -865,7 +915,7 @@ export function PriceListDetailPage({
           </Button>
           <Button
             type="button"
-            onClick={handleClose}
+            onClick={handleSaveAndClose}
             className="h-7 text-xs px-4 bg-green-600 hover:bg-green-700 text-white"
           >
             Salva e Chiudi

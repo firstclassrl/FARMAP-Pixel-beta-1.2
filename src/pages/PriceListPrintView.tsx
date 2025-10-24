@@ -250,44 +250,43 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 2x2 per le condizioni
-        const cellWidth = (contentWidth - 10) / 2;
-        const cellHeight = 15;
+        // Griglia 1x4 per le condizioni (tutte su una riga)
+        const cellWidth = (contentWidth - 15) / 4;
+        let currentX = margin;
         
-        // Prima riga
         if (priceList.payment_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', margin, conditionsY);
+          doc.text('Pagamento:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.payment_conditions, margin + 25, conditionsY);
+          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
+          currentX += cellWidth;
         }
         
         if (priceList.shipping_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', margin + cellWidth + 5, conditionsY);
+          doc.text('Trasporto:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.shipping_conditions, margin + cellWidth + 30, conditionsY);
+          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
+          currentX += cellWidth;
         }
         
-        conditionsY += 8;
-        
-        // Seconda riga
         if (priceList.delivery_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', margin, conditionsY);
+          doc.text('Tempi di consegna:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, margin + 40, conditionsY);
+          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
+          currentX += cellWidth;
         }
         
         if (priceList.brand_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', margin + cellWidth + 5, conditionsY);
+          doc.text('Marchio:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, margin + cellWidth + 25, conditionsY);
+          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
         }
         
         conditionsY += 15;
@@ -497,43 +496,43 @@ Team FARMAP`;
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 2x2 per le condizioni
-        const cellWidth = (contentWidth - 10) / 2;
+        // Griglia 1x4 per le condizioni (tutte su una riga)
+        const cellWidth = (contentWidth - 15) / 4;
+        let currentX = margin;
         
-        // Prima riga
         if (priceList.payment_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', margin, conditionsY);
+          doc.text('Pagamento:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.payment_conditions, margin + 25, conditionsY);
+          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
+          currentX += cellWidth;
         }
         
         if (priceList.shipping_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', margin + cellWidth + 5, conditionsY);
+          doc.text('Trasporto:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.shipping_conditions, margin + cellWidth + 30, conditionsY);
+          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
+          currentX += cellWidth;
         }
         
-        conditionsY += 8;
-        
-        // Seconda riga
         if (priceList.delivery_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', margin, conditionsY);
+          doc.text('Tempi di consegna:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, margin + 40, conditionsY);
+          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
+          currentX += cellWidth;
         }
         
         if (priceList.brand_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', margin + cellWidth + 5, conditionsY);
+          doc.text('Marchio:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, margin + cellWidth + 25, conditionsY);
+          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
         }
         
         conditionsY += 15;
@@ -796,7 +795,7 @@ Team FARMAP`;
                   priceList.delivery_conditions || priceList.brand_conditions) && (
                   <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
                     <h3 className="text-sm font-bold text-orange-800 mb-3">CONDIZIONI DI VENDITA</h3>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-4 gap-4 text-xs">
                       {priceList.payment_conditions && (
                         <div>
                           <span className="font-medium text-gray-600">Pagamento:</span>
@@ -833,7 +832,9 @@ Team FARMAP`;
                       <p>P.IVA: 02244470684 - Tel: +39 085 9774028</p>
                     </div>
                     <div className="text-right">
-                      <p>Listino valido dal {new Date(priceList.valid_from).toLocaleDateString('it-IT')}</p>
+                      {priceList.valid_from && (
+                        <p>Listino valido dal {new Date(priceList.valid_from).toLocaleDateString('it-IT')}</p>
+                      )}
                       {priceList.valid_until && (
                         <p>fino al {new Date(priceList.valid_until).toLocaleDateString('it-IT')}</p>
                       )}
