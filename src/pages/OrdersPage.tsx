@@ -46,11 +46,11 @@ export function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderToCancel, setOrderToCancel] = useState<OrderWithDetails | null>(null);
-  const [orderToEdit, setOrderToEdit] = useState<OrderWithDetails | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | string>('all');
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -100,6 +100,13 @@ export function OrdersPage() {
 
   const handleViewOrder = (orderId: string) => {
     setSelectedOrderId(orderId);
+    setModalMode('view');
+    setShowOrderModal(true);
+  };
+
+  const handleEditOrder = (order: OrderWithDetails) => {
+    setSelectedOrderId(order.id);
+    setModalMode('edit');
     setShowOrderModal(true);
   };
   const handleCloseOrderModal = () => {
@@ -205,7 +212,7 @@ export function OrdersPage() {
                     {statusLabels[order.status]}
                   </span>
                   <Button variant="ghost" size="icon" onClick={() => handleViewOrder(order.id)}><Eye className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => setOrderToEdit(order)} className="text-blue-600 hover:text-blue-700">
+                  <Button variant="ghost" size="icon" onClick={() => handleEditOrder(order)} className="text-blue-600 hover:text-blue-700">
                     <Edit className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => setOrderToCancel(order)} className="text-red-600 hover:text-red-700">
@@ -233,14 +240,12 @@ export function OrdersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modale per modifica ordine */}
       <OrderFormModal 
-        isOpen={!!orderToEdit} 
-        onClose={() => setOrderToEdit(null)} 
-        orderId={orderToEdit?.id || null} 
+        isOpen={showOrderModal} 
+        onClose={handleCloseOrderModal} 
+        orderId={selectedOrderId}
+        mode={modalMode}
       />
-      
-      <OrderFormModal isOpen={showOrderModal} onClose={handleCloseOrderModal} orderId={selectedOrderId} />
       
       <CreateOrderFromPriceListModal 
         isOpen={showCreateOrderModal} 

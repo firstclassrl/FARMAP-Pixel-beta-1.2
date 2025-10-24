@@ -33,9 +33,10 @@ interface OrderFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: string | null;
+  mode?: 'view' | 'edit';
 }
 
-const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderId }) => {
+const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderId, mode = 'view' }) => {
   const orderFormRef = useRef<HTMLDivElement>(null);
   const { addNotification } = useNotifications();
 
@@ -523,7 +524,7 @@ FARMAP INDUSTRY S.r.l.`);
           {error && <div className="p-12 text-center text-red-600">{error}</div>}
           {orderData && (
             <div ref={orderFormRef} className="mx-auto bg-white p-8 max-w-4xl">
-              <OrderFormTemplate orderData={orderData} />
+              <OrderFormTemplate orderData={orderData} mode={mode} />
             </div>
           )}
         </div>

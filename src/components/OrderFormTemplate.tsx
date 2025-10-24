@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Building, Package, AlertCircle } from 'lucide-react';
 import { formatCurrency, formatDate } from '../lib/exportUtils';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 
 interface OrderFormTemplateProps {
   orderData: {
@@ -35,13 +37,27 @@ interface OrderFormTemplateProps {
     trackingNumber?: string;
     termsAndConditions?: string;
   };
+  mode?: 'view' | 'edit';
 }
 
-const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData }) => {
+const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode = 'view' }) => {
+  const [editableData, setEditableData] = useState(orderData);
+  const [isEditing, setIsEditing] = useState(false);
+
   const calculateItemTotal = (quantity: number, unitPrice: number, discountPercentage: number = 0) => {
     const subtotal = quantity * unitPrice;
     const discountAmount = (subtotal * discountPercentage) / 100;
     return subtotal - discountAmount;
+  };
+
+  const handleItemChange = (index: number, field: string, value: string | number) => {
+    const newItems = [...editableData.items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setEditableData({ ...editableData, items: newItems });
+  };
+
+  const handleNotesChange = (value: string) => {
+    setEditableData({ ...editableData, notes: value });
   };
 
   return (
@@ -116,7 +132,7 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData }) => {
             </tr>
           </thead>
           <tbody>
-            {orderData.items.map((item, index) => (
+            {editableData.items.map((item, index) => (
               <tr key={index} className="border border-black">
                 <td className="p-2 text-xs font-mono border border-black">{item.productCode}</td>
                 <td className="p-2 text-xs border border-black">
@@ -126,9 +142,30 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData }) => {
                   )}
                 </td>
                 <td className="text-right p-2 text-xs border border-black">
-                  {item.quantity} {item.unit || 'pz'}
+                  {mode === 'edit' ? (
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                      className="w-16 h-6 text-xs"
+                    />
+                  ) : (
+                    `${item.quantity} ${item.unit || 'pz'}`
+                  )}
                 </td>
-                <td className="text-right p-2 text-xs border border-black">{formatCurrency(item.unitPrice)}</td>
+                <td className="text-right p-2 text-xs border border-black">
+                  {mode === 'edit' ? (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                      className="w-20 h-6 text-xs"
+                    />
+                  ) : (
+                    formatCurrency(item.unitPrice)
+                  )}
+                </td>
                 <td className="text-right p-2 text-xs font-bold border border-black">
                   {formatCurrency(calculateItemTotal(item.quantity, item.unitPrice, item.discountPercentage))}
                 </td>
@@ -148,15 +185,48 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData }) => {
       </div>
 
       {/* Note compatte */}
-      {orderData.notes && (
+      {(editableData.notes || mode === 'edit') && (
         <div className="mb-4">
           <div className="bg-yellow-100 border border-yellow-300 rounded p-2 h-16">
             <div className="text-xs font-bold text-yellow-800 mb-1">NOTE:</div>
-            <div className="text-xs text-gray-800 leading-tight">{orderData.notes}</div>
+            {mode === 'edit' ? (
+              <Input
+                value={editableData.notes || ''}
+                onChange={(e) => handleNotesChange(e.target.value)}
+                placeholder="Inserisci note per l'ordine..."
+                className="w-full h-8 text-xs"
+              />
+            ) : (
+              <div className="text-xs text-gray-800 leading-tight">{editableData.notes}</div>
+            )}
           </div>
         </div>
       )}
 
+      {/* Pulsanti di modifica */}
+      {mode === 'edit' && (
+        <div className="mb-4 flex gap-2 justify-end">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsEditing(!isEditing)}
+            className="text-xs"
+          >
+            {isEditing ? 'Annulla' : 'Modifica'}
+          </Button>
+          {isEditing && (
+            <Button 
+              onClick={() => {
+                // Qui dovresti implementare la logica di salvataggio
+                console.log('Salvataggio modifiche:', editableData);
+                setIsEditing(false);
+              }}
+              className="text-xs bg-blue-600 hover:bg-blue-700"
+            >
+              Salva Modifiche
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Footer with generation info */}
       <div className="mt-4 pt-2 border-t border-gray-300 flex justify-between text-xs text-gray-500">
