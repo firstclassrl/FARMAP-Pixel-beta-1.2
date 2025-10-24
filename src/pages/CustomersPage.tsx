@@ -85,6 +85,28 @@ export default function CustomersPage() {
       const normalized: any = { ...formData };
 
       if (editingCustomer) {
+        // In aggiornamento, controlla se il codice cliente è stato modificato
+        const codiceClienteChanged = normalized.codice_cliente !== editingCustomer.codice_cliente;
+        
+        // Se il codice cliente è stato modificato, verifica che non sia già in uso
+        if (codiceClienteChanged && normalized.codice_cliente) {
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('codice_cliente', normalized.codice_cliente)
+            .neq('id', editingCustomer.id)
+            .single();
+            
+          if (existingCustomer) {
+            addNotification({ 
+              type: 'error', 
+              title: 'Errore', 
+              message: 'Il codice cliente è già utilizzato da un altro cliente' 
+            });
+            return;
+          }
+        }
+        
         // In aggiornamento, non inviamo created_by
         const { error } = await supabase
           .from('customers')
@@ -93,6 +115,24 @@ export default function CustomersPage() {
         if (error) throw error;
         addNotification({ type: 'success', title: 'Cliente aggiornato' });
       } else {
+        // In creazione, verifica che il codice cliente non sia già in uso
+        if (normalized.codice_cliente) {
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('codice_cliente', normalized.codice_cliente)
+            .single();
+            
+          if (existingCustomer) {
+            addNotification({ 
+              type: 'error', 
+              title: 'Errore', 
+              message: 'Il codice cliente è già utilizzato da un altro cliente' 
+            });
+            return;
+          }
+        }
+        
         // In creazione, aggiungiamo created_by
         const { error } = await supabase
           .from('customers')
