@@ -1,0 +1,20 @@
+/* Override per eliminare completamente spazi bianchi nel Dialog */
+.price-list-modal {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.price-list-modal > * {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.price-list-modal [data-radix-dialog-content] {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.price-list-modal [data-radix-dialog-content] > * {
+  padding: 0 !important;
+  margin: 0 !important;
+}

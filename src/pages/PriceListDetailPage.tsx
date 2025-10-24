@@ -19,6 +19,7 @@ import type { Database } from '../types/database.types';
 import { CustomerSelectionModal } from '../components/CustomerSelectionModal';
 import ProductSelectionModal from '../components/ProductSelectionModal';
 import { PriceListPrintView } from './PriceListPrintView';
+import './PriceListModal.css';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
 type PriceListItem = Database['public']['Tables']['price_list_items']['Row'];
@@ -501,9 +502,9 @@ Il Team
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-0">
-        <DialogHeader className="pb-0 px-2 pt-2">
-          <div className="flex items-center justify-between">
+      <DialogContent className="price-list-modal w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-0 m-0 [&>*]:p-0 [&>*]:m-0">
+        <DialogHeader className="pb-0 px-0 pt-0 m-0">
+          <div className="flex items-center justify-between px-2 pt-2">
             <div className="flex items-center space-x-4">
               <DialogTitle>
                 {priceListId ? 'Modifica Listino' : 'Nuovo Listino'}
@@ -532,7 +533,7 @@ Il Team
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <div className="h-full flex flex-col px-2">
+          <div className="h-full flex flex-col px-2 pt-0">
             {/* Informazioni Listino Section - Immediatamente sotto i pulsanti */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-1 mt-0">
               <div className="flex items-center justify-between">
@@ -755,7 +756,7 @@ Il Team
         )}
 
         {/* Pulsanti in basso a destra - Footer minimo */}
-        <div className="flex justify-end gap-2 border-t bg-gray-50 px-2 py-1">
+        <div className="flex justify-end gap-2 border-t bg-gray-50 px-2 py-1 mt-0">
           <Button
             type="button"
             onClick={() => setShowPreviewModal(true)}
