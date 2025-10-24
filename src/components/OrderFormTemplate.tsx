@@ -27,6 +27,7 @@ interface OrderFormTemplateProps {
       unitPrice: number;
       discountPercentage?: number;
       notes?: string;
+      productId?: string;
     }>;
     subtotal: number;
     discountAmount?: number;
@@ -38,9 +39,10 @@ interface OrderFormTemplateProps {
     termsAndConditions?: string;
   };
   mode?: 'view' | 'edit';
+  onSave?: (data: any) => Promise<void>;
 }
 
-const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode = 'view' }) => {
+const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode = 'view', onSave }) => {
   const [editableData, setEditableData] = useState(orderData);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -208,11 +210,10 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
       {mode === 'edit' && (
         <div className="mb-4 flex gap-2 justify-end">
           <Button 
-            onClick={() => {
-              // Qui dovresti implementare la logica di salvataggio
-              console.log('Salvataggio modifiche:', editableData);
-              // Chiudi la modale dopo il salvataggio
-              window.location.reload(); // Temporaneo, dovrebbe essere gestito dal parent
+            onClick={async () => {
+              if (onSave) {
+                await onSave(editableData);
+              }
             }}
             className="text-xs bg-green-600 hover:bg-green-700 text-white"
           >

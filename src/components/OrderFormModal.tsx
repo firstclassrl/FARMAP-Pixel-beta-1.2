@@ -126,7 +126,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
           unit: item.products?.unit || 'pz',
           unitPrice: item.unit_price,
           discountPercentage: item.discount_percentage,
-          notes: item.notes || ''
+          notes: item.notes || '',
+          productId: item.product_id
         })),
         subtotal: combinedData.total_amount,
         taxAmount: combinedData.tax_amount,
@@ -327,6 +328,61 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
     }
   };
 
+  const handleSaveOrder = async (updatedData: any) => {
+    if (!orderId) return;
+
+    try {
+      setLoading(true);
+      
+      // Update order notes
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          notes: updatedData.notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (orderError) throw new Error(`Errore nell'aggiornamento dell'ordine: ${orderError.message}`);
+
+      // Update order items
+      for (const item of updatedData.items) {
+        const { error: itemError } = await supabase
+          .from('order_items')
+          .update({
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+            total_price: item.quantity * item.unitPrice
+          })
+          .eq('order_id', orderId)
+          .eq('product_id', item.productId);
+
+        if (itemError) {
+          console.error(`Errore nell'aggiornamento dell'articolo ${item.productCode}:`, itemError);
+        }
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'Ordine aggiornato',
+        message: 'Le modifiche sono state salvate con successo.'
+      });
+
+      // Refresh the order data
+      await fetchOrderDetails();
+      
+    } catch (error) {
+      console.error('Errore nel salvataggio:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: error instanceof Error ? error.message : 'Errore durante il salvataggio'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendEmail = async () => {
     if (!orderData || !orderData.customerEmail) {
       addNotification({
@@ -524,7 +580,7 @@ FARMAP INDUSTRY S.r.l.`);
           {error && <div className="p-12 text-center text-red-600">{error}</div>}
           {orderData && (
             <div ref={orderFormRef} className="mx-auto bg-white p-8 max-w-4xl">
-              <OrderFormTemplate orderData={orderData} mode={mode} />
+              <OrderFormTemplate orderData={orderData} mode={mode} onSave={handleSaveOrder} />
             </div>
           )}
         </div>
