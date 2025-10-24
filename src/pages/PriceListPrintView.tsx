@@ -250,46 +250,66 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 1x4 per le condizioni (tutte su una riga)
-        const cellWidth = (contentWidth - 15) / 4;
+        // Griglia 2x2 per le condizioni (due righe)
+        const cellWidth = (contentWidth - 15) / 2;
+        const cellHeight = 12;
         let currentX = margin;
+        let currentY = conditionsY;
+        let itemsInRow = 0;
         
         if (priceList.payment_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', currentX, conditionsY);
+          doc.text('Pagamento:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
-          currentX += cellWidth;
+          doc.text(priceList.payment_conditions, currentX + 25, currentY);
+          itemsInRow++;
         }
         
         if (priceList.shipping_conditions) {
+          if (itemsInRow >= 2) {
+            currentX = margin;
+            currentY += cellHeight;
+            itemsInRow = 0;
+          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', currentX, conditionsY);
+          doc.text('Trasporto:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
+          doc.text(priceList.shipping_conditions, currentX + 25, currentY);
           currentX += cellWidth;
+          itemsInRow++;
         }
         
         if (priceList.delivery_conditions) {
+          if (itemsInRow >= 2) {
+            currentX = margin;
+            currentY += cellHeight;
+            itemsInRow = 0;
+          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', currentX, conditionsY);
+          doc.text('Tempi di consegna:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
+          doc.text(priceList.delivery_conditions, currentX + 40, currentY);
           currentX += cellWidth;
+          itemsInRow++;
         }
         
         if (priceList.brand_conditions) {
+          if (itemsInRow >= 2) {
+            currentX = margin;
+            currentY += cellHeight;
+            itemsInRow = 0;
+          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', currentX, conditionsY);
+          doc.text('Marchio:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
+          doc.text(priceList.brand_conditions, currentX + 25, currentY);
         }
         
-        conditionsY += 15;
+        conditionsY = currentY + 8;
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
@@ -310,8 +330,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
       doc.text('Data', pageWidth - 70, acceptanceY + 20);
       
-      // Spazio per firma e timbro
-      doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
+      // Spazio bianco per firma e timbro
 
       // 7. FOOTER
       doc.setFontSize(8);
@@ -517,46 +536,66 @@ Team FARMAP`;
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 1x4 per le condizioni (tutte su una riga)
-        const cellWidth = (contentWidth - 15) / 4;
+        // Griglia 2x2 per le condizioni (due righe)
+        const cellWidth = (contentWidth - 15) / 2;
+        const cellHeight = 12;
         let currentX = margin;
+        let currentY = conditionsY;
+        let itemsInRow = 0;
         
         if (priceList.payment_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', currentX, conditionsY);
+          doc.text('Pagamento:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
-          currentX += cellWidth;
+          doc.text(priceList.payment_conditions, currentX + 25, currentY);
+          itemsInRow++;
         }
         
         if (priceList.shipping_conditions) {
+          if (itemsInRow >= 2) {
+            currentX = margin;
+            currentY += cellHeight;
+            itemsInRow = 0;
+          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', currentX, conditionsY);
+          doc.text('Trasporto:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
+          doc.text(priceList.shipping_conditions, currentX + 25, currentY);
           currentX += cellWidth;
+          itemsInRow++;
         }
         
         if (priceList.delivery_conditions) {
+          if (itemsInRow >= 2) {
+            currentX = margin;
+            currentY += cellHeight;
+            itemsInRow = 0;
+          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', currentX, conditionsY);
+          doc.text('Tempi di consegna:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
+          doc.text(priceList.delivery_conditions, currentX + 40, currentY);
           currentX += cellWidth;
+          itemsInRow++;
         }
         
         if (priceList.brand_conditions) {
+          if (itemsInRow >= 2) {
+            currentX = margin;
+            currentY += cellHeight;
+            itemsInRow = 0;
+          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', currentX, conditionsY);
+          doc.text('Marchio:', currentX, currentY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
+          doc.text(priceList.brand_conditions, currentX + 25, currentY);
         }
         
-        conditionsY += 15;
+        conditionsY = currentY + 8;
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
@@ -577,8 +616,7 @@ Team FARMAP`;
       doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
       doc.text('Data', pageWidth - 70, acceptanceY + 20);
       
-      // Spazio per firma e timbro
-      doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
+      // Spazio bianco per firma e timbro
 
       // 7. FOOTER
       doc.setFontSize(8);
@@ -640,22 +678,8 @@ Team FARMAP`;
       {/* Print Styles */}
       <style jsx global>{`
         @media print {
-          /* Hide everything by default */
-          body * {
-            visibility: hidden;
-          }
-          
-          /* Show only print content */
-          .print-modal-container,
-          .print-modal-container *,
-          .print-content, 
-          .print-content * {
-            visibility: visible !important;
-          }
-          
-          /* Ensure print content is visible */
-          .print-page,
-          .print-visible {
+          /* Reset all visibility */
+          * {
             visibility: visible !important;
           }
           
@@ -666,17 +690,17 @@ Team FARMAP`;
             display: none !important;
           }
           
-          /* Position print content */
-          .print-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          
           /* Hide non-print elements */
           .no-print {
             display: none !important;
+          }
+          
+          /* Ensure print content is visible */
+          .print-content,
+          .print-page,
+          .print-visible {
+            visibility: visible !important;
+            display: block !important;
           }
           
           /* Page setup - A4 Landscape */
@@ -853,7 +877,7 @@ Team FARMAP`;
                   priceList.delivery_conditions || priceList.brand_conditions) && (
                   <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
                     <h3 className="text-sm font-bold text-orange-800 mb-3">CONDIZIONI DI VENDITA</h3>
-                    <div className="grid grid-cols-4 gap-4 text-xs">
+                    <div className="grid grid-cols-2 gap-4 text-xs">
                       {priceList.payment_conditions && (
                         <div>
                           <span className="font-bold text-gray-600">Pagamento:</span>
@@ -892,7 +916,7 @@ Team FARMAP`;
                         <div className="border-b border-black w-24"></div>
                       </div>
                       <div className="mt-4">
-                        <div className="border-b border-black w-full mt-2"></div>
+                        {/* Spazio bianco per firma e timbro */}
                       </div>
                     </div>
                   </div>
