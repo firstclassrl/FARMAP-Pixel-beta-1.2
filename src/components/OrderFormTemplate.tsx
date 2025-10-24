@@ -126,7 +126,7 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
             <tr className="bg-gray-800 text-white">
               <th className="text-left p-2 text-xs font-bold border border-black">Codice</th>
               <th className="text-left p-2 text-xs font-bold border border-black">Prodotto</th>
-              <th className="text-right p-2 text-xs font-bold border border-black">Qty</th>
+              <th className="text-right p-2 text-xs font-bold border border-black">Quantità</th>
               <th className="text-right p-2 text-xs font-bold border border-black">Prezzo</th>
               <th className="text-right p-2 text-xs font-bold border border-black">Totale</th>
             </tr>
@@ -147,7 +147,7 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
                       type="number"
                       value={item.quantity}
                       onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                      className="w-16 h-6 text-xs"
+                      className="w-16 h-6 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   ) : (
                     `${item.quantity} ${item.unit || 'pz'}`
@@ -208,24 +208,16 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
       {mode === 'edit' && (
         <div className="mb-4 flex gap-2 justify-end">
           <Button 
-            variant="outline" 
-            onClick={() => setIsEditing(!isEditing)}
-            className="text-xs"
+            onClick={() => {
+              // Qui dovresti implementare la logica di salvataggio
+              console.log('Salvataggio modifiche:', editableData);
+              // Chiudi la modale dopo il salvataggio
+              window.location.reload(); // Temporaneo, dovrebbe essere gestito dal parent
+            }}
+            className="text-xs bg-green-600 hover:bg-green-700 text-white"
           >
-            {isEditing ? 'Annulla' : 'Modifica'}
+            Salva e Chiudi
           </Button>
-          {isEditing && (
-            <Button 
-              onClick={() => {
-                // Qui dovresti implementare la logica di salvataggio
-                console.log('Salvataggio modifiche:', editableData);
-                setIsEditing(false);
-              }}
-              className="text-xs bg-green-600 hover:bg-green-700 text-white"
-            >
-              Salva
-            </Button>
-          )}
         </div>
       )}
 

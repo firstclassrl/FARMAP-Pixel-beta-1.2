@@ -386,7 +386,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
       // 4. TABELLA PRODOTTI
       autoTable(doc, {
         startY: yPosition,
-        head: [['Codice', 'Prodotto', 'Qty', 'Prezzo', 'Totale']],
+        head: [['Codice', 'Prodotto', 'Quantità', 'Prezzo', 'Totale']],
         body: orderData.orderItems?.map((item: any) => [
           item.productCode || '',
           item.productName || '',
@@ -504,7 +504,7 @@ FARMAP INDUSTRY S.r.l.`);
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0">
         <DialogHeader className="no-print p-6 pb-2 border-b">
           <div className="flex justify-between items-center pr-8">
-            <DialogTitle>{orderData ? `Dettaglio Ordine ${orderData.orderNumber}` : 'Caricamento...'}</DialogTitle>
+            <DialogTitle>{orderData ? (mode === 'edit' ? `Modifica Ordine ${orderData.orderNumber}` : `Dettaglio Ordine ${orderData.orderNumber}`) : 'Caricamento...'}</DialogTitle>
             {orderData && mode !== 'edit' && (
               <div className="flex gap-2">
                 <Button onClick={handleDownloadPdf}>

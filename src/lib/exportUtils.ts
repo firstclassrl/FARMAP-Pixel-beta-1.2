@@ -154,7 +154,7 @@ export const exportOrderToPDF = (order: any) => {
     // 4. TABELLA PRODOTTI (con griglia nera)
     autoTable(doc, {
       startY: yPosition,
-      head: [['Codice', 'Prodotto', 'Qty', 'Prezzo', 'Totale']],
+      head: [['Codice', 'Prodotto', 'Quantità', 'Prezzo', 'Totale']],
       body: order.order_items.map((item: any) => [
         item.products.code,
         item.products.name,
