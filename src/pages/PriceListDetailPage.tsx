@@ -540,14 +540,6 @@ Il Team
                   <FileText className="w-4 h-4 text-red-600" />
                   <h3 className="text-sm font-semibold text-red-800">Informazioni Listino</h3>
                 </div>
-                <Button
-                  type="button"
-                  onClick={() => setShowProductModal(true)}
-                  className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Inserisci Prodotti
-                </Button>
               </div>
               
               <form onSubmit={handleSubmit(handleMainFormSubmit)} className="mt-2">

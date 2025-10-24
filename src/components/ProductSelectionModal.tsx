@@ -169,12 +169,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="w-[90vw] h-[90vh] max-w-none max-h-none overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Seleziona Prodotti per il Listino</span>
-            <Button variant="ghost" size="icon" onClick={handleClose} className="h-6 w-6">
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
+          <DialogTitle>Seleziona Prodotti per il Listino</DialogTitle>
         </DialogHeader>
 
         <div className="h-full overflow-y-auto space-y-4 p-1">
