@@ -85,6 +85,7 @@ export function PriceListDetailPage({
     formState: { errors },
     reset,
     setValue,
+    getValues,
   } = useForm<PriceListFormData>({
     resolver: zodResolver(priceListSchema),
     defaultValues: {
@@ -402,21 +403,9 @@ export function PriceListDetailPage({
 
   const handleSaveAndClose = async () => {
     try {
-      // Salva prima le modifiche del form principale
-      const formData = {
-        name: currentPriceList?.name || '',
-        description: currentPriceList?.description || '',
-        customer_id: selectedCustomerId,
-        valid_from: currentPriceList?.valid_from || '',
-        valid_until: currentPriceList?.valid_until || '',
-        currency: currentPriceList?.currency || 'EUR',
-        is_default: currentPriceList?.is_default || false,
-        payment_conditions: currentPriceList?.payment_conditions || '',
-        shipping_conditions: currentPriceList?.shipping_conditions || '',
-        delivery_conditions: currentPriceList?.delivery_conditions || '',
-        brand_conditions: currentPriceList?.brand_conditions || '',
-      };
-
+      // Ottieni i dati del form corrente
+      const formData = getValues();
+      
       // Se c'è un listino esistente, salva le modifiche
       if (currentPriceList) {
         const { error } = await supabase

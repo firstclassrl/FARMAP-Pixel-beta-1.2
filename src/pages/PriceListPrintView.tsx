@@ -798,25 +798,25 @@ Team FARMAP`;
                     <div className="grid grid-cols-4 gap-4 text-xs">
                       {priceList.payment_conditions && (
                         <div>
-                          <span className="font-medium text-gray-600">Pagamento:</span>
+                          <span className="font-bold text-gray-600">Pagamento:</span>
                           <span className="ml-1">{priceList.payment_conditions}</span>
                         </div>
                       )}
                       {priceList.shipping_conditions && (
                         <div>
-                          <span className="font-medium text-gray-600">Trasporto:</span>
+                          <span className="font-bold text-gray-600">Trasporto:</span>
                           <span className="ml-1">{priceList.shipping_conditions}</span>
                         </div>
                       )}
                       {priceList.delivery_conditions && (
                         <div>
-                          <span className="font-medium text-gray-600">Tempi di consegna:</span>
+                          <span className="font-bold text-gray-600">Tempi di consegna:</span>
                           <span className="ml-1">{priceList.delivery_conditions}</span>
                         </div>
                       )}
                       {priceList.brand_conditions && (
                         <div>
-                          <span className="font-medium text-gray-600">Marchio:</span>
+                          <span className="font-bold text-gray-600">Marchio:</span>
                           <span className="ml-1">{priceList.brand_conditions}</span>
                         </div>
                       )}
