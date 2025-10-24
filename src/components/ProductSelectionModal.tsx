@@ -32,6 +32,7 @@ interface ProductSelectionModalProps {
   onProductSelect: (product: Product) => void;
   priceListId: string;
   currentCustomer?: Customer | null;
+  onProductsAdded?: () => void; // Callback per ricaricare i dati
 }
 
 const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
@@ -39,7 +40,8 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   onClose,
   onProductSelect,
   priceListId,
-  currentCustomer
+  currentCustomer,
+  onProductsAdded
 }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -151,6 +153,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
       addNotification(`${selectedProducts.length} prodotti aggiunti al listino`, 'success');
       setSelectedProducts([]);
+      onProductsAdded?.(); // Ricarica i dati nel componente padre
       onClose();
     } catch (error) {
       console.error('Errore nell\'aggiunta prodotti:', error);

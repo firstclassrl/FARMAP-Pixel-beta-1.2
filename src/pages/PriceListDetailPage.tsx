@@ -501,8 +501,8 @@ Il Team
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-2">
-        <DialogHeader className="pb-2">
+      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-1">
+        <DialogHeader className="pb-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <DialogTitle>
@@ -647,8 +647,8 @@ Il Team
             </div>
 
             {/* Prodotti nel Listino Section - Espansa per riempire tutto lo spazio */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mx-1 mt-1 mb-0 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-2 mx-1 mt-0 mb-0 flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <Package className="w-5 h-5 text-green-600" />
                   <h3 className="text-lg font-semibold text-green-800">
@@ -793,6 +793,7 @@ Il Team
           onProductSelect={() => {}} // Non usato in questa implementazione
           priceListId={currentPriceList.id}
           currentCustomer={currentPriceList.customer}
+          onProductsAdded={() => fetchPriceListDetails(currentPriceList.id)}
         />
       )}
 
