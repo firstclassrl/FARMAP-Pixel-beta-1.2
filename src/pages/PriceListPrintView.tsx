@@ -116,9 +116,9 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
     }
     
     try {
-      // Genera il PDF automaticamente in formato A4 verticale
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
+      // Genera il PDF automaticamente in formato A4 orizzontale
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const pageWidth = 297;
       const margin = 15;
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
@@ -250,66 +250,46 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 2x2 per le condizioni (due righe)
-        const cellWidth = (contentWidth - 15) / 2;
-        const cellHeight = 12;
+        // Griglia 1x4 per le condizioni (tutte su una riga)
+        const cellWidth = (contentWidth - 15) / 4;
         let currentX = margin;
-        let currentY = conditionsY;
-        let itemsInRow = 0;
         
         if (priceList.payment_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', currentX, currentY);
+          doc.text('Pagamento:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.payment_conditions, currentX + 25, currentY);
-          itemsInRow++;
+          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
+          currentX += cellWidth;
         }
         
         if (priceList.shipping_conditions) {
-          if (itemsInRow >= 2) {
-            currentX = margin;
-            currentY += cellHeight;
-            itemsInRow = 0;
-          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', currentX, currentY);
+          doc.text('Trasporto:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.shipping_conditions, currentX + 25, currentY);
+          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
           currentX += cellWidth;
-          itemsInRow++;
         }
         
         if (priceList.delivery_conditions) {
-          if (itemsInRow >= 2) {
-            currentX = margin;
-            currentY += cellHeight;
-            itemsInRow = 0;
-          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', currentX, currentY);
+          doc.text('Tempi di consegna:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, currentX + 40, currentY);
+          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
           currentX += cellWidth;
-          itemsInRow++;
         }
         
         if (priceList.brand_conditions) {
-          if (itemsInRow >= 2) {
-            currentX = margin;
-            currentY += cellHeight;
-            itemsInRow = 0;
-          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', currentX, currentY);
+          doc.text('Marchio:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, currentX + 25, currentY);
+          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
         }
         
-        conditionsY = currentY + 8;
+        conditionsY += 15;
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
@@ -403,8 +383,8 @@ Team FARMAP`;
     if (!priceList) return;
 
     try {
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const pageWidth = 297;
       const margin = 15;
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
@@ -536,66 +516,46 @@ Team FARMAP`;
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 2x2 per le condizioni (due righe)
-        const cellWidth = (contentWidth - 15) / 2;
-        const cellHeight = 12;
+        // Griglia 1x4 per le condizioni (tutte su una riga)
+        const cellWidth = (contentWidth - 15) / 4;
         let currentX = margin;
-        let currentY = conditionsY;
-        let itemsInRow = 0;
         
         if (priceList.payment_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', currentX, currentY);
+          doc.text('Pagamento:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.payment_conditions, currentX + 25, currentY);
-          itemsInRow++;
+          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
+          currentX += cellWidth;
         }
         
         if (priceList.shipping_conditions) {
-          if (itemsInRow >= 2) {
-            currentX = margin;
-            currentY += cellHeight;
-            itemsInRow = 0;
-          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', currentX, currentY);
+          doc.text('Trasporto:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.shipping_conditions, currentX + 25, currentY);
+          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
           currentX += cellWidth;
-          itemsInRow++;
         }
         
         if (priceList.delivery_conditions) {
-          if (itemsInRow >= 2) {
-            currentX = margin;
-            currentY += cellHeight;
-            itemsInRow = 0;
-          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', currentX, currentY);
+          doc.text('Tempi di consegna:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, currentX + 40, currentY);
+          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
           currentX += cellWidth;
-          itemsInRow++;
         }
         
         if (priceList.brand_conditions) {
-          if (itemsInRow >= 2) {
-            currentX = margin;
-            currentY += cellHeight;
-            itemsInRow = 0;
-          }
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', currentX, currentY);
+          doc.text('Marchio:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, currentX + 25, currentY);
+          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
         }
         
-        conditionsY = currentY + 8;
+        conditionsY += 15;
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
@@ -703,10 +663,10 @@ Team FARMAP`;
             display: block !important;
           }
           
-          /* Page setup - A4 Portrait */
+          /* Page setup - A4 Landscape */
           .print-page {
-            width: 210mm;
-            min-height: 297mm;
+            width: 297mm;
+            min-height: 210mm;
             margin: 0;
             padding: 10mm;
             background: white;
@@ -765,7 +725,7 @@ Team FARMAP`;
             </div>
           ) : priceList ? (
             <div className="print-content">
-              <div className="print-page bg-white p-6 mx-auto print-visible" style={{ width: '210mm', minHeight: '297mm' }}>
+              <div className="print-page bg-white p-6 mx-auto print-visible" style={{ width: '297mm', minHeight: '210mm' }}>
                 {/* Header Compatto */}
                 <div className="print-header text-center mb-2">
                   <div className="flex items-center justify-center mb-1">
@@ -877,7 +837,7 @@ Team FARMAP`;
                   priceList.delivery_conditions || priceList.brand_conditions) && (
                   <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                     <h3 className="text-sm font-bold text-orange-800 mb-2">CONDIZIONI DI VENDITA</h3>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="grid grid-cols-4 gap-2 text-xs">
                       {priceList.payment_conditions && (
                         <div>
                           <span className="font-bold text-gray-600">Pagamento:</span>
