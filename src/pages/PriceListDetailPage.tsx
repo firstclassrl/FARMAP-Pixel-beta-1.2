@@ -2,12 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -19,7 +13,6 @@ import type { Database } from '../types/database.types';
 import { CustomerSelectionModal } from '../components/CustomerSelectionModal';
 import ProductSelectionModal from '../components/ProductSelectionModal';
 import { PriceListPrintView } from './PriceListPrintView';
-import './PriceListModal.css';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
 type PriceListItem = Database['public']['Tables']['price_list_items']['Row'];
@@ -501,39 +494,52 @@ Il Team
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="price-list-modal w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-0 m-0 [&>*]:p-0 [&>*]:m-0">
-        <DialogHeader className="pb-0 px-0 pt-0 m-0">
-          <div className="flex items-center justify-between px-2 pt-2">
-            <div className="flex items-center space-x-4">
-              <DialogTitle>
-                {priceListId ? 'Modifica Listino' : 'Nuovo Listino'}
-              </DialogTitle>
-              {currentPriceList && (
-                <div className="flex items-center space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSendEmail}
-                    className="h-7 text-xs px-3 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
-                    title="Invia listino via email"
-                  >
-                    <Mail className="w-3 h-3 mr-1" />
-                    Invia Mail
-                  </Button>
-                </div>
-              )}
-            </div>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'block' : 'hidden'}`}>
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/50" onClick={handleClose} />
+      
+      {/* Modal Content */}
+      <div className="relative w-[98vw] h-[98vh] bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-2 pt-2 pb-1 border-b">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-lg font-semibold">
+              {priceListId ? 'Modifica Listino' : 'Nuovo Listino'}
+            </h2>
+            {currentPriceList && (
+              <div className="flex items-center space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendEmail}
+                  className="h-7 text-xs px-3 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                  title="Invia listino via email"
+                >
+                  <Mail className="w-3 h-3 mr-1" />
+                  Invia Mail
+                </Button>
+              </div>
+            )}
           </div>
-        </DialogHeader>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleClose}
+            className="h-6 w-6"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : (
-          <div className="h-full flex flex-col px-2 pt-0">
+        {/* Content */}
+        <div className="flex-1 flex flex-col px-2 py-1 overflow-hidden">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col">
             {/* Informazioni Listino Section - Immediatamente sotto i pulsanti */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-1 mt-0">
               <div className="flex items-center justify-between">
@@ -752,11 +758,12 @@ Il Team
               </div>
               )}
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
-        {/* Pulsanti in basso a destra - Footer minimo */}
-        <div className="flex justify-end gap-2 border-t bg-gray-50 px-2 py-1 mt-0">
+        {/* Footer */}
+        <div className="flex justify-end gap-2 border-t bg-gray-50 px-2 py-1">
           <Button
             type="button"
             onClick={() => setShowPreviewModal(true)}
@@ -774,7 +781,7 @@ Il Team
             Salva e Chiudi
           </Button>
         </div>
-      </DialogContent>
+      </div>
       
       {/* Customer Selection Modal */}
       <CustomerSelectionModal
@@ -804,8 +811,7 @@ Il Team
         onClose={() => setShowPreviewModal(false)}
         priceListId={priceListId || ''}
       />
-
-    </Dialog>
+    </div>
   );
 }
 export default PriceListDetailPage;
