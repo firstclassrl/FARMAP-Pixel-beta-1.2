@@ -135,7 +135,7 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
           </thead>
           <tbody>
             {editableData.items.map((item, index) => (
-              <tr key={index} className="border border-black">
+              <tr key={item.id || index} className="border border-black">
                 <td className="p-2 text-xs font-mono border border-black">{item.productCode}</td>
                 <td className="p-2 text-xs border border-black">
                   <div className="font-semibold">{item.productName}</div>

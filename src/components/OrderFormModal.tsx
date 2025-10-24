@@ -119,6 +119,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
         customerPhone: combinedData.customers?.phone || '',
         shippingAddress: combinedData.shipping_address || 'Stesso indirizzo del cliente',
         items: combinedData.order_items.map(item => ({
+          id: item.id,
+          productId: item.product_id,
           productCode: item.products?.code || 'N/A',
           productName: item.products?.name || 'N/A',
           productDescription: item.products?.description || '',
@@ -126,8 +128,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
           unit: item.products?.unit || 'pz',
           unitPrice: item.unit_price,
           discountPercentage: item.discount_percentage,
-          notes: item.notes || '',
-          productId: item.product_id
+          notes: item.notes || ''
         })),
         subtotal: combinedData.total_amount,
         taxAmount: combinedData.tax_amount,
@@ -338,8 +339,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
       const { error: orderError } = await supabase
         .from('orders')
         .update({
-          notes: updatedData.notes,
-          updated_at: new Date().toISOString()
+          notes: updatedData.notes
         })
         .eq('id', orderId);
 
@@ -347,18 +347,20 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
 
       // Update order items
       for (const item of updatedData.items) {
-        const { error: itemError } = await supabase
-          .from('order_items')
-          .update({
-            quantity: item.quantity,
-            unit_price: item.unitPrice,
-            total_price: item.quantity * item.unitPrice
-          })
-          .eq('order_id', orderId)
-          .eq('product_id', item.productId);
+        if (item.id) {
+          const { error: itemError } = await supabase
+            .from('order_items')
+            .update({
+              quantity: item.quantity,
+              unit_price: item.unitPrice,
+              total_price: item.quantity * item.unitPrice,
+              notes: item.notes
+            })
+            .eq('id', item.id);
 
-        if (itemError) {
-          console.error(`Errore nell'aggiornamento dell'articolo ${item.productCode}:`, itemError);
+          if (itemError) {
+            console.error(`Errore nell'aggiornamento dell'articolo ${item.productCode}:`, itemError);
+          }
         }
       }
 
