@@ -501,8 +501,8 @@ Il Team
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-1">
-        <DialogHeader className="pb-1">
+      <DialogContent className="w-[98vw] h-[98vh] max-w-none max-h-none overflow-hidden p-0">
+        <DialogHeader className="pb-0 px-2 pt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <DialogTitle>
@@ -532,9 +532,9 @@ Il Team
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <div className="h-full flex flex-col">
+          <div className="h-full flex flex-col px-2">
             {/* Informazioni Listino Section - Immediatamente sotto i pulsanti */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-2 mx-1 mt-0">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-1 mt-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <FileText className="w-4 h-4 text-red-600" />
@@ -542,7 +542,7 @@ Il Team
                 </div>
               </div>
               
-              <form onSubmit={handleSubmit(handleMainFormSubmit)} className="mt-2">
+              <form onSubmit={handleSubmit(handleMainFormSubmit)} className="mt-1">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                   <div>
                     <Label htmlFor="name" className="text-xs font-medium text-gray-700">
@@ -647,8 +647,8 @@ Il Team
             </div>
 
             {/* Prodotti nel Listino Section - Espansa per riempire tutto lo spazio */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-2 mx-1 mt-0 mb-0 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-2">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-1 mt-0 mb-0 flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center space-x-2">
                   <Package className="w-5 h-5 text-green-600" />
                   <h3 className="text-lg font-semibold text-green-800">
@@ -755,11 +755,11 @@ Il Team
         )}
 
         {/* Pulsanti in basso a destra - Footer minimo */}
-        <div className="flex justify-end gap-2 border-t bg-gray-50">
+        <div className="flex justify-end gap-2 border-t bg-gray-50 px-2 py-1">
           <Button
             type="button"
             onClick={() => setShowPreviewModal(true)}
-            className="h-7 text-xs px-4 bg-blue-600 hover:bg-blue-700 text-white m-0.5"
+            className="h-7 text-xs px-4 bg-blue-600 hover:bg-blue-700 text-white"
             disabled={!priceListId}
           >
             <Eye className="w-3 h-3 mr-1" />
@@ -768,7 +768,7 @@ Il Team
           <Button
             type="button"
             onClick={handleClose}
-            className="h-7 text-xs px-4 bg-green-600 hover:bg-green-700 text-white m-0.5"
+            className="h-7 text-xs px-4 bg-green-600 hover:bg-green-700 text-white"
           >
             Salva e Chiudi
           </Button>
