@@ -305,16 +305,15 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       doc.setFont('helvetica', 'bold');
       doc.text('ACCETTAZIONE ORDINE', pageWidth - 75, acceptanceY + 8);
       
-      // Linee per timbro e firma
+      // Solo campo Data
       doc.setLineWidth(0.3);
       doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
-      doc.text('Timbro', pageWidth - 70, acceptanceY + 20);
+      doc.text('Data', pageWidth - 70, acceptanceY + 20);
       
-      doc.line(pageWidth - 75, acceptanceY + 25, pageWidth - 15, acceptanceY + 25);
-      doc.text('Firma', pageWidth - 70, acceptanceY + 30);
-      
+      // Spazio per firma e timbro
+      doc.text('Spazio per firma e timbro:', pageWidth - 70, acceptanceY + 28);
+      doc.line(pageWidth - 75, acceptanceY + 32, pageWidth - 15, acceptanceY + 32);
       doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
-      doc.text('Data', pageWidth - 70, acceptanceY + 38);
 
       // 7. FOOTER
       doc.setFontSize(8);
@@ -575,16 +574,15 @@ Team FARMAP`;
       doc.setFont('helvetica', 'bold');
       doc.text('ACCETTAZIONE ORDINE', pageWidth - 75, acceptanceY + 8);
       
-      // Linee per timbro e firma
+      // Solo campo Data
       doc.setLineWidth(0.3);
       doc.line(pageWidth - 75, acceptanceY + 15, pageWidth - 15, acceptanceY + 15);
-      doc.text('Timbro', pageWidth - 70, acceptanceY + 20);
+      doc.text('Data', pageWidth - 70, acceptanceY + 20);
       
-      doc.line(pageWidth - 75, acceptanceY + 25, pageWidth - 15, acceptanceY + 25);
-      doc.text('Firma', pageWidth - 70, acceptanceY + 30);
-      
+      // Spazio per firma e timbro
+      doc.text('Spazio per firma e timbro:', pageWidth - 70, acceptanceY + 28);
+      doc.line(pageWidth - 75, acceptanceY + 32, pageWidth - 15, acceptanceY + 32);
       doc.line(pageWidth - 75, acceptanceY + 35, pageWidth - 15, acceptanceY + 35);
-      doc.text('Data', pageWidth - 70, acceptanceY + 38);
 
       // 7. FOOTER
       doc.setFontSize(8);
@@ -884,20 +882,17 @@ Team FARMAP`;
 
                 {/* Campo Accettazione Ordine */}
                 <div className="mt-6 flex justify-end">
-                  <div className="border border-gray-400 p-3 w-48 h-24">
+                  <div className="border-2 border-black p-3 w-48 h-24">
                     <div className="text-xs font-bold text-center mb-2">ACCETTAZIONE ORDINE</div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs">Timbro:</span>
-                        <div className="border-b border-gray-400 w-24"></div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs">Firma:</span>
-                        <div className="border-b border-gray-400 w-24"></div>
-                      </div>
-                      <div className="flex justify-between items-center">
                         <span className="text-xs">Data:</span>
-                        <div className="border-b border-gray-400 w-24"></div>
+                        <div className="border-b border-black w-24"></div>
+                      </div>
+                      <div className="mt-4">
+                        <div className="text-xs text-gray-600">Spazio per firma e timbro:</div>
+                        <div className="border-b border-black w-full mt-1"></div>
+                        <div className="border-b border-black w-full mt-2"></div>
                       </div>
                     </div>
                   </div>
