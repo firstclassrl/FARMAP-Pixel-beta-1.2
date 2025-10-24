@@ -461,7 +461,7 @@ export function PriceListDetailPage({
       <div className="fixed inset-0 bg-black/50" onClick={handleClose} />
       
       {/* Modal Content */}
-      <div className="relative w-[98vw] h-[98vh] bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+      <div className="relative w-[95vw] h-[95vh] bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-2 pt-2 pb-1 border-b">
           <div className="flex items-center space-x-4">
@@ -609,14 +609,16 @@ export function PriceListDetailPage({
                     Prodotti nel Listino ({currentPriceList?.price_list_items?.length || 0})
                   </h3>
                 </div>
-                <Button
-                  type="button"
-                  onClick={() => setShowProductModal(true)}
-                  className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Aggiungi Prodotti
-                </Button>
+                {currentPriceList && (
+                  <Button
+                    type="button"
+                    onClick={() => setShowProductModal(true)}
+                    className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Aggiungi Prodotti
+                  </Button>
+                )}
               </div>
 
               {!currentPriceList ? (
