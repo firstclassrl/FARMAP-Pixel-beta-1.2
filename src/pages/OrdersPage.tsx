@@ -47,7 +47,7 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [orderToCancel, setOrderToCancel] = useState<OrderWithDetails | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | string>('all');
+  const [filterStatus, setFilterStatus] = useState<'active' | 'cancelled'>('active');
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
@@ -139,7 +139,9 @@ export function OrdersPage() {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = order.order_number?.toLowerCase().includes(searchLower) ||
       order.customers?.company_name.toLowerCase().includes(searchLower);
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
+    const matchesStatus =
+      (filterStatus === 'active' && order.status !== 'cancelled') ||
+      (filterStatus === 'cancelled' && order.status === 'cancelled');
     return matchesSearch && matchesStatus;
   });
 
@@ -174,13 +176,11 @@ export function OrdersPage() {
       <Card>
         <CardContent className="pt-6 flex gap-4">
           <Input placeholder="Cerca per numero o cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value)}>
+          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'active' | 'cancelled')}>
             <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tutti gli stati</SelectItem>
-              {Object.entries(statusLabels).map(([status, label]) => (
-                <SelectItem key={status} value={status}>{label}</SelectItem>
-              ))}
+              <SelectItem value="active">Attivi</SelectItem>
+              <SelectItem value="cancelled">Annullati</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
