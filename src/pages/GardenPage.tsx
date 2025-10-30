@@ -6,6 +6,7 @@ import { GardenHeader } from '../components/GardenHeader';
 import { GardenFilters } from '../components/GardenFilters';
 import { GardenProductCard } from '../components/GardenProductCard';
 import { Button } from '../components/ui/button';
+import { useMemo } from 'react';
 
 export default function GardenPage() {
   const { profile, signOut } = useAuth();
@@ -14,6 +15,14 @@ export default function GardenPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterPhoto, setFilterPhoto] = useState<'all' | 'with' | 'without'>('all');
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach(p => { if (p.category) set.add(p.category); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [products]);
 
   useEffect(() => {
     const fetchProductsForRole = async () => {
@@ -75,26 +84,36 @@ export default function GardenPage() {
     fetchProductsForRole();
   }, [profile]);
 
-  // Filter products based on search term
+  // Filter products based on search term + category + photo presence
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredProducts(products);
-      return;
-    }
+    let data = products;
 
-    const filtered = products.filter(product => {
+    // search filter
+    if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      return (
+      data = data.filter(product => (
         product.name?.toLowerCase().includes(searchLower) ||
         product.code?.toLowerCase().includes(searchLower) ||
         product.description?.toLowerCase().includes(searchLower) ||
         product.category?.toLowerCase().includes(searchLower) ||
         product.brand_name?.toLowerCase().includes(searchLower)
-      );
-    });
+      ));
+    }
 
-    setFilteredProducts(filtered);
-  }, [searchTerm, products]);
+    // category filter
+    if (filterCategory !== 'all') {
+      data = data.filter(p => p.category === filterCategory);
+    }
+
+    // photo filter (use photo_url)
+    if (filterPhoto === 'with') {
+      data = data.filter(p => !!p.photo_url);
+    } else if (filterPhoto === 'without') {
+      data = data.filter(p => !p.photo_url);
+    }
+
+    setFilteredProducts(data);
+  }, [searchTerm, products, filterCategory, filterPhoto]);
 
   const handleViewDetails = (product: any) => {
     // Implement product details view
@@ -196,6 +215,34 @@ export default function GardenPage() {
             onViewModeChange={setViewMode}
             onFilterClick={() => {}}
           />
+          {/* Extra filters: Category and Photo */}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm text-gray-200 mb-1">Categoria</label>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full h-10 px-3 py-2 text-sm rounded-md bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+              >
+                <option value="all">Tutte</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-2 00 mb-1">Foto</label>
+              <select
+                value={filterPhoto}
+                onChange={(e) => setFilterPhoto(e.target.value as any)}
+                className="w-full h-10 px-3 py-2 text-sm rounded-md bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+              >
+                <option value="all">Tutte</option>
+                <option value="with">Con foto</option>
+                <option value="without">Senza foto</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Products Grid - Tablet Optimized */}

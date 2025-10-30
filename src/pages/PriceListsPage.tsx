@@ -36,6 +36,7 @@ import { supabase } from '../lib/supabase';
 import { PriceListDetailPage } from './PriceListDetailPage';
 import { PriceListPrintView } from './PriceListPrintView';
 import type { Database } from '../types/database.types';
+import BulkPriceListModal from '../components/BulkPriceListModal';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
 type Customer = Database['public']['Tables']['customers']['Row'];
@@ -68,6 +69,7 @@ export const PriceListsPage = () => {
   const [showPrintView, setShowPrintView] = useState(false);
   const [printPriceListId, setPrintPriceListId] = useState<string>('');
   const [priceListToArchive, setPriceListToArchive] = useState<PriceListWithDetails | null>(null); // MODIFICA 1: Rinominato da priceListToDelete
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   const { addNotification } = useNotifications();
 
@@ -278,6 +280,10 @@ export const PriceListsPage = () => {
             <Plus className="w-4 h-4 mr-2" />
             Nuovo Listino
           </Button>
+          <Button variant="outline" onClick={() => setShowBulkModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Crea listino massivo
+          </Button>
         </div>
       </div>
 
@@ -415,6 +421,16 @@ export const PriceListsPage = () => {
         isOpen={showPrintView}
         onClose={handleClosePrintView}
         priceListId={printPriceListId}
+      />
+
+      {/* Bulk Price List Modal */}
+      <BulkPriceListModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onCreated={() => {
+          setShowBulkModal(false);
+          loadPriceLists();
+        }}
       />
 
       {/* MODIFICA: Dialogo di conferma ARCHIVIAZIONE */}
