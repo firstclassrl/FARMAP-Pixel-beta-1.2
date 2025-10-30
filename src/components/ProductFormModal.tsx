@@ -30,7 +30,12 @@ const productSchema = z.object({
   code: z.string().min(1, 'Codice prodotto richiesto'),
   cartone: z.string().optional(),
   pallet: z.string().optional(),
-  strati: z.number().min(0).optional(),
+  // Allow empty input for "strati": treat '' or NaN as undefined so it's not required
+  strati: z.preprocess((v) => {
+    if (v === '' || v === null || typeof v === 'undefined') return undefined;
+    if (typeof v === 'number' && Number.isNaN(v)) return undefined;
+    return v;
+  }, z.number().min(0).optional()),
   scadenza: z.string().optional(),
   iva: z.number().min(0).max(100).default(22),
   ean: z.string().optional()

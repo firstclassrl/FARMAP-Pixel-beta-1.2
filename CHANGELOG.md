@@ -5,6 +5,16 @@ Tutte le modifiche significative a questo progetto saranno documentate in questo
 Il formato è basato su [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.34] - 2025-10-30
+
+### Aggiunto
+- Script import massivo foto `scripts/upload-product-photos.mjs` e guida `README-bulk-photos.md`
+- Comando npm `upload:photos`
+- Filtro "Foto" (Tutte/Con foto/Senza foto) nella pagina Prodotti
+
+### Modificato
+- Modale prodotto: `strati` ora è davvero opzionale
+
 ## [1.1.0-beta] - 2025-01-17
 
 ### Aggiunto

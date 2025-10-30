@@ -85,6 +85,7 @@ export const ProductsPage = () => {
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
+  const [filterPhoto, setFilterPhoto] = useState<'all' | 'with' | 'without'>('all');
   const [isExporting, setIsExporting] = useState(false);
   const [isDeletingCategory, setIsDeletingCategory] = useState(false);
   const [isClearingAllCategories, setIsClearingAllCategories] = useState(false);
@@ -450,8 +451,10 @@ export const ProductsPage = () => {
     
     const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
     const matchesCustomer = filterCustomer === 'all' || product.customer_id === filterCustomer;
+    const hasPhoto = Boolean(product.photo_url && String(product.photo_url).trim() !== '');
+    const matchesPhoto = filterPhoto === 'all' || (filterPhoto === 'with' && hasPhoto) || (filterPhoto === 'without' && !hasPhoto);
     
-    return matchesSearch && matchesActive && matchesCategory && matchesCustomer;
+    return matchesSearch && matchesActive && matchesCategory && matchesCustomer && matchesPhoto;
   });
 
   const handleExportExcel = async () => {
@@ -649,6 +652,16 @@ export const ProductsPage = () => {
                   <SelectItem value="all">Tutti</SelectItem>
                   <SelectItem value="active">Attivi</SelectItem>
                   <SelectItem value="inactive">Inattivi</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterPhoto} onValueChange={(value: any) => setFilterPhoto(value)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Foto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le foto</SelectItem>
+                  <SelectItem value="with">Con foto</SelectItem>
+                  <SelectItem value="without">Senza foto</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
