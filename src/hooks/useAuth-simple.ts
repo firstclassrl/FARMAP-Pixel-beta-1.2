@@ -204,7 +204,9 @@ export function useAuth(): {
         return { data: null, error };
       }
 
-      return { data, error };
+      // On success, let onAuthStateChange handle the state update
+      // but we return the data immediately for the login page
+      return { data, error: null };
     } catch (error: any) {
       setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
       return { data: null, error };

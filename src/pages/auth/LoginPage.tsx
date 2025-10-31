@@ -84,6 +84,9 @@ export const LoginPage = () => {
           message: 'Accesso effettuato con successo!'
         });
         
+        // Small delay to allow auth state to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Redirect to dashboard (avoid loops on stale "from")
         navigate('/', { replace: true });
       } else {
