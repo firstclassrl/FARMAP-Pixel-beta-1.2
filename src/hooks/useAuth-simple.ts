@@ -60,7 +60,7 @@ export function useAuth(): {
 
         if (session?.user) {
           const user = session.user as ExtendedUser;
-          // Load authoritative profile from DB and enforce overrides
+          // Load profile from DB if present; otherwise synthesize a minimal one.
           let dbProfile: Profile | null = null;
           try {
             const { data } = await supabase
@@ -73,36 +73,24 @@ export function useAuth(): {
 
           const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
 
-          if (!dbProfile) {
-            // Create minimal profile
-            const role: Profile['role'] = mustBeAdmin ? 'admin' : 'lettore';
-            await supabase.from('profiles').insert({
-              id: user.id,
-              email: user.email || '',
-              full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
-              avatar_url: null,
-              role
-            } as any);
-            dbProfile = {
-              id: user.id,
-              email: user.email || '',
-              full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
-              avatar_url: null,
-              role,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            } as Profile;
-          } else if (mustBeAdmin && dbProfile.role !== 'admin') {
-            // Upgrade role persistently
-            await supabase.from('profiles').update({ role: 'admin' as any }).eq('id', user.id);
-            dbProfile.role = 'admin' as any;
-          }
+          const effectiveProfile: Profile = dbProfile ? {
+            ...dbProfile,
+            role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
+          } : {
+            id: user.id,
+            email: user.email || '',
+            full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
+            avatar_url: null,
+            role: (mustBeAdmin ? 'admin' : 'lettore') as any,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
 
           if (mounted) {
             setAuthState(prev => ({
               ...prev,
               user: user,
-              profile: dbProfile!,
+              profile: effectiveProfile,
               loading: false,
               error: null
             }));
@@ -129,7 +117,6 @@ export function useAuth(): {
 
         if (event === 'SIGNED_IN' && session?.user) {
           const user = session.user as ExtendedUser;
-          // Reload authoritative profile from DB and enforce overrides
           const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
           let dbProfile: Profile | null = null;
           try {
@@ -141,19 +128,23 @@ export function useAuth(): {
             dbProfile = data as unknown as Profile | null;
           } catch {}
 
-          if (!dbProfile) {
-            const role: Profile['role'] = mustBeAdmin ? 'admin' : 'lettore';
-            await supabase.from('profiles').insert({ id: user.id, email: user.email || '', role } as any);
-            dbProfile = { id: user.id, email: user.email || '', full_name: user.email?.split('@')[0] || 'User', avatar_url: null, role, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Profile;
-          } else if (mustBeAdmin && dbProfile.role !== 'admin') {
-            await supabase.from('profiles').update({ role: 'admin' as any }).eq('id', user.id);
-            dbProfile.role = 'admin' as any;
-          }
+          const effectiveProfile: Profile = dbProfile ? {
+            ...dbProfile,
+            role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
+          } : {
+            id: user.id,
+            email: user.email || '',
+            full_name: user.email?.split('@')[0] || 'User',
+            avatar_url: null,
+            role: (mustBeAdmin ? 'admin' : 'lettore') as any,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
 
           setAuthState(prev => ({
             ...prev,
             user: user,
-            profile: dbProfile!,
+            profile: effectiveProfile,
             loading: false,
             error: null
           }));
