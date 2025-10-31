@@ -71,8 +71,15 @@ export function useAuth(): {
         }
       } catch {}
 
+      const withTimeout = async <T,>(p: Promise<T>, ms = 1500): Promise<T> => {
+        return new Promise<T>((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error('SESSION_TIMEOUT')), ms);
+          p.then(v => { clearTimeout(t); resolve(v); }).catch(e => { clearTimeout(t); reject(e); });
+        });
+      };
+
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await withTimeout(supabase.auth.getSession());
         if (error) throw error;
 
         if (session?.user) {
@@ -107,7 +114,14 @@ export function useAuth(): {
           if (mounted) setAuthState(prev => ({ ...prev, loading: false }));
         }
       } catch (error: any) {
-        if (mounted) setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
+        // If session read times out or fails, consider user logged out and proceed to login
+        if (error?.message === 'SESSION_TIMEOUT') {
+          try {
+            Object.keys(localStorage).filter(k=>k.includes('sb-')).forEach(k=>localStorage.removeItem(k));
+            Object.keys(sessionStorage).filter(k=>k.includes('sb-')).forEach(k=>sessionStorage.removeItem(k));
+          } catch {}
+        }
+        if (mounted) setAuthState(prev => ({ ...prev, loading: false, user: null, profile: null, error: null }));
       }
     };
 
