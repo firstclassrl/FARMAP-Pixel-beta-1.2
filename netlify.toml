@@ -6,15 +6,18 @@
   VITE_ENABLE_PWA = "false"
   VITE_SOURCEMAP = "true"
 
-# CSP rimosso temporaneamente per risolvere problema login
-# [[headers]]
-#   for = "/*"
-#   [headers.values]
-#     Content-Security-Policy = "..."
+# CSP completamente rimosso per risolvere problema login bloccato
+# Netlify non deve applicare nessun CSP
 
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+
+# Forza rimozione CSP se presente da altre configurazioni
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = ""
 
 
