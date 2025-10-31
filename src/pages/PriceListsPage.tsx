@@ -45,6 +45,7 @@ interface PriceListWithDetails extends PriceList {
   customer?: Customer;
   product_count: number;
   status: 'active' | 'draft' | 'expired';
+  creator_name?: string | null;
 }
 
 interface KPIData {
@@ -95,8 +96,22 @@ export const PriceListsPage = () => {
 
       if (customersError) throw customersError;
 
+      // Fetch creator profiles
+      const creatorIds = [...new Set((priceListsData || []).map(pl => pl.created_by).filter(Boolean))];
+      let profilesData = null;
+      if (creatorIds.length > 0) {
+        const { data, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', creatorIds);
+
+        if (profilesError) throw profilesError;
+        profilesData = data;
+      }
+
       const processedPriceLists: PriceListWithDetails[] = (priceListsData || []).map(priceList => {
         const customer = customersData?.find(c => c.price_list_id === priceList.id);
+        const creator = profilesData?.find(p => p.id === priceList.created_by);
         const productCount = (priceList.price_list_items as any)[0]?.count || 0;
         const now = new Date();
         const validFrom = new Date(priceList.valid_from);
@@ -115,7 +130,8 @@ export const PriceListsPage = () => {
             company_name: customer.company_name 
           } as Customer : undefined,
           product_count: productCount,
-          status
+          status,
+          creator_name: creator?.full_name || null
         };
       });
 
@@ -230,9 +246,11 @@ export const PriceListsPage = () => {
   };
 
   const filteredPriceLists = priceLists.filter(priceList => {
-    const matchesSearch = priceList.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      priceList.customer?.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      priceList.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = priceList.name.toLowerCase().includes(searchLower) ||
+      priceList.customer?.company_name?.toLowerCase().includes(searchLower) ||
+      priceList.description?.toLowerCase().includes(searchLower) ||
+      (priceList.creator_name && priceList.creator_name.toLowerCase().includes(searchLower));
     return matchesSearch;
   });
 
@@ -341,7 +359,7 @@ export const PriceListsPage = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Cerca listini..."
+              placeholder="Cerca listini per nome, cliente o creatore..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -383,7 +401,7 @@ export const PriceListsPage = () => {
                     <div><p className="text-sm text-gray-600">{priceList.customer?.company_name || '-'}</p></div>
                     <div><p className="text-sm text-gray-600">{new Date(priceList.valid_from).toLocaleDateString('it-IT')}</p></div>
                     <div><p className="text-sm text-gray-600">{priceList.product_count} prodotti</p></div>
-                    <div><p className="text-sm text-gray-600">{kpiData.averageDiscount}%</p></div>
+                    <div><p className="text-sm text-gray-600">{priceList.creator_name || '-'}</p></div>
                     <div className="flex items-center justify-between">
                       {getStatusBadge(priceList.status)}
                       <DropdownMenu>
