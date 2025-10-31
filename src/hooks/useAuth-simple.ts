@@ -49,30 +49,22 @@ export function useAuth(): {
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('🔐 useAuth: Session error:', error);
-          if (mounted) {
-            setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
-          }
-          return;
-        }
+        if (error) throw error;
 
         if (session?.user) {
           const user = session.user as ExtendedUser;
-          // Load profile from DB if present; otherwise synthesize a minimal one.
+          // Try to read profile; fall back gracefully without blocking UI
           let dbProfile: Profile | null = null;
           try {
-            const { data } = await supabase
+            const { data, error: profileError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', user.id)
               .maybeSingle();
-            dbProfile = data as unknown as Profile | null;
+            if (!profileError) dbProfile = data as unknown as Profile | null;
           } catch {}
 
           const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
-
           const effectiveProfile: Profile = dbProfile ? {
             ...dbProfile,
             role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
@@ -86,38 +78,16 @@ export function useAuth(): {
             updated_at: new Date().toISOString()
           };
 
-          if (mounted) {
-            setAuthState(prev => ({
-              ...prev,
-              user: user,
-              profile: effectiveProfile,
-              loading: false,
-              error: null
-            }));
-          }
+          if (mounted) setAuthState(prev => ({ ...prev, user, profile: effectiveProfile, loading: false, error: null }));
         } else {
-          if (mounted) {
-            setAuthState(prev => ({ ...prev, loading: false }));
-          }
+          if (mounted) setAuthState(prev => ({ ...prev, loading: false }));
         }
       } catch (error: any) {
-        console.error('🔐 useAuth: Error in getInitialSession:', error);
-        if (mounted) {
-          setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
-        }
+        if (mounted) setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
       }
     };
 
     getInitialSession();
-
-    // Watchdog: if for any reason loading remains true for too long, unblock UI
-    const watchdog = setTimeout(() => {
-      if (mounted) {
-        // If we are still loading after 3s, force a safe logout to clear stale tokens
-        setAuthState(prev => ({ ...prev, loading: false }));
-        supabase.auth.signOut().catch(() => {});
-      }
-    }, 3000);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -171,7 +141,6 @@ export function useAuth(): {
     return () => {
       mounted = false;
       subscription.unsubscribe();
-      clearTimeout(watchdog);
     };
   }, []);
 
