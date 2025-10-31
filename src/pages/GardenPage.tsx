@@ -72,9 +72,25 @@ export default function GardenPage() {
             setFilteredProducts(fallbackData || []);
           }
         } else {
-          
-          setProducts(data || []);
-          setFilteredProducts(data || []);
+          // Enrich with photo fields from products table if the view doesn't expose them
+          const base = data || [];
+          const ids = base.map((p: any) => p.id).filter(Boolean);
+          if (ids.length > 0) {
+            const { data: photos } = await supabase
+              .from('products')
+              .select('id, photo_url, image_url, photo_thumb_url, st_url')
+              .in('id', ids);
+            const photoMap = new Map((photos || []).map((r: any) => [r.id, r]));
+            const merged = base.map((p: any) => ({
+              ...p,
+              ...photoMap.get(p.id)
+            }));
+            setProducts(merged);
+            setFilteredProducts(merged);
+          } else {
+            setProducts(base);
+            setFilteredProducts(base);
+          }
         }
       } catch (e) {
         console.error('Errore generico durante il caricamento dei prodotti:', e);
@@ -109,7 +125,7 @@ export default function GardenPage() {
 
     // photo filter (support photo_url and image_url; treat empty string as no photo)
     const hasPhoto = (p: any) => {
-      const url = (p.photo_url || p.image_url || '').toString();
+      const url = (p.photo_url || p.image_url || p.photo_thumb_url || p.st_url || '').toString();
       return url.trim().length > 0;
     };
     if (filterPhoto === 'with') {

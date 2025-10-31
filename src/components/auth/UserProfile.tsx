@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { User, LogOut, Settings, Shield, UserCog } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/button';
@@ -11,66 +11,27 @@ import {
 } from '../ui/dropdown-menu';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../store/useStore';
-import { supabase } from '../../lib/supabase';
-import type { Database } from '../../types/database.types';
-
-type Profile = Database['public']['Tables']['profiles']['Row'];
+ 
 
 export const UserProfile = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { addNotification } = useNotifications();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      loadProfile();
-    }
-  }, [user]);
-
-  const loadProfile = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error loading profile:', error);
-        throw error;
-      }
-
-      setProfile(data);
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSignOut = async () => {
     try {
-      const { error } = await signOut();
-      
-      if (error) {
-        addNotification({
-          type: 'error',
-          title: 'Errore',
-          message: 'Impossibile effettuare il logout'
-        });
-      } else {
-        addNotification({
-          type: 'success',
-          title: 'Logout effettuato',
-          message: 'Sei stato disconnesso con successo'
-        });
-      }
+      await signOut();
+      addNotification({
+        type: 'success',
+        title: 'Logout effettuato',
+        message: 'Sei stato disconnesso con successo'
+      });
     } catch (error) {
       console.error('Logout error:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile effettuare il logout'
+      });
     }
   };
 

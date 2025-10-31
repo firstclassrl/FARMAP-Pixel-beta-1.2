@@ -60,25 +60,51 @@ export function useAuth(): {
 
         if (session?.user) {
           const user = session.user as ExtendedUser;
-          // Create a simple profile from user data without database query
-          const simpleProfile: Profile = {
-            id: user.id,
-            email: user.email || '',
-            full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
-            avatar_url: null,
-            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' || user.email?.includes('grafica') ? 'production' : 'admin'), // Fix per etichette@farmap.it e utenti grafica
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
+          // Load authoritative profile from DB and enforce overrides
+          let dbProfile: Profile | null = null;
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .maybeSingle();
+            dbProfile = data as unknown as Profile | null;
+          } catch {}
 
-          
+          const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
+
+          if (!dbProfile) {
+            // Create minimal profile
+            const role: Profile['role'] = mustBeAdmin ? 'admin' : 'lettore';
+            await supabase.from('profiles').insert({
+              id: user.id,
+              email: user.email || '',
+              full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
+              avatar_url: null,
+              role
+            } as any);
+            dbProfile = {
+              id: user.id,
+              email: user.email || '',
+              full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
+              avatar_url: null,
+              role,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            } as Profile;
+          } else if (mustBeAdmin && dbProfile.role !== 'admin') {
+            // Upgrade role persistently
+            await supabase.from('profiles').update({ role: 'admin' as any }).eq('id', user.id);
+            dbProfile.role = 'admin' as any;
+          }
+
           if (mounted) {
-            setAuthState(prev => ({ 
-              ...prev, 
-              user: user, 
-              profile: simpleProfile, 
-              loading: false, 
-              error: null 
+            setAuthState(prev => ({
+              ...prev,
+              user: user,
+              profile: dbProfile!,
+              loading: false,
+              error: null
             }));
           }
         } else {
@@ -103,24 +129,33 @@ export function useAuth(): {
 
         if (event === 'SIGNED_IN' && session?.user) {
           const user = session.user as ExtendedUser;
-          // Create a simple profile from user data
-          const simpleProfile: Profile = {
-            id: user.id,
-            email: user.email || '',
-            full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
-            avatar_url: null,
-            role: user.raw_user_meta_data?.role || (user.email === 'etichette@farmap.it' || user.email?.includes('grafica') ? 'production' : 'admin'), // Fix per etichette@farmap.it e utenti grafica
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
+          // Reload authoritative profile from DB and enforce overrides
+          const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
+          let dbProfile: Profile | null = null;
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .maybeSingle();
+            dbProfile = data as unknown as Profile | null;
+          } catch {}
 
-          
-          setAuthState(prev => ({ 
-            ...prev, 
-            user: user, 
-            profile: simpleProfile, 
-            loading: false, 
-            error: null 
+          if (!dbProfile) {
+            const role: Profile['role'] = mustBeAdmin ? 'admin' : 'lettore';
+            await supabase.from('profiles').insert({ id: user.id, email: user.email || '', role } as any);
+            dbProfile = { id: user.id, email: user.email || '', full_name: user.email?.split('@')[0] || 'User', avatar_url: null, role, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Profile;
+          } else if (mustBeAdmin && dbProfile.role !== 'admin') {
+            await supabase.from('profiles').update({ role: 'admin' as any }).eq('id', user.id);
+            dbProfile.role = 'admin' as any;
+          }
+
+          setAuthState(prev => ({
+            ...prev,
+            user: user,
+            profile: dbProfile!,
+            loading: false,
+            error: null
           }));
         } else if (event === 'SIGNED_OUT') {
           setAuthState({
