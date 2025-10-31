@@ -6,7 +6,7 @@ import { GardenHeader } from '../components/GardenHeader';
 import { GardenFilters } from '../components/GardenFilters';
 import { GardenProductCard } from '../components/GardenProductCard';
 import { Button } from '../components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+ 
 import { useMemo } from 'react';
 
 export default function GardenPage() {
@@ -18,7 +18,7 @@ export default function GardenPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterPhoto, setFilterPhoto] = useState<'all' | 'with' | 'without'>('all');
-  const [showFilters, setShowFilters] = useState(false);
+  
 
   const categoryOptions = useMemo(() => {
     const set = new Set<string>();
@@ -236,49 +236,38 @@ export default function GardenPage() {
             onSearchChange={setSearchTerm}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
-            onFilterClick={() => setShowFilters(true)}
+            onFilterClick={() => {}}
+            hideFilterButton
           />
-        </div>
-
-        {/* Filters Modal */}
-        <Dialog open={showFilters} onOpenChange={setShowFilters}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Filtri prodotti</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Categoria</label>
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full h-10 px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                >
-                  <option value="all">Tutte</option>
-                  {categoryOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Foto</label>
-                <select
-                  value={filterPhoto}
-                  onChange={(e) => setFilterPhoto(e.target.value as any)}
-                  className="w-full h-10 px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                >
-                  <option value="all">Tutte</option>
-                  <option value="with">Con foto</option>
-                  <option value="without">Senza foto</option>
-                </select>
-              </div>
+          {/* Inline filters under search */}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm text-gray-200 mb-1">Categoria</label>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full h-10 px-3 py-2 text-sm rounded-md bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+              >
+                <option value="all">Tutte</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowFilters(false)}>Chiudi</Button>
-              <Button onClick={() => setShowFilters(false)}>Applica</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div>
+              <label className="block text-sm text-gray-200 mb-1">Foto</label>
+              <select
+                value={filterPhoto}
+                onChange={(e) => setFilterPhoto(e.target.value as any)}
+                className="w-full h-10 px-3 py-2 text-sm rounded-md bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+              >
+                <option value="all">Tutte</option>
+                <option value="with">Con foto</option>
+                <option value="without">Senza foto</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         {/* Products Grid - Tablet Optimized */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-8 sm:pb-12">

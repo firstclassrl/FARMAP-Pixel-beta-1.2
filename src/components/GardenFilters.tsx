@@ -9,6 +9,7 @@ interface GardenFiltersProps {
   viewMode: 'grid' | 'list';
   onViewModeChange: (mode: 'grid' | 'list') => void;
   onFilterClick: () => void;
+  hideFilterButton?: boolean;
 }
 
 export const GardenFilters: React.FC<GardenFiltersProps> = ({
@@ -16,7 +17,8 @@ export const GardenFilters: React.FC<GardenFiltersProps> = ({
   onSearchChange,
   viewMode,
   onViewModeChange,
-  onFilterClick
+  onFilterClick,
+  hideFilterButton
 }) => {
   return (
     <div className="bg-white/30 backdrop-blur-xl border border-white/40 rounded-xl p-3 sm:p-4 shadow-2xl">
@@ -33,15 +35,17 @@ export const GardenFilters: React.FC<GardenFiltersProps> = ({
           />
         </div>
 
-        {/* Filter Button */}
-        <Button
-          onClick={onFilterClick}
-          variant="outline"
-          className="h-11 sm:h-10 px-4 bg-white/40 backdrop-blur-sm border-white/50 text-gray-800 hover:bg-white/50 hover:border-emerald-400/70 transition-all duration-300 text-sm touch-manipulation"
-        >
-          <Filter className="w-4 h-4 mr-1" />
-          Filtri
-        </Button>
+        {/* Filter Button (optional) */}
+        {!hideFilterButton && (
+          <Button
+            onClick={onFilterClick}
+            variant="outline"
+            className="h-11 sm:h-10 px-4 bg-white/40 backdrop-blur-sm border-white/50 text-gray-800 hover:bg-white/50 hover:border-emerald-400/70 transition-all duration-300 text-sm touch-manipulation"
+          >
+            <Filter className="w-4 h-4 mr-1" />
+            Filtri
+          </Button>
+        )}
 
         {/* View Mode Toggle - Tablet Optimized */}
         <div className="flex items-center space-x-1 bg-white/40 backdrop-blur-sm rounded-lg p-1 border border-white/50">
