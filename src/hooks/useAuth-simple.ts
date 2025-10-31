@@ -47,6 +47,30 @@ export function useAuth(): {
     let mounted = true;
 
     const getInitialSession = async () => {
+      // Fast-path: detect and clean corrupted Supabase auth storage
+      try {
+        const sbKeys = Object.keys(localStorage).filter(k => k.includes('sb-') && k.endsWith('-auth-token'));
+        let corrupted = false;
+        for (const k of sbKeys) {
+          try {
+            const raw = localStorage.getItem(k);
+            const obj = raw ? JSON.parse(raw) : null;
+            // Basic sanity: presence of access_token and refresh_token strings
+            if (!obj || typeof obj !== 'object' || !obj.access_token || !obj.refresh_token) {
+              corrupted = true; break;
+            }
+          } catch {
+            corrupted = true; break;
+          }
+        }
+        if (corrupted && !sessionStorage.getItem('sb-cleaned')) {
+          // Clean once and redirect to login to re-bootstrap
+          Object.keys(localStorage).filter(k=>k.includes('sb-')).forEach(k=>localStorage.removeItem(k));
+          Object.keys(sessionStorage).filter(k=>k.includes('sb-')).forEach(k=>sessionStorage.removeItem(k));
+          sessionStorage.setItem('sb-cleaned', '1');
+        }
+      } catch {}
+
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
