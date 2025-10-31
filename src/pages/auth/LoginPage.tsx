@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,10 +30,18 @@ export const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const { addNotification } = useNotifications();
 
   const from = location.state?.from?.pathname || '/';
+
+  // Listen for auth state changes to redirect after successful login
+  useEffect(() => {
+    if (user && !isLoading) {
+      console.log('🟢 User detected in LoginPage - redirecting...', { userId: user.id });
+      window.location.href = '/';
+    }
+  }, [user, isLoading]);
 
   const {
     register,
@@ -50,62 +58,55 @@ export const LoginPage = () => {
     
     try {
       console.log('🔵 Calling signIn...');
-      const { data: authData, error } = await signIn(data.email, data.password);
-      console.log('🔵 signIn returned', { hasData: !!authData, hasUser: !!authData?.user, hasError: !!error, error: error?.message });
-
-      if (error) {
-        console.error('🔴 LOGIN ERROR', error);
-        setIsLoading(false);
-        // Handle specific Supabase auth errors
-        if (error.message.includes('Invalid login credentials')) {
-          setError('email', { message: 'Email o password non corretti' });
-          setError('password', { message: 'Email o password non corretti' });
-        } else if (error.message.includes('Email not confirmed')) {
-          addNotification({
-            type: 'warning',
-            title: 'Email non confermata',
-            message: 'Controlla la tua email per confermare l\'account'
-          });
-        } else if (error.message.includes('Too many requests')) {
-          addNotification({
-            type: 'error',
-            title: 'Troppi tentativi',
-            message: 'Troppi tentativi di login. Riprova tra qualche minuto'
-          });
+      // Don't await - let onAuthStateChange handle the redirect
+      signIn(data.email, data.password).then(({ error }) => {
+        if (error) {
+          console.error('🔴 LOGIN ERROR', error);
+          setIsLoading(false);
+          // Handle specific Supabase auth errors
+          if (error.message.includes('Invalid login credentials')) {
+            setError('email', { message: 'Email o password non corretti' });
+            setError('password', { message: 'Email o password non corretti' });
+          } else if (error.message.includes('Email not confirmed')) {
+            addNotification({
+              type: 'warning',
+              title: 'Email non confermata',
+              message: 'Controlla la tua email per confermare l\'account'
+            });
+          } else if (error.message.includes('Too many requests')) {
+            addNotification({
+              type: 'error',
+              title: 'Troppi tentativi',
+              message: 'Troppi tentativi di login. Riprova tra qualche minuto'
+            });
+          } else {
+            addNotification({
+              type: 'error',
+              title: 'Errore di accesso',
+              message: error.message || 'Si è verificato un errore durante l\'accesso'
+            });
+          }
         } else {
-          addNotification({
-            type: 'error',
-            title: 'Errore di accesso',
-            message: error.message || 'Si è verificato un errore durante l\'accesso'
-          });
+          console.log('🟢 signIn promise resolved (no error) - waiting for onAuthStateChange');
+          // Don't set loading to false here - let useEffect handle redirect when user is set
         }
-        return;
-      }
-
-      if (authData?.user) {
-        console.log('🟢 LOGIN SUCCESS - Redirecting...', { userId: authData.user.id, email: authData.user.email });
-        // Redirect immediately - don't wait for notifications
-        window.location.href = '/';
-        return;
-      } else {
-        console.warn('🟡 LOGIN WARNING - No user in response', { authData, hasAuthData: !!authData });
+      }).catch((error: any) => {
+        console.error('🔴 LOGIN EXCEPTION', error);
         setIsLoading(false);
-        // If no error but also no user, something went wrong
         addNotification({
           type: 'error',
-          title: 'Errore di accesso',
-          message: 'Impossibile completare l\'accesso. Riprova.'
+          title: 'Errore di sistema',
+          message: 'Si è verificato un errore imprevisto. Riprova più tardi.'
         });
-      }
+      });
     } catch (error: any) {
-      console.error('🔴 LOGIN EXCEPTION', error);
+      console.error('🔴 LOGIN EXCEPTION (sync)', error);
+      setIsLoading(false);
       addNotification({
         type: 'error',
         title: 'Errore di sistema',
         message: 'Si è verificato un errore imprevisto. Riprova più tardi.'
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
