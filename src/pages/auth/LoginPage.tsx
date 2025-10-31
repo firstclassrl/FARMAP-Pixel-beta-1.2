@@ -30,21 +30,25 @@ export const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, user } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const { addNotification } = useNotifications();
 
   const from = location.state?.from?.pathname || '/';
 
+  // Debug: log user state changes
+  useEffect(() => {
+    console.log('🔵 LoginPage user state changed', { user: user?.id, email: user?.email, authLoading });
+  }, [user, authLoading]);
+
   // Listen for auth state changes to redirect after successful login
   useEffect(() => {
+    console.log('🔵 LoginPage useEffect triggered', { user: user?.id, isLoading, authLoading });
     if (user) {
-      console.log('🟢 User detected in LoginPage - redirecting...', { userId: user.id, isLoading });
+      console.log('🟢 User detected in LoginPage - redirecting...', { userId: user.id, email: user.email, isLoading });
       setIsLoading(false);
-      // Small delay to ensure state is updated, then redirect
-      setTimeout(() => {
-        console.log('🟢 Redirecting now...');
-        window.location.href = '/';
-      }, 100);
+      // Redirect immediately
+      console.log('🟢 Redirecting NOW...');
+      window.location.href = '/';
     }
   }, [user]);
 
