@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { Layout } from './components/layout/Layout';
@@ -26,11 +26,19 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const { user, profile, loading, error } = useAuth();
+  const [bootBypass, setBootBypass] = useState(false);
+
+  // If loading persists unusually long, bypass as logged-out to avoid infinite spinner
+  useEffect(() => {
+    if (!loading) return;
+    const t = setTimeout(() => setBootBypass(true), 1500);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   // Remove verbose console logs for production readiness
 
   // Show loading only for a brief moment, then show login if no user
-  if (loading) {
+  if (loading && !bootBypass) {
     return <LoadingFallback message="Caricamento applicazione..." />;
   }
 

@@ -84,8 +84,8 @@ export const LoginPage = () => {
           message: 'Accesso effettuato con successo!'
         });
         
-        // Redirect to intended page or dashboard
-        navigate(from, { replace: true });
+        // Redirect to dashboard (avoid loops on stale "from")
+        navigate('/', { replace: true });
       }
     } catch (error: any) {
       console.error('Login error:', error);
