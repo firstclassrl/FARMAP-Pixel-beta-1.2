@@ -266,6 +266,11 @@ export const PriceListsPage = () => {
   const getCreatorColor = (creatorName: string | null | undefined): string => {
     if (!creatorName) return '#9CA3AF'; // gray for null/undefined
     
+    // Special case: Gigi always gets blue
+    if (creatorName.toLowerCase() === 'gigi') {
+      return '#3B82F6'; // blue
+    }
+    
     // Generate a hash from the name
     let hash = 0;
     for (let i = 0; i < creatorName.length; i++) {
@@ -408,8 +413,8 @@ export const PriceListsPage = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="md:col-span-2">
           <CardContent className="pt-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -422,10 +427,10 @@ export const PriceListsPage = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="md:col-span-1">
           <CardContent className="pt-6">
             <Select value={selectedCreatorFilter} onValueChange={setSelectedCreatorFilter}>
-              <SelectTrigger className="flex items-center gap-2">
+              <SelectTrigger className="flex items-center gap-2 w-full">
                 <SelectValue placeholder="Filtra per creatore" />
                 {selectedCreatorFilter !== 'all' && (
                   <div
