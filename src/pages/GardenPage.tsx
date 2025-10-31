@@ -107,11 +107,15 @@ export default function GardenPage() {
       data = data.filter(p => p.category === filterCategory);
     }
 
-    // photo filter (use photo_url)
+    // photo filter (support photo_url and image_url; treat empty string as no photo)
+    const hasPhoto = (p: any) => {
+      const url = (p.photo_url || p.image_url || '').toString();
+      return url.trim().length > 0;
+    };
     if (filterPhoto === 'with') {
-      data = data.filter(p => !!p.photo_url);
+      data = data.filter(p => hasPhoto(p));
     } else if (filterPhoto === 'without') {
-      data = data.filter(p => !p.photo_url);
+      data = data.filter(p => !hasPhoto(p));
     }
 
     setFilteredProducts(data);
