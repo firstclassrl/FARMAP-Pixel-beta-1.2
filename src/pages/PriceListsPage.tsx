@@ -98,15 +98,24 @@ export const PriceListsPage = () => {
 
       // Fetch creator profiles
       const creatorIds = [...new Set((priceListsData || []).map(pl => pl.created_by).filter(Boolean))];
-      let profilesData = null;
+      let profilesData: Array<{ id: string; full_name: string | null }> | null = null;
       if (creatorIds.length > 0) {
-        const { data, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', creatorIds);
+        try {
+          const { data, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', creatorIds);
 
-        if (profilesError) throw profilesError;
-        profilesData = data;
+          if (profilesError) {
+            console.warn('Error fetching creator profiles:', profilesError);
+            // Don't throw, just continue without creator names
+          } else {
+            profilesData = data;
+          }
+        } catch (error) {
+          console.warn('Error fetching creator profiles:', error);
+          // Continue without creator names
+        }
       }
 
       const processedPriceLists: PriceListWithDetails[] = (priceListsData || []).map(priceList => {

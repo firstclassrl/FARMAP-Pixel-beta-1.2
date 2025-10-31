@@ -77,7 +77,7 @@ export const LoginPage = () => {
         return;
       }
 
-      if (authData.user) {
+      if (authData?.user) {
         addNotification({
           type: 'success',
           title: 'Accesso effettuato',
@@ -86,6 +86,13 @@ export const LoginPage = () => {
         
         // Redirect to dashboard (avoid loops on stale "from")
         navigate('/', { replace: true });
+      } else {
+        // If no error but also no user, something went wrong
+        addNotification({
+          type: 'error',
+          title: 'Errore di accesso',
+          message: 'Impossibile completare l\'accesso. Riprova.'
+        });
       }
     } catch (error: any) {
       console.error('Login error:', error);
