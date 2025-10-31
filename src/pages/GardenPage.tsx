@@ -8,9 +8,11 @@ import { GardenProductCard } from '../components/GardenProductCard';
 import { Button } from '../components/ui/button';
  
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function GardenPage() {
   const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,7 +199,7 @@ export default function GardenPage() {
           {/* Back to Pixel Button - Only for Admin, Commercial and Sales (NOT for production) */}
           {(profile?.role === 'admin' || profile?.role === 'commerciale' || profile?.role === 'sales') && (
             <Button
-              onClick={() => window.location.href = '/'}
+              onClick={() => navigate('/')}
               variant="outline"
               className="bg-white/20 backdrop-blur-sm border-white/30 text-gray-300 hover:bg-white/30 h-10 sm:h-8 text-sm px-4 sm:px-3 touch-manipulation"
             >
