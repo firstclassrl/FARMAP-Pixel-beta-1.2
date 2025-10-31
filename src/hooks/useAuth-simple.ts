@@ -130,9 +130,14 @@ export function useAuth(): {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
+        console.log('🔵 onAuthStateChange', { event, hasSession: !!session, hasUser: !!session?.user });
+        if (!mounted) {
+          console.log('🔵 onAuthStateChange - not mounted, returning');
+          return;
+        }
 
         if (event === 'SIGNED_IN' && session?.user) {
+          console.log('🟢 SIGNED_IN event', { userId: session.user.id, email: session.user.email });
           const user = session.user as ExtendedUser;
           const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
           let dbProfile: Profile | null = null;
@@ -158,6 +163,7 @@ export function useAuth(): {
             updated_at: new Date().toISOString()
           };
 
+          console.log('🟢 Setting auth state', { userId: user.id, profileRole: effectiveProfile.role });
           setAuthState(prev => ({
             ...prev,
             user: user,
@@ -165,7 +171,9 @@ export function useAuth(): {
             loading: false,
             error: null
           }));
+          console.log('🟢 Auth state updated');
         } else if (event === 'SIGNED_OUT') {
+          console.log('🔴 SIGNED_OUT event');
           setAuthState({
             user: null,
             profile: null,
@@ -183,31 +191,44 @@ export function useAuth(): {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('🔵 signIn called', { email });
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     
     // DEMO MODE: enable only when explicitly requested via env flag
     const isDemoAuth = import.meta.env.VITE_DEMO_AUTH === 'true';
     if (isDemoAuth) {
+      console.log('🔵 DEMO MODE');
       const mockUser = { id: 'demo-user', email, raw_user_meta_data: { full_name: 'Demo User' } } as unknown as ExtendedUser;
       setAuthState(prev => ({ ...prev, loading: false, user: mockUser, hasUser: true } as any));
       return { data: { user: mockUser } as any, error: null };
     }
     
     try {
+      console.log('🔵 Calling supabase.auth.signInWithPassword...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
+      console.log('🔵 supabase.auth.signInWithPassword returned', { 
+        hasData: !!data, 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session,
+        hasError: !!error,
+        error: error?.message 
+      });
 
       if (error) {
+        console.error('🔴 signIn error', error);
         setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
         return { data: null, error };
       }
 
+      console.log('🟢 signIn success - returning data immediately');
       // Return data immediately and let onAuthStateChange handle state update
       // This ensures the login doesn't get stuck waiting for profile
       return { data, error: null };
     } catch (error: any) {
+      console.error('🔴 signIn exception', error);
       setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
       return { data: null, error };
     }

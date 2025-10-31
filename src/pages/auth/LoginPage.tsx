@@ -45,12 +45,16 @@ export const LoginPage = () => {
   });
 
   const onSubmit = async (data: LoginForm) => {
+    console.log('🔵 LOGIN START', { email: data.email });
     setIsLoading(true);
     
     try {
+      console.log('🔵 Calling signIn...');
       const { data: authData, error } = await signIn(data.email, data.password);
+      console.log('🔵 signIn returned', { hasData: !!authData, hasUser: !!authData?.user, hasError: !!error, error: error?.message });
 
       if (error) {
+        console.error('🔴 LOGIN ERROR', error);
         setIsLoading(false);
         // Handle specific Supabase auth errors
         if (error.message.includes('Invalid login credentials')) {
@@ -79,10 +83,12 @@ export const LoginPage = () => {
       }
 
       if (authData?.user) {
+        console.log('🟢 LOGIN SUCCESS - Redirecting...', { userId: authData.user.id, email: authData.user.email });
         // Redirect immediately - don't wait for notifications
         window.location.href = '/';
         return;
       } else {
+        console.warn('🟡 LOGIN WARNING - No user in response', { authData, hasAuthData: !!authData });
         setIsLoading(false);
         // If no error but also no user, something went wrong
         addNotification({
@@ -92,7 +98,7 @@ export const LoginPage = () => {
         });
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('🔴 LOGIN EXCEPTION', error);
       addNotification({
         type: 'error',
         title: 'Errore di sistema',
