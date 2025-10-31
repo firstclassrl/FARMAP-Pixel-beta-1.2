@@ -113,7 +113,9 @@ export function useAuth(): {
     // Watchdog: if for any reason loading remains true for too long, unblock UI
     const watchdog = setTimeout(() => {
       if (mounted) {
+        // If we are still loading after 3s, force a safe logout to clear stale tokens
         setAuthState(prev => ({ ...prev, loading: false }));
+        supabase.auth.signOut().catch(() => {});
       }
     }, 3000);
 
