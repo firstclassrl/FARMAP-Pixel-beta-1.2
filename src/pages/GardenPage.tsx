@@ -124,9 +124,10 @@ export default function GardenPage() {
     }
 
     // photo filter (support photo_url and image_url; treat empty string as no photo)
+    const normalize = (v: any) => (v ?? '').toString().trim();
     const hasPhoto = (p: any) => {
-      const url = (p.photo_url || p.image_url || p.photo_thumb_url || p.st_url || '').toString();
-      return url.trim().length > 0;
+      const urls = [p.photo_url, p.image_url, p.photo_thumb_url, p.st_url];
+      return urls.some(u => normalize(u).length > 0 && normalize(u) !== 'null' && normalize(u) !== 'undefined');
     };
     if (filterPhoto === 'with') {
       data = data.filter(p => hasPhoto(p));
