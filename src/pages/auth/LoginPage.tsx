@@ -78,28 +78,17 @@ export const LoginPage = () => {
       }
 
       if (authData?.user) {
+        setIsLoading(false);
         addNotification({
           type: 'success',
           title: 'Accesso effettuato',
           message: 'Accesso effettuato con successo!'
         });
         
-        // Wait a bit for state to update, then force redirect
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Force redirect using window.location if navigate doesn't work
-        try {
-          navigate('/', { replace: true });
-          // Fallback: if still on login page after 500ms, force redirect
-          setTimeout(() => {
-            if (window.location.pathname.includes('/auth/login')) {
-              window.location.href = '/';
-            }
-          }, 500);
-        } catch (navError) {
-          console.warn('Navigate error, using window.location:', navError);
+        // Use window.location.href for immediate redirect - more reliable
+        setTimeout(() => {
           window.location.href = '/';
-        }
+        }, 200);
       } else {
         // If no error but also no user, something went wrong
         addNotification({
