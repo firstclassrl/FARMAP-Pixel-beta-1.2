@@ -161,13 +161,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setUploadingPhoto(true);
 
     try {
-      // Generate a temporary ID for the photo
-      const tempId = `temp_${Date.now()}`;
+      // Prefer saving under the product ID folder if we are editing,
+      // otherwise use a temporary path and rely on create flow to upload after save
       const fileExt = selectedPhoto.name.split('.').pop();
       const fileName = `product_photo.${fileExt}`;
-      const filePath = `${tempId}/${fileName}`;
+      const filePath = editingProduct ? `${editingProduct.id}/${fileName}` : null;
 
-      
+      if (!filePath) {
+        addNotification({
+          type: 'warning',
+          title: 'Salva prima il prodotto',
+          message: 'Per nuovi prodotti, salva prima. La foto verrà caricata automaticamente.'
+        });
+        return;
+      }
+
       const { error: uploadError } = await supabase.storage
         .from('product-photos')
         .upload(filePath, selectedPhoto, { upsert: true });
@@ -257,18 +265,49 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           message: `${data.name} è stato aggiornato con successo`
         });
       } else {
-        // Create new product
-        
-        const { error } = await supabase
+        // Create new product (first, without photo), then upload photo and update URL
+        const { data: inserted, error: insertError } = await supabase
           .from('products')
-          .insert([productData]);
+          .insert([{ ...productData, photo_url: null }])
+          .select()
+          .single();
 
-        if (error) {
-          console.error('❌ Database error:', error);
-          throw error;
+        if (insertError) {
+          console.error('❌ Database error:', insertError);
+          throw insertError;
         }
 
-        
+        // If user selected a photo, upload it under the new product ID and update photo_url
+        if (selectedPhoto && inserted?.id) {
+          try {
+            const fileExt = selectedPhoto.name.split('.').pop();
+            const fileName = `product_photo.${fileExt}`;
+            const filePath = `${inserted.id}/${fileName}`;
+
+            const { error: uploadErr } = await supabase.storage
+              .from('product-photos')
+              .upload(filePath, selectedPhoto, { upsert: true });
+            if (uploadErr) throw uploadErr;
+
+            const { data: pub } = supabase.storage
+              .from('product-photos')
+              .getPublicUrl(filePath);
+
+            if (pub?.publicUrl) {
+              await supabase
+                .from('products')
+                .update({ photo_url: pub.publicUrl })
+                .eq('id', inserted.id);
+            }
+          } catch (e) {
+            console.error('Errore upload foto post-creazione:', e);
+            addNotification({
+              type: 'warning',
+              title: 'Prodotto creato',
+              message: 'Foto non caricata. Puoi aggiungerla modificando il prodotto.'
+            });
+          }
+        }
 
         addNotification({
           type: 'success',
