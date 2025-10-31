@@ -37,11 +37,16 @@ export const LoginPage = () => {
 
   // Listen for auth state changes to redirect after successful login
   useEffect(() => {
-    if (user && !isLoading) {
-      console.log('🟢 User detected in LoginPage - redirecting...', { userId: user.id });
-      window.location.href = '/';
+    if (user) {
+      console.log('🟢 User detected in LoginPage - redirecting...', { userId: user.id, isLoading });
+      setIsLoading(false);
+      // Small delay to ensure state is updated, then redirect
+      setTimeout(() => {
+        console.log('🟢 Redirecting now...');
+        window.location.href = '/';
+      }, 100);
     }
-  }, [user, isLoading]);
+  }, [user]);
 
   const {
     register,
@@ -58,22 +63,23 @@ export const LoginPage = () => {
     
     try {
       console.log('🔵 Calling signIn...');
-      // Don't await - let onAuthStateChange handle the redirect
-      signIn(data.email, data.password).then(({ error }) => {
-        if (error) {
-          console.error('🔴 LOGIN ERROR', error);
+      // Don't await - let onAuthStateChange handle the redirect via useEffect
+      signIn(data.email, data.password).then((result) => {
+        console.log('🔵 signIn promise resolved', { hasError: !!result?.error, hasData: !!result?.data });
+        if (result?.error) {
+          console.error('🔴 LOGIN ERROR', result.error);
           setIsLoading(false);
           // Handle specific Supabase auth errors
-          if (error.message.includes('Invalid login credentials')) {
+          if (result.error.message.includes('Invalid login credentials')) {
             setError('email', { message: 'Email o password non corretti' });
             setError('password', { message: 'Email o password non corretti' });
-          } else if (error.message.includes('Email not confirmed')) {
+          } else if (result.error.message.includes('Email not confirmed')) {
             addNotification({
               type: 'warning',
               title: 'Email non confermata',
               message: 'Controlla la tua email per confermare l\'account'
             });
-          } else if (error.message.includes('Too many requests')) {
+          } else if (result.error.message.includes('Too many requests')) {
             addNotification({
               type: 'error',
               title: 'Troppi tentativi',
@@ -83,12 +89,12 @@ export const LoginPage = () => {
             addNotification({
               type: 'error',
               title: 'Errore di accesso',
-              message: error.message || 'Si è verificato un errore durante l\'accesso'
+              message: result.error.message || 'Si è verificato un errore durante l\'accesso'
             });
           }
         } else {
-          console.log('🟢 signIn promise resolved (no error) - waiting for onAuthStateChange');
-          // Don't set loading to false here - let useEffect handle redirect when user is set
+          console.log('🟢 signIn promise resolved (no error) - waiting for onAuthStateChange to set user');
+          // useEffect will handle redirect when user is set
         }
       }).catch((error: any) => {
         console.error('🔴 LOGIN EXCEPTION', error);
