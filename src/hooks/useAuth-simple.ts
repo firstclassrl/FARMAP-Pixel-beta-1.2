@@ -110,6 +110,13 @@ export function useAuth(): {
 
     getInitialSession();
 
+    // Watchdog: if for any reason loading remains true for too long, unblock UI
+    const watchdog = setTimeout(() => {
+      if (mounted) {
+        setAuthState(prev => ({ ...prev, loading: false }));
+      }
+    }, 3000);
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -162,6 +169,7 @@ export function useAuth(): {
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      clearTimeout(watchdog);
     };
   }, []);
 
