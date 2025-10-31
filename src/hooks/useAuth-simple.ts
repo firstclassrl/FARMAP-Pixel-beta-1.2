@@ -140,38 +140,49 @@ export function useAuth(): {
           console.log('🟢 SIGNED_IN event', { userId: session.user.id, email: session.user.email });
           const user = session.user as ExtendedUser;
           const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
-          let dbProfile: Profile | null = null;
-          try {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', user.id)
-              .maybeSingle();
-            dbProfile = data as unknown as Profile | null;
-          } catch {}
-
-          const effectiveProfile: Profile = dbProfile ? {
-            ...dbProfile,
-            role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
-          } : {
-            id: user.id,
-            email: user.email || '',
-            full_name: user.email?.split('@')[0] || 'User',
-            avatar_url: null,
-            role: (mustBeAdmin ? 'admin' : 'lettore') as any,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-
-          console.log('🟢 Setting auth state', { userId: user.id, profileRole: effectiveProfile.role });
+          
+          // Set user immediately without waiting for profile
+          console.log('🟢 Setting user immediately (before profile load)');
           setAuthState(prev => ({
             ...prev,
             user: user,
-            profile: effectiveProfile,
             loading: false,
             error: null
           }));
-          console.log('🟢 Auth state updated');
+
+          // Load profile in background without blocking
+          (async () => {
+            let dbProfile: Profile | null = null;
+            try {
+              const { data } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .maybeSingle();
+              dbProfile = data as unknown as Profile | null;
+            } catch (profileError) {
+              console.warn('Profile load error (non-blocking):', profileError);
+            }
+
+            const effectiveProfile: Profile = dbProfile ? {
+              ...dbProfile,
+              role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
+            } : {
+              id: user.id,
+              email: user.email || '',
+              full_name: user.email?.split('@')[0] || 'User',
+              avatar_url: null,
+              role: (mustBeAdmin ? 'admin' : 'lettore') as any,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+
+            console.log('🟢 Updating profile in background', { profileRole: effectiveProfile.role });
+            setAuthState(prev => ({
+              ...prev,
+              profile: effectiveProfile
+            }));
+          })();
         } else if (event === 'SIGNED_OUT') {
           console.log('🔴 SIGNED_OUT event');
           setAuthState({
