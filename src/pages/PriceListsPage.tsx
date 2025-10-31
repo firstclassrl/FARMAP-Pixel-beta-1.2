@@ -24,6 +24,13 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -65,6 +72,7 @@ export const PriceListsPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCreatorFilter, setSelectedCreatorFilter] = useState<string>('all');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedPriceListId, setSelectedPriceListId] = useState<string | undefined>();
   const [showPrintView, setShowPrintView] = useState(false);
@@ -254,13 +262,50 @@ export const PriceListsPage = () => {
     setPrintPriceListId('');
   };
 
+  // Generate consistent color for each creator
+  const getCreatorColor = (creatorName: string | null | undefined): string => {
+    if (!creatorName) return '#9CA3AF'; // gray for null/undefined
+    
+    // Generate a hash from the name
+    let hash = 0;
+    for (let i = 0; i < creatorName.length; i++) {
+      hash = creatorName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    // Use a predefined color palette
+    const colors = [
+      '#EF4444', // red
+      '#F59E0B', // amber
+      '#10B981', // green
+      '#3B82F6', // blue
+      '#8B5CF6', // violet
+      '#EC4899', // pink
+      '#06B6D4', // cyan
+      '#84CC16', // lime
+      '#F97316', // orange
+      '#6366F1', // indigo
+      '#14B8A6', // teal
+      '#A855F7', // purple
+    ];
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Get unique creators from price lists
+  const uniqueCreators = Array.from(
+    new Set(priceLists.map(pl => pl.creator_name).filter(Boolean) as string[])
+  ).sort();
+
   const filteredPriceLists = priceLists.filter(priceList => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = priceList.name.toLowerCase().includes(searchLower) ||
       priceList.customer?.company_name?.toLowerCase().includes(searchLower) ||
-      priceList.description?.toLowerCase().includes(searchLower) ||
-      (priceList.creator_name && priceList.creator_name.toLowerCase().includes(searchLower));
-    return matchesSearch;
+      priceList.description?.toLowerCase().includes(searchLower);
+    
+    const matchesCreator = selectedCreatorFilter === 'all' || 
+      priceList.creator_name === selectedCreatorFilter;
+    
+    return matchesSearch && matchesCreator;
   });
 
   const getStatusBadge = (status: 'active' | 'draft' | 'expired') => {
@@ -362,20 +407,51 @@ export const PriceListsPage = () => {
         </Card>
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Cerca listini per nome, cliente o creatore..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search and Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Cerca listini per nome, cliente o descrizione..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <Select value={selectedCreatorFilter} onValueChange={setSelectedCreatorFilter}>
+              <SelectTrigger className="flex items-center gap-2">
+                <SelectValue placeholder="Filtra per creatore" />
+                {selectedCreatorFilter !== 'all' && (
+                  <div
+                    className="w-3 h-3 rounded-full ml-2"
+                    style={{ backgroundColor: getCreatorColor(selectedCreatorFilter) }}
+                  />
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i creatori</SelectItem>
+                {uniqueCreators.map((creator) => (
+                  <SelectItem key={creator} value={creator}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: getCreatorColor(creator) }}
+                      />
+                      <span>{creator}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Price Lists List */}
       <Card>
@@ -410,7 +486,19 @@ export const PriceListsPage = () => {
                     <div><p className="text-sm text-gray-600">{priceList.customer?.company_name || '-'}</p></div>
                     <div><p className="text-sm text-gray-600">{new Date(priceList.valid_from).toLocaleDateString('it-IT')}</p></div>
                     <div><p className="text-sm text-gray-600">{priceList.product_count} prodotti</p></div>
-                    <div><p className="text-sm text-gray-600">{priceList.creator_name || '-'}</p></div>
+                    <div>
+                      {priceList.creator_name ? (
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: getCreatorColor(priceList.creator_name) }}
+                          />
+                          <p className="text-sm text-gray-600">{priceList.creator_name}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">-</p>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between">
                       {getStatusBadge(priceList.status)}
                       <DropdownMenu>
