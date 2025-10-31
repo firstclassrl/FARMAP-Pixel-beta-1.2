@@ -51,6 +51,7 @@ export const LoginPage = () => {
       const { data: authData, error } = await signIn(data.email, data.password);
 
       if (error) {
+        setIsLoading(false);
         // Handle specific Supabase auth errors
         if (error.message.includes('Invalid login credentials')) {
           setError('email', { message: 'Email o password non corretti' });
@@ -78,12 +79,11 @@ export const LoginPage = () => {
       }
 
       if (authData?.user) {
-        setIsLoading(false);
-        
-        // Redirect immediately without waiting
+        // Redirect immediately - don't wait for notifications
         window.location.href = '/';
         return;
       } else {
+        setIsLoading(false);
         // If no error but also no user, something went wrong
         addNotification({
           type: 'error',

@@ -204,48 +204,8 @@ export function useAuth(): {
         return { data: null, error };
       }
 
-      // If we have data, manually trigger profile load and state update
-      if (data?.user && data?.session) {
-        const user = data.user as ExtendedUser;
-        const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
-        let dbProfile: Profile | null = null;
-        
-        try {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle();
-          dbProfile = profileData as unknown as Profile | null;
-        } catch (profileError) {
-          console.warn('Error loading profile:', profileError);
-        }
-
-        const effectiveProfile: Profile = dbProfile ? {
-          ...dbProfile,
-          role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
-        } : {
-          id: user.id,
-          email: user.email || '',
-          full_name: user.email?.split('@')[0] || 'User',
-          avatar_url: null,
-          role: (mustBeAdmin ? 'admin' : 'lettore') as any,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        setAuthState(prev => ({
-          ...prev,
-          user: user,
-          profile: effectiveProfile,
-          loading: false,
-          error: null
-        }));
-
-        return { data, error: null };
-      }
-
-      // Fallback: let onAuthStateChange handle it
+      // Return data immediately and let onAuthStateChange handle state update
+      // This ensures the login doesn't get stuck waiting for profile
       return { data, error: null };
     } catch (error: any) {
       setAuthState(prev => ({ ...prev, loading: false, error: error.message }));
