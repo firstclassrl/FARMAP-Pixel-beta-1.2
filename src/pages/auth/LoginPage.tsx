@@ -79,16 +79,10 @@ export const LoginPage = () => {
 
       if (authData?.user) {
         setIsLoading(false);
-        addNotification({
-          type: 'success',
-          title: 'Accesso effettuato',
-          message: 'Accesso effettuato con successo!'
-        });
         
-        // Use window.location.href for immediate redirect - more reliable
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 200);
+        // Redirect immediately without waiting
+        window.location.href = '/';
+        return;
       } else {
         // If no error but also no user, something went wrong
         addNotification({

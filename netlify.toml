@@ -6,11 +6,11 @@
   VITE_ENABLE_PWA = "false"
   VITE_SOURCEMAP = "true"
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    # CSP temporaneamente più permissivo per risolvere il problema di login
-    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; connect-src 'self' https: wss: ws:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; img-src 'self' data: https: blob:; frame-src 'self' https:;"
+# CSP rimosso temporaneamente per risolvere problema login
+# [[headers]]
+#   for = "/*"
+#   [headers.values]
+#     Content-Security-Policy = "..."
 
 [[headers]]
   for = "/assets/*"
