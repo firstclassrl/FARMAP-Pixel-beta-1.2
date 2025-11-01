@@ -312,13 +312,27 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       
       // Spazio bianco per firma e timbro
 
+      // 6.5. NOTA CODICI (Card gialla con testo rosso)
+      const noteY = acceptanceY + 35;
+      doc.setFillColor(255, 247, 237); // bg-yellow-50
+      doc.roundedRect(margin, noteY, contentWidth, 12, 2, 2, 'F');
+      doc.setDrawColor(251, 191, 36); // border-yellow-200
+      doc.roundedRect(margin, noteY, contentWidth, 12, 2, 2, 'D');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 38, 38); // text-red-600
+      const noteText = "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.";
+      doc.text(noteText, pageWidth / 2, noteY + 8, { align: 'center', maxWidth: contentWidth - 10 });
+
       // 7. FOOTER
+      doc.setTextColor(0, 0, 0); // Reset text color to black
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(
         'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
-        acceptanceY + 35,
+        noteY + 25,
         { align: 'right' }
       );
 
@@ -578,13 +592,27 @@ Team FARMAP`;
       
       // Spazio bianco per firma e timbro
 
+      // 6.5. NOTA CODICI (Card gialla con testo rosso)
+      const noteY = acceptanceY + 35;
+      doc.setFillColor(255, 247, 237); // bg-yellow-50
+      doc.roundedRect(margin, noteY, contentWidth, 12, 2, 2, 'F');
+      doc.setDrawColor(251, 191, 36); // border-yellow-200
+      doc.roundedRect(margin, noteY, contentWidth, 12, 2, 2, 'D');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 38, 38); // text-red-600
+      const noteText = "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.";
+      doc.text(noteText, pageWidth / 2, noteY + 8, { align: 'center', maxWidth: contentWidth - 10 });
+
       // 7. FOOTER
+      doc.setTextColor(0, 0, 0); // Reset text color to black
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(
         'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
         pageWidth - margin,
-        acceptanceY + 35,
+        noteY + 25,
         { align: 'right' }
       );
 
