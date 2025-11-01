@@ -193,7 +193,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       );
 
       // Genera la tabella con le immagini
-      autoTable(doc, {
+      const tableResult = autoTable(doc, {
         startY: yPosition,
         head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']],
         body: tableData.map(item => item.data),
@@ -217,27 +217,35 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           7: { cellWidth: 30 }, // EAN
           8: { cellWidth: 15 }, // IVA
           9: { cellWidth: 25 }  // Prezzo Cliente
-        },
-        didDrawCell: (data) => {
-          // Aggiungi le immagini nella colonna Foto
-          if (data.column.index === 0 && data.row.index > 0) {
-            const tableIndex = data.row.index - 1;
+        }
+      });
+
+      // Aggiungi le immagini dopo che la tabella è stata disegnata
+      if (tableResult && (tableResult as any).cells) {
+        const cells = (tableResult as any).cells;
+        cells.forEach((cell: any) => {
+          // Solo celle della colonna Foto (index 0) e righe dati (skip header)
+          if (cell.column.index === 0 && cell.row.index > 0) {
+            const tableIndex = cell.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
-            if (photoBase64 && photoBase64.trim() !== '') {
+            if (photoBase64 && photoBase64.trim() !== '' && photoBase64.startsWith('data:image/')) {
               try {
-                // Verifica che sia un data URL valido
-                if (photoBase64.startsWith('data:image/')) {
-                  doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
-                } else {
-                  console.warn('Formato immagine non valido per la riga:', tableIndex);
-                }
+                // Usa le coordinate della cella per posizionare l'immagine
+                doc.addImage(
+                  photoBase64, 
+                  'JPEG', 
+                  cell.x + 1, 
+                  cell.y + 1, 
+                  16, 
+                  16
+                );
               } catch (error) {
-                console.warn('Errore nell\'inserimento immagine alla riga', tableIndex, ':', error);
+                console.warn('Errore inserimento immagine riga', tableIndex, ':', error);
               }
             }
           }
-        }
-      });
+        });
+      }
 
       // 5. CONDIZIONI DI VENDITA
       const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
@@ -502,7 +510,7 @@ Team FARMAP`;
       );
 
       // Genera la tabella con le immagini
-      autoTable(doc, {
+      const tableResult = autoTable(doc, {
         startY: yPosition,
         head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']],
         body: tableData.map(item => item.data),
@@ -526,27 +534,35 @@ Team FARMAP`;
           7: { cellWidth: 30 }, // EAN
           8: { cellWidth: 15 }, // IVA
           9: { cellWidth: 25 }  // Prezzo Cliente
-        },
-        didDrawCell: (data) => {
-          // Aggiungi le immagini nella colonna Foto
-          if (data.column.index === 0 && data.row.index > 0) {
-            const tableIndex = data.row.index - 1;
+        }
+      });
+
+      // Aggiungi le immagini dopo che la tabella è stata disegnata
+      if (tableResult && (tableResult as any).cells) {
+        const cells = (tableResult as any).cells;
+        cells.forEach((cell: any) => {
+          // Solo celle della colonna Foto (index 0) e righe dati (skip header)
+          if (cell.column.index === 0 && cell.row.index > 0) {
+            const tableIndex = cell.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
-            if (photoBase64 && photoBase64.trim() !== '') {
+            if (photoBase64 && photoBase64.trim() !== '' && photoBase64.startsWith('data:image/')) {
               try {
-                // Verifica che sia un data URL valido
-                if (photoBase64.startsWith('data:image/')) {
-                  doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
-                } else {
-                  console.warn('Formato immagine non valido per la riga:', tableIndex);
-                }
+                // Usa le coordinate della cella per posizionare l'immagine
+                doc.addImage(
+                  photoBase64, 
+                  'JPEG', 
+                  cell.x + 1, 
+                  cell.y + 1, 
+                  16, 
+                  16
+                );
               } catch (error) {
-                console.warn('Errore nell\'inserimento immagine alla riga', tableIndex, ':', error);
+                console.warn('Errore inserimento immagine riga', tableIndex, ':', error);
               }
             }
           }
-        }
-      });
+        });
+      }
 
       // 5. CONDIZIONI DI VENDITA
       const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
