@@ -237,23 +237,23 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       if (priceList.payment_conditions || priceList.shipping_conditions || 
           priceList.delivery_conditions || priceList.brand_conditions) {
         
-        // Box arancione (bg-orange-50, border-orange-200)
+        // Box arancione (bg-orange-50, border-orange-200) - altezza ridotta a 3 righe
         doc.setFillColor(255, 247, 237); // bg-orange-50
         doc.setDrawColor(251, 191, 36); // border-orange-200
         doc.setLineWidth(0.5);
-        const boxHeight = 25;
-        doc.roundedRect(margin, conditionsY - 5, contentWidth, boxHeight, 2, 2, 'FD');
+        const boxHeight = 15; // Ridotto da 25 a 15 per 3 righe totali
+        doc.roundedRect(margin, conditionsY - 2, contentWidth, boxHeight, 2, 2, 'FD');
         
         // Titolo sezione
-        doc.setFontSize(10);
+        doc.setFontSize(8); // Ridotto da 10 a 8
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(154, 52, 18); // text-orange-800
-        doc.text('CONDIZIONI DI VENDITA', margin + 5, conditionsY + 3);
+        doc.text('CONDIZIONI DI VENDITA', margin + 3, conditionsY + 2);
         
         // Condizioni allineate a sinistra, Marchio allineato a destra
-        doc.setFontSize(8);
-        let currentX = margin + 5;
-        const lineY = conditionsY + 10;
+        doc.setFontSize(7); // Ridotto da 8 a 7
+        let currentX = margin + 3;
+        const lineY = conditionsY + 7; // Ridotto da 10 a 7
         
         if (priceList.payment_conditions) {
           doc.setFont('helvetica', 'bold');
@@ -317,13 +317,12 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       
       // Spazio bianco per firma e timbro
 
-      // 6.5. NOTA CODICI (Card gialla con testo rosso - più piccola)
+      // 6.5. NOTA CODICI (Card gialla con testo rosso - senza bordo)
       const noteY = acceptanceY + 35;
       const noteBoxHeight = 8; // Ridotto da 12 a 8
       doc.setFillColor(255, 247, 237); // bg-yellow-50
       doc.roundedRect(margin, noteY, contentWidth, noteBoxHeight, 2, 2, 'F');
-      doc.setDrawColor(251, 191, 36); // border-yellow-200
-      doc.roundedRect(margin, noteY, contentWidth, noteBoxHeight, 2, 2, 'D');
+      // Bordo rimosso - solo riempimento
       
       doc.setFontSize(7); // Ridotto da 9 a 7
       doc.setFont('helvetica', 'bold');
@@ -540,23 +539,23 @@ Team FARMAP`;
       if (priceList.payment_conditions || priceList.shipping_conditions || 
           priceList.delivery_conditions || priceList.brand_conditions) {
         
-        // Box arancione (bg-orange-50, border-orange-200)
+        // Box arancione (bg-orange-50, border-orange-200) - altezza ridotta a 3 righe
         doc.setFillColor(255, 247, 237); // bg-orange-50
         doc.setDrawColor(251, 191, 36); // border-orange-200
         doc.setLineWidth(0.5);
-        const boxHeight = 25;
-        doc.roundedRect(margin, conditionsY - 5, contentWidth, boxHeight, 2, 2, 'FD');
+        const boxHeight = 15; // Ridotto da 25 a 15 per 3 righe totali
+        doc.roundedRect(margin, conditionsY - 2, contentWidth, boxHeight, 2, 2, 'FD');
         
         // Titolo sezione
-        doc.setFontSize(10);
+        doc.setFontSize(8); // Ridotto da 10 a 8
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(154, 52, 18); // text-orange-800
-        doc.text('CONDIZIONI DI VENDITA', margin + 5, conditionsY + 3);
+        doc.text('CONDIZIONI DI VENDITA', margin + 3, conditionsY + 2);
         
         // Condizioni allineate a sinistra, Marchio allineato a destra
-        doc.setFontSize(8);
-        let currentX = margin + 5;
-        const lineY = conditionsY + 10;
+        doc.setFontSize(7); // Ridotto da 8 a 7
+        let currentX = margin + 3;
+        const lineY = conditionsY + 7; // Ridotto da 10 a 7
         
         if (priceList.payment_conditions) {
           doc.setFont('helvetica', 'bold');
@@ -936,9 +935,9 @@ Team FARMAP`;
                 {/* Condizioni di Vendita */}
                 {(priceList.payment_conditions || priceList.shipping_conditions || 
                   priceList.delivery_conditions || priceList.brand_conditions) && (
-                  <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <h3 className="text-sm font-bold text-orange-800 mb-2">CONDIZIONI DI VENDITA</h3>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                  <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h3 className="text-xs font-bold text-orange-800 mb-1">CONDIZIONI DI VENDITA</h3>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                       {priceList.payment_conditions && (
                         <div>
                           <span className="font-bold text-gray-600">Pagamento:</span>
@@ -984,7 +983,7 @@ Team FARMAP`;
                 </div>
 
                 {/* Nota Codici */}
-                <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="mt-4 p-2 bg-yellow-50 rounded-lg">
                   <p className="text-xs font-medium text-red-600 text-center">
                     I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.
                   </p>
