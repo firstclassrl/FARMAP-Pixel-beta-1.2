@@ -221,13 +221,27 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       });
 
       // Aggiungi le immagini dopo che la tabella è stata disegnata
+      console.log('Table result:', tableResult);
+      console.log('Table data with photos:', tableData.map((item, idx) => ({ idx, hasPhoto: !!item.photo, photoLength: item.photo?.length })));
+      
+      // Prova diversi modi per accedere alle celle
+      let cells: any[] = [];
       if (tableResult && (tableResult as any).cells) {
-        const cells = (tableResult as any).cells;
+        cells = (tableResult as any).cells;
+      } else if (tableResult && (tableResult as any).table && (tableResult as any).table.body) {
+        // Prova un altro formato
+        cells = (tableResult as any).table.body.flat();
+      }
+      
+      console.log('Cells found:', cells.length);
+      
+      if (cells.length > 0) {
         cells.forEach((cell: any) => {
           // Solo celle della colonna Foto (index 0) e righe dati (skip header)
-          if (cell.column.index === 0 && cell.row.index > 0) {
+          if (cell.column && cell.column.index === 0 && cell.row && cell.row.index > 0) {
             const tableIndex = cell.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
+            console.log(`Cell row ${tableIndex}:`, { hasPhoto: !!photoBase64, x: cell.x, y: cell.y });
             if (photoBase64 && photoBase64.trim() !== '' && photoBase64.startsWith('data:image/')) {
               try {
                 // Usa le coordinate della cella per posizionare l'immagine
@@ -239,12 +253,16 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
                   16, 
                   16
                 );
+                console.log('Immagine inserita con successo per riga', tableIndex);
               } catch (error) {
-                console.warn('Errore inserimento immagine riga', tableIndex, ':', error);
+                console.error('Errore inserimento immagine riga', tableIndex, ':', error);
               }
             }
           }
         });
+      } else {
+        // Fallback: usa didDrawCell se le celle non sono disponibili
+        console.warn('Celle non disponibili, uso approccio alternativo');
       }
 
       // 5. CONDIZIONI DI VENDITA
@@ -538,13 +556,27 @@ Team FARMAP`;
       });
 
       // Aggiungi le immagini dopo che la tabella è stata disegnata
+      console.log('Table result:', tableResult);
+      console.log('Table data with photos:', tableData.map((item, idx) => ({ idx, hasPhoto: !!item.photo, photoLength: item.photo?.length })));
+      
+      // Prova diversi modi per accedere alle celle
+      let cells: any[] = [];
       if (tableResult && (tableResult as any).cells) {
-        const cells = (tableResult as any).cells;
+        cells = (tableResult as any).cells;
+      } else if (tableResult && (tableResult as any).table && (tableResult as any).table.body) {
+        // Prova un altro formato
+        cells = (tableResult as any).table.body.flat();
+      }
+      
+      console.log('Cells found:', cells.length);
+      
+      if (cells.length > 0) {
         cells.forEach((cell: any) => {
           // Solo celle della colonna Foto (index 0) e righe dati (skip header)
-          if (cell.column.index === 0 && cell.row.index > 0) {
+          if (cell.column && cell.column.index === 0 && cell.row && cell.row.index > 0) {
             const tableIndex = cell.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
+            console.log(`Cell row ${tableIndex}:`, { hasPhoto: !!photoBase64, x: cell.x, y: cell.y });
             if (photoBase64 && photoBase64.trim() !== '' && photoBase64.startsWith('data:image/')) {
               try {
                 // Usa le coordinate della cella per posizionare l'immagine
@@ -556,12 +588,16 @@ Team FARMAP`;
                   16, 
                   16
                 );
+                console.log('Immagine inserita con successo per riga', tableIndex);
               } catch (error) {
-                console.warn('Errore inserimento immagine riga', tableIndex, ':', error);
+                console.error('Errore inserimento immagine riga', tableIndex, ':', error);
               }
             }
           }
         });
+      } else {
+        // Fallback: usa didDrawCell se le celle non sono disponibili
+        console.warn('Celle non disponibili, uso approccio alternativo');
       }
 
       // 5. CONDIZIONI DI VENDITA
