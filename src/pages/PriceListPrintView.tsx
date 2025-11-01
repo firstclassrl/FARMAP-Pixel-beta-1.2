@@ -123,43 +123,36 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
 
-      // 1. LOGO ORIGINALE FARMAP
+      // 1. LOGO E INTESTAZIONE (identico all'HTML)
       try {
         const logoImg = new Image();
         logoImg.src = '/logo farmap industry copy.png';
-        doc.addImage(logoImg, 'PNG', margin, yPosition, 30, 15);
-        yPosition += 15;
+        await new Promise((resolve, reject) => {
+          logoImg.onload = resolve;
+          logoImg.onerror = reject;
+          if (logoImg.complete) resolve(null);
+        });
+        // Logo a sinistra, dimensione compatte (h-6 w-auto = circa 24mm)
+        doc.addImage(logoImg, 'PNG', margin, yPosition, 24, 9);
+        // Titolo centrato alla stessa altezza
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition + 6, { align: 'center' });
+        yPosition += 12;
       } catch (logoError) {
         console.warn('Logo non caricato, continuo senza logo');
-        yPosition += 10;
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 12;
       }
 
-      // 2. INTESTAZIONE
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 12;
-
-      // 3. DETTAGLI LISTINO
+      // 2. DETTAGLI LISTINO (grid 2 colonne come HTML)
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Listino: ${priceList.name}`, margin, yPosition);
       doc.text(`Data Creazione: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
-      yPosition += 6;
-      
-      if (priceList.customer) {
-        doc.text(`Cliente: ${priceList.customer.company_name}`, margin, yPosition);
-        doc.text(`Contatto: ${priceList.customer.contact_person}`, margin + contentWidth/2, yPosition);
-        yPosition += 6;
-      }
-      
-      if (priceList.valid_from) {
-        doc.text(`Valido dal: ${new Date(priceList.valid_from).toLocaleDateString('it-IT')}`, margin, yPosition);
-      }
-      if (priceList.valid_until) {
-        doc.text(`Valido fino al: ${new Date(priceList.valid_until).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
-      }
-      yPosition += 10;
+      yPosition += 8;
 
       // 4. CARICA IMMAGINI E GENERA TABELLA
       const tableData = await Promise.all(
@@ -197,7 +190,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       // Genera la tabella con le immagini
       autoTable(doc, {
         startY: yPosition,
-        head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo Cliente']],
+        head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']],
         body: tableData.map(item => item.data),
         theme: 'grid',
         headStyles: { 
@@ -340,10 +333,13 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       
-      // Crea un link temporaneo per scaricare il PDF
+      // Crea un link temporaneo per scaricare il PDF (con cliente e data odierna)
+      const today = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
+      const customerName = priceList.customer?.company_name || 'Cliente';
+      const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`;
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `listino_${priceList.name.replace(/\s+/g, '_')}.pdf`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -364,7 +360,7 @@ Prodotti inclusi: ${priceList.price_list_items?.length || 0}
 IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
 Per allegarlo:
 1. Clicca sull'icona graffetta (📎) in questa email
-2. Seleziona il file "listino_${priceList.name.replace(/\s+/g, '_')}.pdf" dalla cartella Downloads
+2. Seleziona il file "${fileName}" dalla cartella Downloads
 3. Il file verrà allegato automaticamente
 4. Invia l'email
 
@@ -403,43 +399,36 @@ Team FARMAP`;
       const contentWidth = pageWidth - (margin * 2);
       let yPosition = margin;
 
-      // 1. LOGO ORIGINALE FARMAP
+      // 1. LOGO E INTESTAZIONE (identico all'HTML)
       try {
         const logoImg = new Image();
         logoImg.src = '/logo farmap industry copy.png';
-        doc.addImage(logoImg, 'PNG', margin, yPosition, 30, 15);
-        yPosition += 15;
+        await new Promise((resolve, reject) => {
+          logoImg.onload = resolve;
+          logoImg.onerror = reject;
+          if (logoImg.complete) resolve(null);
+        });
+        // Logo a sinistra, dimensione compatte (h-6 w-auto = circa 24mm)
+        doc.addImage(logoImg, 'PNG', margin, yPosition, 24, 9);
+        // Titolo centrato alla stessa altezza
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition + 6, { align: 'center' });
+        yPosition += 12;
       } catch (logoError) {
         console.warn('Logo non caricato, continuo senza logo');
-        yPosition += 10;
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 12;
       }
 
-      // 2. INTESTAZIONE
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 12;
-
-      // 3. DETTAGLI LISTINO
+      // 2. DETTAGLI LISTINO (grid 2 colonne come HTML)
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Listino: ${priceList.name}`, margin, yPosition);
       doc.text(`Data Creazione: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
-      yPosition += 6;
-      
-      if (priceList.customer) {
-        doc.text(`Cliente: ${priceList.customer.company_name}`, margin, yPosition);
-        doc.text(`Contatto: ${priceList.customer.contact_person}`, margin + contentWidth/2, yPosition);
-        yPosition += 6;
-      }
-      
-      if (priceList.valid_from) {
-        doc.text(`Valido dal: ${new Date(priceList.valid_from).toLocaleDateString('it-IT')}`, margin, yPosition);
-      }
-      if (priceList.valid_until) {
-        doc.text(`Valido fino al: ${new Date(priceList.valid_until).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
-      }
-      yPosition += 10;
+      yPosition += 8;
 
       // 4. CARICA IMMAGINI E GENERA TABELLA
       const tableData = await Promise.all(
@@ -477,7 +466,7 @@ Team FARMAP`;
       // Genera la tabella con le immagini
       autoTable(doc, {
         startY: yPosition,
-        head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo Cliente']],
+        head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']],
         body: tableData.map(item => item.data),
         theme: 'grid',
         headStyles: { 
@@ -592,32 +581,51 @@ Team FARMAP`;
       
       // Spazio bianco per firma e timbro
 
-      // 6.5. NOTA CODICI (Card gialla con testo rosso)
-      const noteY = acceptanceY + 35;
+      // 6.5. NOTA CODICI (Card gialla con testo rosso - identica all'HTML)
+      const noteY = acceptanceY + 30;
       doc.setFillColor(255, 247, 237); // bg-yellow-50
-      doc.roundedRect(margin, noteY, contentWidth, 12, 2, 2, 'F');
       doc.setDrawColor(251, 191, 36); // border-yellow-200
-      doc.roundedRect(margin, noteY, contentWidth, 12, 2, 2, 'D');
+      doc.setLineWidth(0.5);
+      const noteBoxHeight = 12;
+      doc.roundedRect(margin, noteY, contentWidth, noteBoxHeight, 2, 2, 'FD');
       
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(220, 38, 38); // text-red-600
       const noteText = "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.";
-      doc.text(noteText, pageWidth / 2, noteY + 8, { align: 'center', maxWidth: contentWidth - 10 });
+      doc.text(noteText, pageWidth / 2, noteY + 7, { align: 'center', maxWidth: contentWidth - 10 });
 
-      // 7. FOOTER
+      // 7. FOOTER (due colonne come HTML)
       doc.setTextColor(0, 0, 0); // Reset text color to black
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text(
-        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
-        pageWidth - margin,
-        noteY + 25,
-        { align: 'right' }
-      );
+      doc.setTextColor(107, 114, 128); // text-gray-500
+      let footerY = noteY + noteBoxHeight + 5;
+      
+      // Linea separatrice
+      doc.setDrawColor(209, 213, 219); // border-gray-300
+      doc.setLineWidth(0.3);
+      doc.line(margin, footerY, pageWidth - margin, footerY);
+      
+      footerY += 5;
+      
+      // Colonna sinistra
+      doc.text('FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)', margin, footerY);
+      doc.text('P.IVA: 02244470684 - Tel: +39 085 9774028', margin, footerY + 4);
+      
+      // Colonna destra
+      if (priceList.valid_from) {
+        doc.text(`Listino valido dal ${new Date(priceList.valid_from).toLocaleDateString('it-IT')}`, pageWidth - margin, footerY, { align: 'right' });
+      }
+      if (priceList.valid_until) {
+        doc.text(`fino al ${new Date(priceList.valid_until).toLocaleDateString('it-IT')}`, pageWidth - margin, footerY + 4, { align: 'right' });
+      }
 
-      // 8. SALVA IL FILE
-      doc.save(`listino-${priceList.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+      // 8. SALVA IL FILE (con cliente e data odierna)
+      const today = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
+      const customerName = priceList.customer?.company_name || 'Cliente';
+      const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`;
+      doc.save(fileName);
 
       addNotification({
         type: 'success',
