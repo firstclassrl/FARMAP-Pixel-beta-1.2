@@ -192,8 +192,8 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
         }) || []
       );
 
-      // Genera la tabella con le immagini
-      const tableResult = autoTable(doc, {
+      // Genera la tabella con le immagini usando didDrawCell
+      autoTable(doc, {
         startY: yPosition,
         head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']],
         body: tableData.map(item => item.data),
@@ -217,53 +217,45 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           7: { cellWidth: 30 }, // EAN
           8: { cellWidth: 15 }, // IVA
           9: { cellWidth: 25 }  // Prezzo Cliente
-        }
-      });
-
-      // Aggiungi le immagini dopo che la tabella è stata disegnata
-      console.log('Table result:', tableResult);
-      console.log('Table data with photos:', tableData.map((item, idx) => ({ idx, hasPhoto: !!item.photo, photoLength: item.photo?.length })));
-      
-      // Prova diversi modi per accedere alle celle
-      let cells: any[] = [];
-      if (tableResult && (tableResult as any).cells) {
-        cells = (tableResult as any).cells;
-      } else if (tableResult && (tableResult as any).table && (tableResult as any).table.body) {
-        // Prova un altro formato
-        cells = (tableResult as any).table.body.flat();
-      }
-      
-      console.log('Cells found:', cells.length);
-      
-      if (cells.length > 0) {
-        cells.forEach((cell: any) => {
-          // Solo celle della colonna Foto (index 0) e righe dati (skip header)
-          if (cell.column && cell.column.index === 0 && cell.row && cell.row.index > 0) {
-            const tableIndex = cell.row.index - 1;
+        },
+        didDrawCell: (data: any) => {
+          // Aggiungi le immagini nella colonna Foto durante il disegno
+          if (data.column.index === 0 && data.row.index > 0) {
+            const tableIndex = data.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
-            console.log(`Cell row ${tableIndex}:`, { hasPhoto: !!photoBase64, x: cell.x, y: cell.y });
+            
             if (photoBase64 && photoBase64.trim() !== '' && photoBase64.startsWith('data:image/')) {
               try {
-                // Usa le coordinate della cella per posizionare l'immagine
+                // Salva lo stato corrente
+                const currentFillColor = (doc as any).internal.getCurrentFillColor();
+                const currentTextColor = (doc as any).internal.getCurrentTextColor();
+                
+                // Aggiungi l'immagine usando le coordinate della cella
+                // cell contiene: x, y, width, height
+                const imgX = data.cell.x + 1;
+                const imgY = data.cell.y + 1;
+                const imgWidth = 16;
+                const imgHeight = 16;
+                
                 doc.addImage(
                   photoBase64, 
                   'JPEG', 
-                  cell.x + 1, 
-                  cell.y + 1, 
-                  16, 
-                  16
+                  imgX, 
+                  imgY, 
+                  imgWidth, 
+                  imgHeight
                 );
-                console.log('Immagine inserita con successo per riga', tableIndex);
+                
+                // Ripristina lo stato
+                doc.setTextColor(currentTextColor);
+                doc.setFillColor(currentFillColor);
               } catch (error) {
                 console.error('Errore inserimento immagine riga', tableIndex, ':', error);
               }
             }
           }
-        });
-      } else {
-        // Fallback: usa didDrawCell se le celle non sono disponibili
-        console.warn('Celle non disponibili, uso approccio alternativo');
-      }
+        }
+      });
 
       // 5. CONDIZIONI DI VENDITA
       const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
@@ -527,8 +519,8 @@ Team FARMAP`;
         }) || []
       );
 
-      // Genera la tabella con le immagini
-      const tableResult = autoTable(doc, {
+      // Genera la tabella con le immagini usando didDrawCell
+      autoTable(doc, {
         startY: yPosition,
         head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']],
         body: tableData.map(item => item.data),
@@ -552,53 +544,45 @@ Team FARMAP`;
           7: { cellWidth: 30 }, // EAN
           8: { cellWidth: 15 }, // IVA
           9: { cellWidth: 25 }  // Prezzo Cliente
-        }
-      });
-
-      // Aggiungi le immagini dopo che la tabella è stata disegnata
-      console.log('Table result:', tableResult);
-      console.log('Table data with photos:', tableData.map((item, idx) => ({ idx, hasPhoto: !!item.photo, photoLength: item.photo?.length })));
-      
-      // Prova diversi modi per accedere alle celle
-      let cells: any[] = [];
-      if (tableResult && (tableResult as any).cells) {
-        cells = (tableResult as any).cells;
-      } else if (tableResult && (tableResult as any).table && (tableResult as any).table.body) {
-        // Prova un altro formato
-        cells = (tableResult as any).table.body.flat();
-      }
-      
-      console.log('Cells found:', cells.length);
-      
-      if (cells.length > 0) {
-        cells.forEach((cell: any) => {
-          // Solo celle della colonna Foto (index 0) e righe dati (skip header)
-          if (cell.column && cell.column.index === 0 && cell.row && cell.row.index > 0) {
-            const tableIndex = cell.row.index - 1;
+        },
+        didDrawCell: (data: any) => {
+          // Aggiungi le immagini nella colonna Foto durante il disegno
+          if (data.column.index === 0 && data.row.index > 0) {
+            const tableIndex = data.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
-            console.log(`Cell row ${tableIndex}:`, { hasPhoto: !!photoBase64, x: cell.x, y: cell.y });
+            
             if (photoBase64 && photoBase64.trim() !== '' && photoBase64.startsWith('data:image/')) {
               try {
-                // Usa le coordinate della cella per posizionare l'immagine
+                // Salva lo stato corrente
+                const currentFillColor = (doc as any).internal.getCurrentFillColor();
+                const currentTextColor = (doc as any).internal.getCurrentTextColor();
+                
+                // Aggiungi l'immagine usando le coordinate della cella
+                // cell contiene: x, y, width, height
+                const imgX = data.cell.x + 1;
+                const imgY = data.cell.y + 1;
+                const imgWidth = 16;
+                const imgHeight = 16;
+                
                 doc.addImage(
                   photoBase64, 
                   'JPEG', 
-                  cell.x + 1, 
-                  cell.y + 1, 
-                  16, 
-                  16
+                  imgX, 
+                  imgY, 
+                  imgWidth, 
+                  imgHeight
                 );
-                console.log('Immagine inserita con successo per riga', tableIndex);
+                
+                // Ripristina lo stato
+                doc.setTextColor(currentTextColor);
+                doc.setFillColor(currentFillColor);
               } catch (error) {
                 console.error('Errore inserimento immagine riga', tableIndex, ':', error);
               }
             }
           }
-        });
-      } else {
-        // Fallback: usa didDrawCell se le celle non sono disponibili
-        console.warn('Celle non disponibili, uso approccio alternativo');
-      }
+        }
+      });
 
       // 5. CONDIZIONI DI VENDITA
       const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
