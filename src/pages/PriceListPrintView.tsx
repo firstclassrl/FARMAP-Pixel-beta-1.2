@@ -161,11 +161,16 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
           
           let photoBase64 = '';
-          if (item.products?.photo_url) {
+          if (item.products?.photo_url && item.products.photo_url.trim() !== '') {
             try {
               photoBase64 = await loadImageAsBase64(item.products.photo_url);
+              if (!photoBase64 || !photoBase64.startsWith('data:image/')) {
+                console.warn('Foto non caricata correttamente per prodotto:', item.products.code);
+                photoBase64 = '';
+              }
             } catch (error) {
-              console.warn('Errore nel caricamento foto:', error);
+              console.warn('Errore nel caricamento foto per prodotto', item.products.code, ':', error);
+              photoBase64 = '';
             }
           }
           
@@ -218,11 +223,16 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           if (data.column.index === 0 && data.row.index > 0) {
             const tableIndex = data.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
-            if (photoBase64) {
+            if (photoBase64 && photoBase64.trim() !== '') {
               try {
-                doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
+                // Verifica che sia un data URL valido
+                if (photoBase64.startsWith('data:image/')) {
+                  doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
+                } else {
+                  console.warn('Formato immagine non valido per la riga:', tableIndex);
+                }
               } catch (error) {
-                console.warn('Errore nell\'inserimento immagine:', error);
+                console.warn('Errore nell\'inserimento immagine alla riga', tableIndex, ':', error);
               }
             }
           }
@@ -460,11 +470,16 @@ Team FARMAP`;
           const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
           
           let photoBase64 = '';
-          if (item.products?.photo_url) {
+          if (item.products?.photo_url && item.products.photo_url.trim() !== '') {
             try {
               photoBase64 = await loadImageAsBase64(item.products.photo_url);
+              if (!photoBase64 || !photoBase64.startsWith('data:image/')) {
+                console.warn('Foto non caricata correttamente per prodotto:', item.products.code);
+                photoBase64 = '';
+              }
             } catch (error) {
-              console.warn('Errore nel caricamento foto:', error);
+              console.warn('Errore nel caricamento foto per prodotto', item.products.code, ':', error);
+              photoBase64 = '';
             }
           }
           
@@ -517,11 +532,16 @@ Team FARMAP`;
           if (data.column.index === 0 && data.row.index > 0) {
             const tableIndex = data.row.index - 1;
             const photoBase64 = tableData[tableIndex]?.photo;
-            if (photoBase64) {
+            if (photoBase64 && photoBase64.trim() !== '') {
               try {
-                doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
+                // Verifica che sia un data URL valido
+                if (photoBase64.startsWith('data:image/')) {
+                  doc.addImage(photoBase64, 'JPEG', data.cell.x + 1, data.cell.y + 1, 18, 18);
+                } else {
+                  console.warn('Formato immagine non valido per la riga:', tableIndex);
+                }
               } catch (error) {
-                console.warn('Errore nell\'inserimento immagine:', error);
+                console.warn('Errore nell\'inserimento immagine alla riga', tableIndex, ':', error);
               }
             }
           }
@@ -679,13 +699,35 @@ Team FARMAP`;
 
   const loadImageAsBase64 = async (url: string): Promise<string> => {
     try {
-      // Se è già un data URL, restituiscilo direttamente
+      // Se è già un data URL, convertilo sempre in JPEG per jsPDF
       if (url.startsWith('data:')) {
-        return url;
+        if (url.startsWith('data:image/jpeg') || url.startsWith('data:image/jpg')) {
+          return url;
+        }
+        // Converti altri formati (PNG, etc.) in JPEG
+        const img = new Image();
+        return new Promise((resolve, reject) => {
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Canvas context not available'));
+              return;
+            }
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+            resolve(dataURL);
+          };
+          img.onerror = () => reject(new Error('Failed to load image from data URL'));
+          img.crossOrigin = 'anonymous';
+          img.src = url;
+        });
       }
 
       // Usa fetch per evitare problemi CORS con Supabase Storage
-      const response = await fetch(url, { mode: 'cors' });
+      const response = await fetch(url, { mode: 'cors', credentials: 'omit' });
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.statusText}`);
       }
@@ -695,29 +737,38 @@ Team FARMAP`;
         const reader = new FileReader();
         reader.onloadend = () => {
           const result = reader.result as string;
-          // Converti PNG a JPEG per compatibilità migliore con jsPDF
-          if (result.startsWith('data:image/png')) {
-            const img = new Image();
-            img.onload = () => {
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              ctx?.drawImage(img, 0, 0);
-              const dataURL = canvas.toDataURL('image/jpeg', 0.85);
-              resolve(dataURL);
-            };
-            img.onerror = () => reject(new Error('Failed to convert PNG to JPEG'));
-            img.src = result;
-          } else {
-            resolve(result);
+          if (!result) {
+            reject(new Error('Failed to read image'));
+            return;
           }
+          
+          // Converti sempre in JPEG per compatibilità con jsPDF
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Canvas context not available'));
+              return;
+            }
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+            resolve(dataURL);
+          };
+          img.onerror = () => {
+            console.error('Error converting image to JPEG:', url);
+            reject(new Error('Failed to convert image to JPEG'));
+          };
+          img.crossOrigin = 'anonymous';
+          img.src = result;
         };
         reader.onerror = () => reject(new Error('Failed to read image blob'));
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error('Error loading image:', error);
+      console.error('Error loading image:', url, error);
       throw error;
     }
   };
