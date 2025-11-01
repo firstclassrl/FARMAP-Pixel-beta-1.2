@@ -250,8 +250,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 1x4 per le condizioni (tutte su una riga)
-        const cellWidth = (contentWidth - 15) / 4;
+        // Condizioni allineate a sinistra, Marchio allineato a destra
         let currentX = margin;
         
         if (priceList.payment_conditions) {
@@ -259,8 +258,9 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           doc.setFont('helvetica', 'bold');
           doc.text('Pagamento:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
+          const paymentTextWidth = doc.getTextWidth(priceList.payment_conditions);
           doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
-          currentX += cellWidth;
+          currentX += 25 + paymentTextWidth + 15;
         }
         
         if (priceList.shipping_conditions) {
@@ -268,8 +268,9 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           doc.setFont('helvetica', 'bold');
           doc.text('Trasporto:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
+          const shippingTextWidth = doc.getTextWidth(priceList.shipping_conditions);
           doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
-          currentX += cellWidth;
+          currentX += 25 + shippingTextWidth + 15;
         }
         
         if (priceList.delivery_conditions) {
@@ -278,15 +279,14 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           doc.text('Tempi di consegna:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
           doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
-          currentX += cellWidth;
         }
         
+        // Marchio allineato a destra
         if (priceList.brand_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', currentX, conditionsY);
-          doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
+          const marchioText = `Marchio: ${priceList.brand_conditions}`;
+          doc.text(marchioText, pageWidth - margin, conditionsY, { align: 'right' });
         }
         
         conditionsY += 15;
@@ -530,8 +530,7 @@ Team FARMAP`;
         doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
         conditionsY += 8;
         
-        // Griglia 1x4 per le condizioni (tutte su una riga)
-        const cellWidth = (contentWidth - 15) / 4;
+        // Condizioni allineate a sinistra, Marchio allineato a destra
         let currentX = margin;
         
         if (priceList.payment_conditions) {
@@ -539,8 +538,9 @@ Team FARMAP`;
           doc.setFont('helvetica', 'bold');
           doc.text('Pagamento:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
+          const paymentTextWidth = doc.getTextWidth(priceList.payment_conditions);
           doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
-          currentX += cellWidth;
+          currentX += 25 + paymentTextWidth + 15;
         }
         
         if (priceList.shipping_conditions) {
@@ -548,8 +548,9 @@ Team FARMAP`;
           doc.setFont('helvetica', 'bold');
           doc.text('Trasporto:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
+          const shippingTextWidth = doc.getTextWidth(priceList.shipping_conditions);
           doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
-          currentX += cellWidth;
+          currentX += 25 + shippingTextWidth + 15;
         }
         
         if (priceList.delivery_conditions) {
@@ -558,15 +559,14 @@ Team FARMAP`;
           doc.text('Tempi di consegna:', currentX, conditionsY);
           doc.setFont('helvetica', 'normal');
           doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
-          currentX += cellWidth;
         }
         
+        // Marchio allineato a destra
         if (priceList.brand_conditions) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Marchio:', currentX, conditionsY);
-          doc.setFont('helvetica', 'normal');
-          doc.text(priceList.brand_conditions, currentX + 25, conditionsY);
+          const marchioText = `Marchio: ${priceList.brand_conditions}`;
+          doc.text(marchioText, pageWidth - margin, conditionsY, { align: 'right' });
         }
         
         conditionsY += 15;
@@ -639,22 +639,49 @@ Team FARMAP`;
     return basePrice * (1 - discount / 100);
   };
 
-  const loadImageAsBase64 = (url: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx?.drawImage(img, 0, 0);
-        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-        resolve(dataURL);
-      };
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = url;
-    });
+  const loadImageAsBase64 = async (url: string): Promise<string> => {
+    try {
+      // Se è già un data URL, restituiscilo direttamente
+      if (url.startsWith('data:')) {
+        return url;
+      }
+
+      // Usa fetch per evitare problemi CORS con Supabase Storage
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          // Converti PNG a JPEG per compatibilità migliore con jsPDF
+          if (result.startsWith('data:image/png')) {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              ctx?.drawImage(img, 0, 0);
+              const dataURL = canvas.toDataURL('image/jpeg', 0.85);
+              resolve(dataURL);
+            };
+            img.onerror = () => reject(new Error('Failed to convert PNG to JPEG'));
+            img.src = result;
+          } else {
+            resolve(result);
+          }
+        };
+        reader.onerror = () => reject(new Error('Failed to read image blob'));
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Error loading image:', error);
+      throw error;
+    }
   };
 
 
@@ -865,7 +892,7 @@ Team FARMAP`;
                   priceList.delivery_conditions || priceList.brand_conditions) && (
                   <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                     <h3 className="text-sm font-bold text-orange-800 mb-2">CONDIZIONI DI VENDITA</h3>
-                    <div className="grid grid-cols-4 gap-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
                       {priceList.payment_conditions && (
                         <div>
                           <span className="font-bold text-gray-600">Pagamento:</span>
@@ -885,7 +912,7 @@ Team FARMAP`;
                         </div>
                       )}
                       {priceList.brand_conditions && (
-                        <div>
+                        <div className="ml-auto">
                           <span className="font-bold text-gray-600">Marchio:</span>
                           <span className="ml-1">{priceList.brand_conditions}</span>
                         </div>
