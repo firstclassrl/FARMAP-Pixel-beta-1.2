@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: pdf-generator-farmap
+    env: node
+    buildCommand: cd server/pdf-generator && npm install
+    startCommand: cd server/pdf-generator && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
