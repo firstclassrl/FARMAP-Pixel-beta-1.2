@@ -317,25 +317,22 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       
       // Spazio bianco per firma e timbro
 
-      // 6.5. NOTA CODICI (Card gialla con testo rosso - senza bordo)
+      // 6.5. NOTA CODICI (testo rosso su sfondo bianco - senza bordo e senza sfondo)
       const noteY = acceptanceY + 35;
-      const noteBoxHeight = 8; // Ridotto da 12 a 8
-      doc.setFillColor(255, 247, 237); // bg-yellow-50
-      doc.roundedRect(margin, noteY, contentWidth, noteBoxHeight, 2, 2, 'F');
-      // Bordo rimosso - solo riempimento
+      // Nessun box, solo testo rosso
       
       doc.setFontSize(7); // Ridotto da 9 a 7
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(220, 38, 38); // text-red-600
       const noteText = "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.";
-      doc.text(noteText, pageWidth / 2, noteY + 5, { align: 'center', maxWidth: contentWidth - 10 });
+      doc.text(noteText, pageWidth / 2, noteY + 4, { align: 'center', maxWidth: contentWidth - 10 });
 
       // 7. FOOTER (due colonne come HTML - dati FARMAP su una riga)
       doc.setTextColor(0, 0, 0); // Reset text color to black
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(107, 114, 128); // text-gray-500
-      let footerY = noteY + noteBoxHeight + 5;
+      let footerY = noteY + 8; // Spazio per il testo senza box
       
       // Linea separatrice
       doc.setDrawColor(209, 213, 219); // border-gray-300
@@ -619,26 +616,22 @@ Team FARMAP`;
       
       // Spazio bianco per firma e timbro
 
-      // 6.5. NOTA CODICI (Card gialla con testo rosso - più piccola)
+      // 6.5. NOTA CODICI (testo rosso su sfondo bianco - senza bordo e senza sfondo)
       const noteY = acceptanceY + 30;
-      doc.setFillColor(255, 247, 237); // bg-yellow-50
-      doc.setDrawColor(251, 191, 36); // border-yellow-200
-      doc.setLineWidth(0.5);
-      const noteBoxHeight = 8; // Ridotto da 12 a 8
-      doc.roundedRect(margin, noteY, contentWidth, noteBoxHeight, 2, 2, 'FD');
+      // Nessun box, solo testo rosso
       
       doc.setFontSize(7); // Ridotto da 9 a 7
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(220, 38, 38); // text-red-600
       const noteText = "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.";
-      doc.text(noteText, pageWidth / 2, noteY + 5, { align: 'center', maxWidth: contentWidth - 10 });
+      doc.text(noteText, pageWidth / 2, noteY + 4, { align: 'center', maxWidth: contentWidth - 10 });
 
       // 7. FOOTER (due colonne come HTML)
       doc.setTextColor(0, 0, 0); // Reset text color to black
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(107, 114, 128); // text-gray-500
-      let footerY = noteY + noteBoxHeight + 5;
+      let footerY = noteY + 8; // Spazio per il testo senza box
       
       // Linea separatrice
       doc.setDrawColor(209, 213, 219); // border-gray-300
@@ -983,7 +976,7 @@ Team FARMAP`;
                 </div>
 
                 {/* Nota Codici */}
-                <div className="mt-4 p-2 bg-yellow-50 rounded-lg">
+                <div className="mt-4 p-2">
                   <p className="text-xs font-medium text-red-600 text-center">
                     I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.
                   </p>
