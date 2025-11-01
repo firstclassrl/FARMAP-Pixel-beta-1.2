@@ -108,7 +108,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
   };
 
   const handleSendEmail = async () => {
-    if (!priceList || !priceList.customer?.email) {
+    if (!priceList || !priceList.customer?.email || !printContentRef.current) {
       addNotification({
         type: 'warning',
         title: 'Email non disponibile',
@@ -118,272 +118,52 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
     }
     
     try {
-      // Genera il PDF automaticamente in formato A4 orizzontale
-      const doc = new jsPDF('l', 'mm', 'a4');
-      const pageWidth = 297;
-      const margin = 15;
-      const contentWidth = pageWidth - (margin * 2);
-      let yPosition = margin;
-
-      // 1. LOGO E INTESTAZIONE (identico all'HTML)
-      try {
-        const logoImg = new Image();
-        logoImg.src = '/logo farmap industry copy.png';
-        await new Promise((resolve, reject) => {
-          logoImg.onload = resolve;
-          logoImg.onerror = reject;
-          if (logoImg.complete) resolve(null);
-        });
-        // Logo a sinistra, dimensione compatte (h-6 w-auto = circa 24mm)
-        doc.addImage(logoImg, 'PNG', margin, yPosition, 24, 9);
-        // Titolo centrato alla stessa altezza
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition + 6, { align: 'center' });
-        yPosition += 12;
-      } catch (logoError) {
-        console.warn('Logo non caricato, continuo senza logo');
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Listino ${priceList.customer?.company_name || 'Cliente'}`, pageWidth / 2, yPosition, { align: 'center' });
-        yPosition += 12;
-      }
-
-      // 2. DETTAGLI LISTINO (grid 2 colonne come HTML)
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Listino: ${priceList.name}`, margin, yPosition);
-      doc.text(`Data Creazione: ${new Date(priceList.created_at).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
-      yPosition += 8;
-
-      // 4. CARICA IMMAGINI E GENERA TABELLA
-      const tableData = await Promise.all(
-        priceList.price_list_items?.map(async (item) => {
-          const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
-          const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-          
-          let photoBase64 = '';
-          if (item.products?.photo_url && item.products.photo_url.trim() !== '') {
-            try {
-              photoBase64 = await loadImageAsBase64(item.products.photo_url);
-              if (!photoBase64 || !photoBase64.startsWith('data:image/')) {
-                console.warn('Foto non caricata correttamente per prodotto:', item.products.code);
-                photoBase64 = '';
-              }
-            } catch (error) {
-              console.warn('Errore nel caricamento foto per prodotto', item.products.code, ':', error);
-              photoBase64 = '';
-            }
-          }
-          
-          return {
-            photo: photoBase64,
-            data: [
-              '', // Placeholder per foto
-              item.products?.code || '',
-              item.products?.name || '',
-              `${item.min_quantity} ${item.products?.unit || ''}`,
-              item.products?.cartone || '-',
-              item.products?.pallet || '-',
-              item.products?.scadenza || '-',
-              item.products?.ean || '-',
-              `${vatRate}%`,
-              `€${finalPrice.toFixed(2)}`
-            ]
-          };
-        }) || []
-      );
-
-      // Genera la tabella con le immagini usando didDrawCell
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']],
-        body: tableData.map(item => item.data),
-        theme: 'grid',
-        headStyles: { 
-          fillColor: [220, 38, 38], 
-          textColor: [255, 255, 255],
-          fontSize: 8
-        },
-        bodyStyles: { 
-          fontSize: 7
-        },
-        columnStyles: {
-          0: { cellWidth: 20 }, // Foto
-          1: { cellWidth: 25 }, // Codice
-          2: { cellWidth: 80 }, // Prodotto
-          3: { cellWidth: 20 }, // MOQ
-          4: { cellWidth: 20 }, // Cartone
-          5: { cellWidth: 20 }, // Pedana
-          6: { cellWidth: 25 }, // Scadenza
-          7: { cellWidth: 30 }, // EAN
-          8: { cellWidth: 15 }, // IVA
-          9: { cellWidth: 25 }  // Prezzo Cliente
-        },
-        didDrawCell: (data: any) => {
-          // Aggiungi le immagini nella colonna Foto durante il disegno
-          if (data.column.index === 0 && data.row.index > 0) {
-            const tableIndex = data.row.index - 1;
-            const photoBase64 = tableData[tableIndex]?.photo;
-            
-            if (photoBase64 && photoBase64.trim() !== '' && photoBase64.startsWith('data:image/')) {
-              try {
-                // Salva lo stato corrente
-                const currentFillColor = (doc as any).internal.getCurrentFillColor();
-                const currentTextColor = (doc as any).internal.getCurrentTextColor();
-                
-                // Aggiungi l'immagine usando le coordinate della cella
-                // cell contiene: x, y, width, height
-                const imgX = data.cell.x + 1;
-                const imgY = data.cell.y + 1;
-                const imgWidth = 16;
-                const imgHeight = 16;
-                
-                doc.addImage(
-                  photoBase64, 
-                  'JPEG', 
-                  imgX, 
-                  imgY, 
-                  imgWidth, 
-                  imgHeight
-                );
-                
-                // Ripristina lo stato
-                doc.setTextColor(currentTextColor);
-                doc.setFillColor(currentFillColor);
-              } catch (error) {
-                console.error('Errore inserimento immagine riga', tableIndex, ':', error);
-              }
-            }
-          }
-        }
+      addNotification({
+        type: 'info',
+        title: 'Generazione PDF in corso',
+        message: 'Sto creando il PDF dall\'anteprima...'
       });
 
-      // 5. CONDIZIONI DI VENDITA
-      const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
-      let conditionsY = finalY + 5;
-      
-      // Aggiungi sezione condizioni di vendita se ci sono dati
-      if (priceList.payment_conditions || priceList.shipping_conditions || 
-          priceList.delivery_conditions || priceList.brand_conditions) {
-        
-        // Box arancione (bg-orange-50, border-orange-200) - altezza ridotta a 3 righe
-        doc.setFillColor(255, 247, 237); // bg-orange-50
-        doc.setDrawColor(251, 191, 36); // border-orange-200
-        doc.setLineWidth(0.5);
-        const boxHeight = 15; // Ridotto da 25 a 15 per 3 righe totali
-        doc.roundedRect(margin, conditionsY - 2, contentWidth, boxHeight, 2, 2, 'FD');
-        
-        // Titolo sezione
-        doc.setFontSize(8); // Ridotto da 10 a 8
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(154, 52, 18); // text-orange-800
-        doc.text('CONDIZIONI DI VENDITA', margin + 3, conditionsY + 2);
-        
-        // Condizioni allineate a sinistra, Marchio allineato a destra
-        doc.setFontSize(7); // Ridotto da 8 a 7
-        let currentX = margin + 3;
-        const lineY = conditionsY + 7; // Ridotto da 10 a 7
-        
-        if (priceList.payment_conditions) {
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(75, 85, 99); // text-gray-600
-          doc.text('Pagamento:', currentX, lineY);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(0, 0, 0);
-          const paymentTextWidth = doc.getTextWidth(priceList.payment_conditions);
-          doc.text(priceList.payment_conditions, currentX + 20, lineY);
-          currentX += 20 + paymentTextWidth + 12;
-        }
-        
-        if (priceList.shipping_conditions) {
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(75, 85, 99);
-          doc.text('Trasporto:', currentX, lineY);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(0, 0, 0);
-          const shippingTextWidth = doc.getTextWidth(priceList.shipping_conditions);
-          doc.text(priceList.shipping_conditions, currentX + 20, lineY);
-          currentX += 20 + shippingTextWidth + 12;
-        }
-        
-        if (priceList.delivery_conditions) {
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(75, 85, 99);
-          doc.text('Tempi di consegna:', currentX, lineY);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(0, 0, 0);
-          doc.text(priceList.delivery_conditions, currentX + 35, lineY);
-        }
-        
-        // Marchio allineato a destra
-        if (priceList.brand_conditions) {
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(75, 85, 99);
-          const marchioText = `Marchio: ${priceList.brand_conditions}`;
-          doc.text(marchioText, pageWidth - margin - 5, lineY, { align: 'right' });
-        }
-        
-        conditionsY += boxHeight + 5;
-      }
+      // Cattura l'anteprima HTML con html2canvas
+      const canvas = await html2canvas(printContentRef.current, {
+        scale: 2, // Alta qualità
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: printContentRef.current.scrollWidth,
+        height: printContentRef.current.scrollHeight,
+      });
 
-      // 6. CAMPO ACCETTAZIONE ORDINE
-      const acceptanceY = conditionsY + 10;
+      // Converti il canvas in immagine
+      const imgData = canvas.toDataURL('image/png', 1.0);
       
-      // Rettangolo per accettazione ordine
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5);
-      doc.rect(pageWidth - 60, acceptanceY, 50, 25);
+      // Crea il PDF in formato landscape A4
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 297mm per A4 landscape
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 210mm per A4 landscape
       
-      // Titolo del campo
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ACCETTAZIONE ORDINE', pageWidth - 55, acceptanceY + 5);
+      // Calcola le dimensioni per adattare l'immagine alla pagina
+      const mmPerPixel = 0.264583;
+      const imgWidthMM = canvas.width * mmPerPixel;
+      const imgHeightMM = canvas.height * mmPerPixel;
       
-      // Solo campo Data
-      doc.setLineWidth(0.3);
-      doc.line(pageWidth - 55, acceptanceY + 10, pageWidth - 15, acceptanceY + 10);
-      doc.text('Data', pageWidth - 50, acceptanceY + 15);
+      // Calcola il rapporto per adattare all'interno della pagina
+      const widthRatio = pdfWidth / imgWidthMM;
+      const heightRatio = pdfHeight / imgHeightMM;
+      const ratio = Math.min(widthRatio, heightRatio, 1);
       
-      // Spazio bianco per firma e timbro
-
-      // 6.5. NOTA CODICI (testo rosso su sfondo bianco - senza bordo e senza sfondo)
-      const noteY = acceptanceY + 35;
-      // Nessun box, solo testo rosso
+      const finalWidth = imgWidthMM * ratio;
+      const finalHeight = imgHeightMM * ratio;
       
-      doc.setFontSize(7); // Ridotto da 9 a 7
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(220, 38, 38); // text-red-600
-      const noteText = "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.";
-      doc.text(noteText, pageWidth / 2, noteY + 4, { align: 'center', maxWidth: contentWidth - 10 });
-
-      // 7. FOOTER (due colonne come HTML - dati FARMAP su una riga)
-      doc.setTextColor(0, 0, 0); // Reset text color to black
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(107, 114, 128); // text-gray-500
-      let footerY = noteY + 8; // Spazio per il testo senza box
+      // Centra l'immagine
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = (pdfHeight - finalHeight) / 2;
       
-      // Linea separatrice
-      doc.setDrawColor(209, 213, 219); // border-gray-300
-      doc.setLineWidth(0.3);
-      doc.line(margin, footerY, pageWidth - margin, footerY);
+      // Aggiungi l'immagine al PDF
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       
-      footerY += 5;
-      
-      // Colonna sinistra - tutto su una riga
-      doc.text('FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE) - P.IVA: 02244470684 - Tel: +39 085 9774028', margin, footerY);
-      
-      // Colonna destra
-      if (priceList.valid_from) {
-        doc.text(`Listino valido dal ${new Date(priceList.valid_from).toLocaleDateString('it-IT')}`, pageWidth - margin, footerY, { align: 'right' });
-      }
-      if (priceList.valid_until) {
-        doc.text(`fino al ${new Date(priceList.valid_until).toLocaleDateString('it-IT')}`, pageWidth - margin, footerY + 4, { align: 'right' });
-      }
-
       // Salva il PDF temporaneamente
-      const pdfBlob = doc.output('blob');
+      const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       
       // Crea un link temporaneo per scaricare il PDF (con cliente e data odierna)
@@ -467,15 +247,22 @@ Team FARMAP`;
       
       // Crea il PDF in formato landscape A4
       const pdf = new jsPDF('l', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 297mm per A4 landscape
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 210mm per A4 landscape
       
       // Calcola le dimensioni per adattare l'immagine alla pagina
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const finalWidth = imgWidth * ratio;
-      const finalHeight = imgHeight * ratio;
+      // Converti pixel in mm (1 pixel = 0.264583 mm con scale 2)
+      const mmPerPixel = 0.264583;
+      const imgWidthMM = canvas.width * mmPerPixel;
+      const imgHeightMM = canvas.height * mmPerPixel;
+      
+      // Calcola il rapporto per adattare all'interno della pagina
+      const widthRatio = pdfWidth / imgWidthMM;
+      const heightRatio = pdfHeight / imgHeightMM;
+      const ratio = Math.min(widthRatio, heightRatio, 1); // Non ingrandire oltre 1x
+      
+      const finalWidth = imgWidthMM * ratio;
+      const finalHeight = imgHeightMM * ratio;
       
       // Centra l'immagine
       const xOffset = (pdfWidth - finalWidth) / 2;
