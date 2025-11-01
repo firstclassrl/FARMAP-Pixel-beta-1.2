@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Mail, Download } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
@@ -13,6 +13,7 @@ import { useNotifications } from '../store/useStore';
 import type { Database } from '../types/database.types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
 type PriceListItem = Database['public']['Tables']['price_list_items']['Row'];
@@ -56,6 +57,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
   const [priceList, setPriceList] = useState<PriceListWithItems | null>(null);
   const [loading, setLoading] = useState(false);
   const { addNotification } = useNotifications();
+  const printContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen && priceListId) {
@@ -441,6 +443,70 @@ Team FARMAP`;
   };
 
   const handleDownloadPDF = async () => {
+    if (!priceList || !printContentRef.current) return;
+
+    try {
+      addNotification({
+        type: 'info',
+        title: 'Generazione PDF in corso',
+        message: 'Sto creando il PDF dall\'anteprima...'
+      });
+
+      // Cattura l'anteprima HTML con html2canvas
+      const canvas = await html2canvas(printContentRef.current, {
+        scale: 2, // Alta qualità
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: printContentRef.current.scrollWidth,
+        height: printContentRef.current.scrollHeight,
+      });
+
+      // Converti il canvas in immagine
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      
+      // Crea il PDF in formato landscape A4
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // Calcola le dimensioni per adattare l'immagine alla pagina
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const finalWidth = imgWidth * ratio;
+      const finalHeight = imgHeight * ratio;
+      
+      // Centra l'immagine
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = (pdfHeight - finalHeight) / 2;
+      
+      // Aggiungi l'immagine al PDF
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+      
+      // Salva il file con cliente e data odierna
+      const today = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
+      const customerName = priceList.customer?.company_name || 'Cliente';
+      const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`;
+      pdf.save(fileName);
+
+      addNotification({
+        type: 'success',
+        title: 'PDF Generato',
+        message: 'Il listino è stato scaricato come PDF'
+      });
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Errore nella generazione del PDF'
+      });
+    }
+  };
+
+  const handleDownloadPDF_OLD = async () => {
     if (!priceList) return;
 
     try {
@@ -904,7 +970,7 @@ Team FARMAP`;
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : priceList ? (
-            <div className="print-content">
+            <div className="print-content" ref={printContentRef}>
               <div className="print-page bg-white p-6 mx-auto print-visible" style={{ width: '297mm', minHeight: '210mm' }}>
                 {/* Header Compatto */}
                 <div className="print-header text-center mb-2">
