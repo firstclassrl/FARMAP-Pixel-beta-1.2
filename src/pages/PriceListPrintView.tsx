@@ -882,6 +882,13 @@ Team FARMAP`;
                   </div>
                 </div>
 
+                {/* Nota Codici */}
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm font-medium text-red-600 text-center">
+                    I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.
+                  </p>
+                </div>
+
                 {/* Footer */}
                 <div className="mt-2 pt-2 border-t border-gray-300 text-xs text-gray-500">
                   <div className="flex justify-between">
