@@ -237,52 +237,64 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       if (priceList.payment_conditions || priceList.shipping_conditions || 
           priceList.delivery_conditions || priceList.brand_conditions) {
         
+        // Box arancione (bg-orange-50, border-orange-200)
+        doc.setFillColor(255, 247, 237); // bg-orange-50
+        doc.setDrawColor(251, 191, 36); // border-orange-200
+        doc.setLineWidth(0.5);
+        const boxHeight = 25;
+        doc.roundedRect(margin, conditionsY - 5, contentWidth, boxHeight, 2, 2, 'FD');
+        
         // Titolo sezione
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
-        conditionsY += 8;
+        doc.setTextColor(154, 52, 18); // text-orange-800
+        doc.text('CONDIZIONI DI VENDITA', margin + 5, conditionsY + 3);
         
         // Condizioni allineate a sinistra, Marchio allineato a destra
-        let currentX = margin;
+        doc.setFontSize(8);
+        let currentX = margin + 5;
+        const lineY = conditionsY + 10;
         
         if (priceList.payment_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', currentX, conditionsY);
+          doc.setTextColor(75, 85, 99); // text-gray-600
+          doc.text('Pagamento:', currentX, lineY);
           doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
           const paymentTextWidth = doc.getTextWidth(priceList.payment_conditions);
-          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
-          currentX += 25 + paymentTextWidth + 15;
+          doc.text(priceList.payment_conditions, currentX + 20, lineY);
+          currentX += 20 + paymentTextWidth + 12;
         }
         
         if (priceList.shipping_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', currentX, conditionsY);
+          doc.setTextColor(75, 85, 99);
+          doc.text('Trasporto:', currentX, lineY);
           doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
           const shippingTextWidth = doc.getTextWidth(priceList.shipping_conditions);
-          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
-          currentX += 25 + shippingTextWidth + 15;
+          doc.text(priceList.shipping_conditions, currentX + 20, lineY);
+          currentX += 20 + shippingTextWidth + 12;
         }
         
         if (priceList.delivery_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', currentX, conditionsY);
+          doc.setTextColor(75, 85, 99);
+          doc.text('Tempi di consegna:', currentX, lineY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
+          doc.setTextColor(0, 0, 0);
+          doc.text(priceList.delivery_conditions, currentX + 35, lineY);
         }
         
         // Marchio allineato a destra
         if (priceList.brand_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
+          doc.setTextColor(75, 85, 99);
           const marchioText = `Marchio: ${priceList.brand_conditions}`;
-          doc.text(marchioText, pageWidth - margin, conditionsY, { align: 'right' });
+          doc.text(marchioText, pageWidth - margin - 5, lineY, { align: 'right' });
         }
         
-        conditionsY += 15;
+        conditionsY += boxHeight + 5;
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
@@ -318,16 +330,31 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       const noteText = "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.";
       doc.text(noteText, pageWidth / 2, noteY + 8, { align: 'center', maxWidth: contentWidth - 10 });
 
-      // 7. FOOTER
+      // 7. FOOTER (due colonne come HTML)
       doc.setTextColor(0, 0, 0); // Reset text color to black
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text(
-        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
-        pageWidth - margin,
-        noteY + 25,
-        { align: 'right' }
-      );
+      doc.setTextColor(107, 114, 128); // text-gray-500
+      let footerY = noteY + 12 + 5;
+      
+      // Linea separatrice
+      doc.setDrawColor(209, 213, 219); // border-gray-300
+      doc.setLineWidth(0.3);
+      doc.line(margin, footerY, pageWidth - margin, footerY);
+      
+      footerY += 5;
+      
+      // Colonna sinistra
+      doc.text('FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)', margin, footerY);
+      doc.text('P.IVA: 02244470684 - Tel: +39 085 9774028', margin, footerY + 4);
+      
+      // Colonna destra
+      if (priceList.valid_from) {
+        doc.text(`Listino valido dal ${new Date(priceList.valid_from).toLocaleDateString('it-IT')}`, pageWidth - margin, footerY, { align: 'right' });
+      }
+      if (priceList.valid_until) {
+        doc.text(`fino al ${new Date(priceList.valid_until).toLocaleDateString('it-IT')}`, pageWidth - margin, footerY + 4, { align: 'right' });
+      }
 
       // Salva il PDF temporaneamente
       const pdfBlob = doc.output('blob');
@@ -513,52 +540,64 @@ Team FARMAP`;
       if (priceList.payment_conditions || priceList.shipping_conditions || 
           priceList.delivery_conditions || priceList.brand_conditions) {
         
+        // Box arancione (bg-orange-50, border-orange-200)
+        doc.setFillColor(255, 247, 237); // bg-orange-50
+        doc.setDrawColor(251, 191, 36); // border-orange-200
+        doc.setLineWidth(0.5);
+        const boxHeight = 25;
+        doc.roundedRect(margin, conditionsY - 5, contentWidth, boxHeight, 2, 2, 'FD');
+        
         // Titolo sezione
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text('CONDIZIONI DI VENDITA', margin, conditionsY);
-        conditionsY += 8;
+        doc.setTextColor(154, 52, 18); // text-orange-800
+        doc.text('CONDIZIONI DI VENDITA', margin + 5, conditionsY + 3);
         
         // Condizioni allineate a sinistra, Marchio allineato a destra
-        let currentX = margin;
+        doc.setFontSize(8);
+        let currentX = margin + 5;
+        const lineY = conditionsY + 10;
         
         if (priceList.payment_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Pagamento:', currentX, conditionsY);
+          doc.setTextColor(75, 85, 99); // text-gray-600
+          doc.text('Pagamento:', currentX, lineY);
           doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
           const paymentTextWidth = doc.getTextWidth(priceList.payment_conditions);
-          doc.text(priceList.payment_conditions, currentX + 25, conditionsY);
-          currentX += 25 + paymentTextWidth + 15;
+          doc.text(priceList.payment_conditions, currentX + 20, lineY);
+          currentX += 20 + paymentTextWidth + 12;
         }
         
         if (priceList.shipping_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Trasporto:', currentX, conditionsY);
+          doc.setTextColor(75, 85, 99);
+          doc.text('Trasporto:', currentX, lineY);
           doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
           const shippingTextWidth = doc.getTextWidth(priceList.shipping_conditions);
-          doc.text(priceList.shipping_conditions, currentX + 25, conditionsY);
-          currentX += 25 + shippingTextWidth + 15;
+          doc.text(priceList.shipping_conditions, currentX + 20, lineY);
+          currentX += 20 + shippingTextWidth + 12;
         }
         
         if (priceList.delivery_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.text('Tempi di consegna:', currentX, conditionsY);
+          doc.setTextColor(75, 85, 99);
+          doc.text('Tempi di consegna:', currentX, lineY);
           doc.setFont('helvetica', 'normal');
-          doc.text(priceList.delivery_conditions, currentX + 40, conditionsY);
+          doc.setTextColor(0, 0, 0);
+          doc.text(priceList.delivery_conditions, currentX + 35, lineY);
         }
         
         // Marchio allineato a destra
         if (priceList.brand_conditions) {
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
+          doc.setTextColor(75, 85, 99);
           const marchioText = `Marchio: ${priceList.brand_conditions}`;
-          doc.text(marchioText, pageWidth - margin, conditionsY, { align: 'right' });
+          doc.text(marchioText, pageWidth - margin - 5, lineY, { align: 'right' });
         }
         
-        conditionsY += 15;
+        conditionsY += boxHeight + 5;
       }
 
       // 6. CAMPO ACCETTAZIONE ORDINE
