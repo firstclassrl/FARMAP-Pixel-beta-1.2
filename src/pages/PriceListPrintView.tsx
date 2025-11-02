@@ -232,8 +232,10 @@ Team FARMAP`;
       const cleanBackendUrl = backendUrl.replace(/\/$/, '');
       const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
       
-      console.log('🔵 PDF Generation - Using backend:', cleanBackendUrl);
+      console.log('🔵 PDF Generation - Raw backendUrl:', backendUrl);
+      console.log('🔵 PDF Generation - Clean backendUrl:', cleanBackendUrl);
       console.log('🔵 PDF Generation - Env var exists:', !!import.meta.env.VITE_PDF_GENERATOR_URL);
+      console.log('🔵 PDF Generation - Env var value:', import.meta.env.VITE_PDF_GENERATOR_URL || 'NOT SET');
       console.log('🔵 PDF Generation - Price list items:', priceList.price_list_items?.length);
       console.log('🔵 PDF Generation - Full endpoint:', endpoint);
       const response = await fetch(endpoint, {
