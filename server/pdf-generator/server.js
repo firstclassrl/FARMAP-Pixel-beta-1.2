@@ -42,7 +42,7 @@ const generateHTML = (priceList) => {
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
           <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block;" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" crossOrigin="anonymous" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block;" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
