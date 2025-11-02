@@ -453,18 +453,32 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         const images = document.querySelectorAll('img.product-image');
         
         for (const img of images) {
-          // Attendi che l'immagine sia caricata
-          if (!img.complete || img.naturalWidth === 0) {
+          // Imposta crossOrigin per evitare "tainted canvas" error
+          if (img.src && !img.src.startsWith('data:')) {
+            img.crossOrigin = 'anonymous';
+            
+            // Ricarica l'immagine con crossOrigin
+            const originalSrc = img.src;
+            img.src = '';
+            await new Promise(resolve => setTimeout(resolve, 100));
+            img.src = originalSrc;
+            
+            // Attendi che l'immagine sia ricaricata con crossOrigin
             await new Promise((resolve) => {
               const timeout = setTimeout(() => resolve(), 5000);
-              img.onload = () => {
+              if (img.complete && img.naturalWidth > 0) {
                 clearTimeout(timeout);
                 resolve();
-              };
-              img.onerror = () => {
-                clearTimeout(timeout);
-                resolve();
-              };
+              } else {
+                img.onload = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+                img.onerror = () => {
+                  clearTimeout(timeout);
+                  resolve(); // Continua anche in caso di errore
+                };
+              }
             });
           }
           
@@ -474,40 +488,45 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           const originalHeight = img.naturalHeight || img.height;
           
           if (originalWidth > maxSize || originalHeight > maxSize) {
-            // Calcola nuove dimensioni mantenendo aspect ratio
-            const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight);
-            const newWidth = Math.round(originalWidth * ratio);
-            const newHeight = Math.round(originalHeight * ratio);
-            
-            // Crea canvas e ridimensiona
-            const canvas = document.createElement('canvas');
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-            const ctx = canvas.getContext('2d');
-            
-            // Disegna immagine ridimensionata
-            ctx.drawImage(img, 0, 0, newWidth, newHeight);
-            
-            // Converti in data URL (JPEG compresso)
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            
-            // Sostituisci src con immagine ridimensionata
-            img.src = dataUrl;
-            img.style.width = newWidth + 'px';
-            img.style.height = newHeight + 'px';
-            img.style.maxWidth = maxSize + 'px';
-            img.style.maxHeight = maxSize + 'px';
-            
-            // Attendi che la nuova immagine sia caricata
-            await new Promise((resolve) => {
-              if (img.complete) {
-                resolve();
-              } else {
-                img.onload = () => resolve();
-                img.onerror = () => resolve();
-                setTimeout(() => resolve(), 2000);
-              }
-            });
+            try {
+              // Calcola nuove dimensioni mantenendo aspect ratio
+              const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight);
+              const newWidth = Math.round(originalWidth * ratio);
+              const newHeight = Math.round(originalHeight * ratio);
+              
+              // Crea canvas e ridimensiona
+              const canvas = document.createElement('canvas');
+              canvas.width = newWidth;
+              canvas.height = newHeight;
+              const ctx = canvas.getContext('2d');
+              
+              // Disegna immagine ridimensionata
+              ctx.drawImage(img, 0, 0, newWidth, newHeight);
+              
+              // Converti in data URL (JPEG compresso)
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+              
+              // Sostituisci src con immagine ridimensionata
+              img.src = dataUrl;
+              img.style.width = newWidth + 'px';
+              img.style.height = newHeight + 'px';
+              img.style.maxWidth = maxSize + 'px';
+              img.style.maxHeight = maxSize + 'px';
+              
+              // Attendi che la nuova immagine sia caricata
+              await new Promise((resolve) => {
+                if (img.complete) {
+                  resolve();
+                } else {
+                  img.onload = () => resolve();
+                  img.onerror = () => resolve();
+                  setTimeout(() => resolve(), 2000);
+                }
+              });
+            } catch (error) {
+              console.warn('Error resizing image:', error.message);
+              // Continua anche se il resize fallisce
+            }
           }
         }
       });
