@@ -78,6 +78,7 @@ export const ProductsPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [codePrefix, setCodePrefix] = useState('');
   const [showProductFormModal, setShowProductFormModal] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
@@ -436,18 +437,24 @@ export const ProductsPage = () => {
     }
   };
 
-  // Filter products based on search term (prefisso codice prodotto - solo lettere) and filters
+  // Filter products based on search term, code prefix and filters
   const filteredProducts = products.filter(product => {
-    // Filtra per prefisso codice prodotto (solo lettere ammesse)
-    const codePrefix = searchTerm.replace(/[^a-zA-Z]/g, '').toUpperCase();
-    const matchesSearch = !codePrefix || product.code.toUpperCase().startsWith(codePrefix);
+    // Filtra per prefisso codice prodotto (solo lettere ammesse, max 2 caratteri)
+    const prefix = codePrefix.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 2);
+    const matchesPrefix = !prefix || product.code.toUpperCase().startsWith(prefix);
+    
+    // Filtra per ricerca generale (nome, codice, descrizione, categoria)
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
     const matchesCustomer = filterCustomer === 'all' || product.customer_id === filterCustomer;
     const hasPhoto = Boolean(product.photo_url && String(product.photo_url).trim() !== '');
     const matchesPhoto = filterPhoto === 'all' || (filterPhoto === 'with' && hasPhoto) || (filterPhoto === 'without' && !hasPhoto);
     
-    return matchesSearch && matchesCategory && matchesCustomer && matchesPhoto;
+    return matchesPrefix && matchesSearch && matchesCategory && matchesCustomer && matchesPhoto;
   });
 
   const handleExportExcel = async () => {
@@ -624,17 +631,28 @@ export const ProductsPage = () => {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col lg:flex-row gap-4">
+            {/* Prefisso codice - campo piccolo */}
+            <div className="w-20">
+              <Input
+                placeholder="AA"
+                value={codePrefix}
+                onChange={(e) => {
+                  // Accetta solo lettere, max 2 caratteri
+                  const lettersOnly = e.target.value.replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase();
+                  setCodePrefix(lettersOnly);
+                }}
+                className="text-center font-mono text-sm"
+                maxLength={2}
+              />
+            </div>
+            {/* Barra di ricerca - campo grande */}
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Prefisso codice prodotto (solo lettere)..."
+                  placeholder="Cerca per nome, codice, descrizione o categoria..."
                   value={searchTerm}
-                  onChange={(e) => {
-                    // Accetta solo lettere (rimuove automaticamente numeri e caratteri speciali)
-                    const lettersOnly = e.target.value.replace(/[^a-zA-Z]/g, '');
-                    setSearchTerm(lettersOnly);
-                  }}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
