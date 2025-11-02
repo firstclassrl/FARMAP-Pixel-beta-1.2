@@ -445,36 +445,92 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       console.log(JSON.stringify(renderingCheck, null, 2));
       console.log('🔵 ====== END Rendering check ======');
 
-      // CRITICO: Puppeteer potrebbe rasterizzare se trova elementi problematici
-      // Verifica e rimuovi qualsiasi elemento che potrebbe causare rasterizzazione
-      console.log('🔵 Preparing page for vector PDF generation...');
+      // CRITICO: Riduci le dimensioni delle immagini prima del PDF
+      // Le immagini originali sono troppo grandi (1384x3344) e Puppeteer le embedda a risoluzione completa
+      console.log('🔵 Resizing images before PDF generation...');
       
+      await page.evaluate(async () => {
+        const images = document.querySelectorAll('img.product-image');
+        
+        for (const img of images) {
+          // Attendi che l'immagine sia caricata
+          if (!img.complete || img.naturalWidth === 0) {
+            await new Promise((resolve) => {
+              const timeout = setTimeout(() => resolve(), 5000);
+              img.onload = () => {
+                clearTimeout(timeout);
+                resolve();
+              };
+              img.onerror = () => {
+                clearTimeout(timeout);
+                resolve();
+              };
+            });
+          }
+          
+          // Dimensione massima per thumbnail nel PDF (64px)
+          const maxSize = 64;
+          const originalWidth = img.naturalWidth || img.width;
+          const originalHeight = img.naturalHeight || img.height;
+          
+          if (originalWidth > maxSize || originalHeight > maxSize) {
+            // Calcola nuove dimensioni mantenendo aspect ratio
+            const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight);
+            const newWidth = Math.round(originalWidth * ratio);
+            const newHeight = Math.round(originalHeight * ratio);
+            
+            // Crea canvas e ridimensiona
+            const canvas = document.createElement('canvas');
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Disegna immagine ridimensionata
+            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+            
+            // Converti in data URL (JPEG compresso)
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Sostituisci src con immagine ridimensionata
+            img.src = dataUrl;
+            img.style.width = newWidth + 'px';
+            img.style.height = newHeight + 'px';
+            img.style.maxWidth = maxSize + 'px';
+            img.style.maxHeight = maxSize + 'px';
+            
+            // Attendi che la nuova immagine sia caricata
+            await new Promise((resolve) => {
+              if (img.complete) {
+                resolve();
+              } else {
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+                setTimeout(() => resolve(), 2000);
+              }
+            });
+          }
+        }
+      });
+      
+      console.log('🔵 Images resized successfully');
+      
+      // Rimuovi qualsiasi elemento che potrebbe causare rasterizzazione
       await page.evaluate(() => {
         // Rimuovi qualsiasi canvas (causano rasterizzazione)
         const canvases = document.querySelectorAll('canvas');
         canvases.forEach(canvas => canvas.remove());
         
-        // Forza stili semplici per evitare rasterizzazione
+        // Forza stili semplici
         document.body.style.transform = 'none';
         document.body.style.willChange = 'auto';
-        document.body.style.backfaceVisibility = 'visible';
         
-        // Rimuovi filtri e effetti che causano rasterizzazione
+        // Rimuovi filtri
         const allElements = document.querySelectorAll('*');
         allElements.forEach(el => {
           const style = window.getComputedStyle(el);
-          if (style.filter !== 'none' || style.backdropFilter !== 'none') {
+          if (style.filter !== 'none') {
             el.style.filter = 'none';
-            el.style.backdropFilter = 'none';
           }
-        });
-        
-        // Assicurati che le immagini siano semplici
-        const images = document.querySelectorAll('img');
-        images.forEach(img => {
-          img.style.transform = 'none';
-          img.style.imageRendering = 'auto';
-          img.style.objectFit = 'contain';
         });
       });
       
