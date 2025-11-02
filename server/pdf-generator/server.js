@@ -375,7 +375,17 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     
       // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
       console.log('🔵 Starting image optimization...');
-      const optimizationResult = await page.evaluate(async () => {
+      
+      // Prima verifica quante immagini ci sono
+      const imageCount = await page.evaluate(() => {
+        return document.querySelectorAll('img.product-image').length;
+      });
+      console.log('🔵 Found images before optimization:', imageCount);
+      
+      if (imageCount === 0) {
+        console.log('⚠️ No images found to optimize, skipping...');
+      } else {
+        const optimizationResult = await page.evaluate(async () => {
         const images = document.querySelectorAll('img.product-image');
         console.log('🔵 Found images to optimize:', images.length);
         
@@ -402,7 +412,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
               });
             }
             
-            const maxSize = 64; // pixel massimi
+            const maxSize = 32; // pixel massimi (ridotto ulteriormente per file più piccoli)
             const originalWidth = img.naturalWidth;
             const originalHeight = img.naturalHeight;
             
@@ -429,15 +439,15 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
             // Disegna immagine ridimensionata
             ctx.drawImage(img, 0, 0, width, height);
             
-            // Converti in JPEG compresso (qualità 0.4 per file molto più piccoli)
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
+            // Converti in JPEG compresso (qualità 0.2 per file molto più piccoli)
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.2);
             
             // Sostituisci l'immagine con quella compressa
             img.src = compressedDataUrl;
             img.style.width = width + 'px';
             img.style.height = height + 'px';
-            img.style.maxWidth = '64px';
-            img.style.maxHeight = '64px';
+            img.style.maxWidth = '32px';
+            img.style.maxHeight = '32px';
             
             const originalSize = img.getAttribute('data-original-src')?.length || 0;
             const compressedSize = compressedDataUrl.length;
@@ -454,10 +464,17 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           }
         }
         
-        return results;
-      });
-      
-      console.log('🔵 Image optimization completed:', optimizationResult);
+          return results;
+        });
+        
+        console.log('🔵 Image optimization completed:', optimizationResult);
+        
+        // Log della compressione totale
+        const totalOriginal = optimizationResult.reduce((sum, r) => sum + (r.originalSize || 0), 0);
+        const totalCompressed = optimizationResult.reduce((sum, r) => sum + (r.compressedSize || 0), 0);
+        const compressionRatio = totalOriginal > 0 ? ((totalOriginal - totalCompressed) / totalOriginal * 100).toFixed(1) : 0;
+        console.log(`🔵 Compression: ${totalOriginal} → ${totalCompressed} bytes (${compressionRatio}% reduction)`);
+      }
       
       // Attendi che le immagini ottimizzate siano completamente caricate e renderizzate
       // waitForTimeout è deprecato in Puppeteer 24+, usiamo Promise setTimeout
@@ -474,7 +491,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       });
       console.log('🔵 Image check after optimization:', imageCheck);
 
-      // Generate PDF con compressione
+      // Generate PDF con compressione massima
       console.log('🔵 Generating PDF...');
       const pdf = await page.pdf({
         format: 'A4',
@@ -487,9 +504,9 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           bottom: '10mm',
           left: '10mm'
         },
-        // Opzioni per ridurre dimensione file
         displayHeaderFooter: false,
-        // Puppeteer usa compressione di default, ma possiamo forzarla
+        // Opzioni per ridurre dimensione file
+        compress: true
       });
 
       const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
