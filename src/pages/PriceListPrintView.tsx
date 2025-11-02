@@ -120,10 +120,12 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       } as any);
 
       // Get backend URL from environment variable or use default
-      const backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'http://localhost:3001';
+      const backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
+      const cleanBackendUrl = backendUrl.replace(/\/$/, '');
+      const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
       
       // Call backend to generate PDF
-      const response = await fetch(`${backendUrl}/api/generate-price-list-pdf`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
