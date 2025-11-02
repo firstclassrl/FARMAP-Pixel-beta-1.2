@@ -336,8 +336,9 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     });
     
     // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
-    await page.evaluate(() => {
+    const optimizationResult = await page.evaluate(() => {
       const images = document.querySelectorAll('img.product-image');
+      console.log('🔵 Found images to optimize:', images.length);
       return Promise.all(Array.from(images).map(async (img) => {
         try {
           // Attendi che l'immagine originale sia caricata
@@ -370,20 +371,26 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           
           // Converti in JPEG compresso (qualità 0.5 per file molto più piccoli)
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
+          const originalSize = img.src.length;
+          const compressedSize = compressedDataUrl.length;
+          console.log(`🔵 Image optimized: ${originalSize} -> ${compressedSize} bytes (${((1 - compressedSize/originalSize) * 100).toFixed(1)}% reduction)`);
           img.src = compressedDataUrl;
           
-          return true;
+          return { optimized: true, originalSize, compressedSize };
         } catch (error) {
           console.error('Error optimizing image:', error);
-          return false;
+          return { optimized: false, error: error.message };
         }
       }));
     });
+    
+    console.log('🔵 Image optimization result:', optimizationResult);
     
     // Attendi che le immagini ottimizzate siano caricate
     await page.waitForTimeout(1000);
 
     // Generate PDF con compressione
+    console.log('🔵 Generating PDF...');
     const pdf = await page.pdf({
       format: 'A4',
       landscape: true,
@@ -400,6 +407,9 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       // Puppeteer usa compressione di default, ma possiamo forzarla
     });
 
+    const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
+    console.log('🔵 PDF generated - Size:', pdfSizeMB, 'MB');
+    
     await browser.close();
 
     // Send PDF as response
