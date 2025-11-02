@@ -152,7 +152,6 @@ const generateHTML = (priceList) => {
     
     .print-page {
       width: 277mm; /* 297mm - 20mm (margini) */
-      min-height: 190mm; /* 210mm - 20mm (margini) */
       background: white;
       padding: 24px;
       margin: 0;
@@ -262,7 +261,10 @@ const generateHTML = (priceList) => {
     <!-- Header -->
     <div class="print-header">
       <div class="header-content">
-        <span style="font-size: 24px; font-weight: bold; color: #dc2626; margin-right: 8px;">FARMAP</span>
+        ${LOGO_BASE64 ? 
+          `<img src="data:image/png;base64,${LOGO_BASE64}" alt="Farmap Logo" style="height: 24px; width: auto; margin-right: 8px;" />` :
+          `<span style="font-size: 24px; font-weight: bold; color: #dc2626; margin-right: 8px;">FARMAP</span>`
+        }
         <h1>Listino ${priceList.customer?.company_name || 'Cliente'}</h1>
       </div>
     </div>
@@ -522,12 +524,35 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       console.log('🔵 Generating PDF (forcing vector rendering)...');
       
       // Genera PDF con opzioni minime - NO printBackground, NO scale
-      // tagPages: false evita pagine extra
+      // Rimuovi altezza minima e forza contenuto in una sola pagina
+      await page.evaluate(() => {
+        const printPage = document.querySelector('.print-page');
+        if (printPage) {
+          printPage.style.minHeight = 'auto';
+          printPage.style.height = 'auto';
+          printPage.style.maxHeight = '190mm'; // 210mm - 20mm margini
+          printPage.style.pageBreakAfter = 'avoid';
+          printPage.style.overflow = 'hidden';
+        }
+        
+        // Rimuovi eventuali elementi che causano page-break
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+          const style = window.getComputedStyle(el);
+          if (style.pageBreakAfter === 'always' || style.pageBreakAfter === 'page') {
+            el.style.pageBreakAfter = 'avoid';
+          }
+        });
+      });
+      
+      // Aspetta un attimo per assicurarsi che gli stili siano applicati
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const pdf = await page.pdf({
         format: 'A4',
         landscape: true,
         printBackground: false, // CRITICO: false evita rasterizzazione sfondi
-        preferCSSPageSize: false,
+        preferCSSPageSize: true, // Usa le dimensioni CSS invece di forzare A4
         margin: {
           top: '10mm',
           right: '10mm',
@@ -535,8 +560,8 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           left: '10mm'
         },
         displayHeaderFooter: false,
-        tagPages: false, // Evita pagine extra vuote
-        // NON usare: scale, tagged, outline, omitBackground
+        pageRanges: '1', // Forza solo la prima pagina
+        // NON usare: scale, tagged, outline, omitBackground, tagPages
       });
       
       console.log('🔵 PDF generated - raw size:', pdf.length, 'bytes');
