@@ -35,9 +35,9 @@ const generateHTML = (priceList) => {
     return `
       <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-          <div style="width: 64px; height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto;">
+          <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" style="width: 100%; height: 100%; object-fit: contain; max-height: 64px;" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block;" loading="lazy" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
@@ -335,17 +335,56 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       timeout: 30000 
     });
 
-    // Generate PDF
+    // Ottimizza le immagini: ridimensiona e comprimi prima di generare PDF
+    await page.evaluate(() => {
+      const images = document.querySelectorAll('img');
+      images.forEach(img => {
+        // Imposta dimensioni massime e mantieni aspect ratio
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          const maxHeight = 64; // pixel
+          const aspectRatio = img.naturalWidth / img.naturalHeight;
+          let newWidth = img.naturalWidth;
+          let newHeight = img.naturalHeight;
+          
+          if (img.naturalHeight > maxHeight) {
+            newHeight = maxHeight;
+            newWidth = maxHeight * aspectRatio;
+          }
+          
+          // Crea canvas per ridimensionare e comprimere
+          const canvas = document.createElement('canvas');
+          canvas.width = newWidth;
+          canvas.height = newHeight;
+          const ctx = canvas.getContext('2d');
+          
+          // Disegna immagine ridimensionata
+          ctx.drawImage(img, 0, 0, newWidth, newHeight);
+          
+          // Converti in base64 JPEG compresso (qualità 0.7 per bilanciare qualità/dimensione)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          img.src = compressedDataUrl;
+        }
+      });
+    });
+
+    // Attendi che le immagini ottimizzate siano caricate
+    await page.waitForTimeout(1000);
+
+    // Generate PDF con compressione
     const pdf = await page.pdf({
       format: 'A4',
       landscape: true,
       printBackground: true,
+      preferCSSPageSize: false,
       margin: {
         top: '10mm',
         right: '10mm',
         bottom: '10mm',
         left: '10mm'
-      }
+      },
+      // Opzioni per ridurre dimensione file
+      displayHeaderFooter: false,
+      // Puppeteer usa compressione di default, ma possiamo forzarla
     });
 
     await browser.close();
