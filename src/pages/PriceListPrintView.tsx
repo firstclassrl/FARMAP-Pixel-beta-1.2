@@ -263,10 +263,14 @@ Team FARMAP`;
           status: response.status,
           statusText: response.statusText,
           error: errorData,
-          errorText: errorText
+          errorText: errorText,
+          fullError: JSON.stringify(errorData, null, 2)
         });
+        
+        // Mostra il messaggio completo all'utente
         const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
-        throw new Error(errorMessage);
+        const fullErrorMessage = errorData.stack ? `${errorMessage}\n\n${errorData.stack}` : errorMessage;
+        throw new Error(fullErrorMessage);
       }
 
       // Get PDF blob

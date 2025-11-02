@@ -352,8 +352,13 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           '--no-sandbox', 
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu'
-        ]
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--disable-extensions',
+          '--single-process',
+          '--no-zygote'
+        ],
+        timeout: 60000
       });
       console.log('🔵 Puppeteer launched successfully');
 
@@ -523,7 +528,9 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     res.status(500).json({ 
       error: 'Error generating PDF', 
       message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: error.stack,
+      name: error.name,
+      code: error.code
     });
   }
 });
@@ -531,6 +538,51 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'pdf-generator' });
+});
+
+// Test Puppeteer endpoint
+app.get('/test-puppeteer', async (req, res) => {
+  let browser;
+  try {
+    console.log('🔵 Testing Puppeteer...');
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--single-process',
+        '--no-zygote'
+      ],
+      timeout: 60000
+    });
+    console.log('🔵 Puppeteer test: Browser launched successfully');
+    
+    const page = await browser.newPage();
+    await page.setContent('<html><body><h1>Test</h1></body></html>');
+    const pdf = await page.pdf({ format: 'A4' });
+    await browser.close();
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(pdf);
+  } catch (error) {
+    console.error('🔴 Puppeteer test failed:', error);
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (e) {
+        console.error('🔴 Error closing browser:', e);
+      }
+    }
+    res.status(500).json({ 
+      error: 'Puppeteer test failed', 
+      message: error.message,
+      stack: error.stack
+    });
+  }
 });
 
 app.listen(PORT, () => {
