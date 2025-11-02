@@ -1,9 +1,28 @@
 import express from 'express';
 import puppeteer from 'puppeteer';
 import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Load logo as base64
+let LOGO_BASE64 = null;
+try {
+  // Logo is in public folder, which is 2 levels up from server/pdf-generator
+  const logoPath = join(__dirname, '..', '..', 'public', 'logo farmap industry copy.png');
+  const logoBuffer = readFileSync(logoPath);
+  LOGO_BASE64 = logoBuffer.toString('base64');
+  console.log('🔵 Logo loaded successfully, size:', logoBuffer.length, 'bytes');
+} catch (error) {
+  console.log('🔴 Error loading logo, using text fallback:', error.message);
+  LOGO_BASE64 = null;
+}
 
 app.use(cors({
   origin: '*', // Permetti tutte le origini
