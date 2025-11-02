@@ -252,11 +252,12 @@ Team FARMAP`;
       } as any);
 
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('🔴 Error generating PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Errore nella generazione del PDF';
       addNotification({
         type: 'error',
         title: 'Errore',
-        message: error instanceof Error ? error.message : 'Errore nella generazione del PDF'
+        message: errorMessage
       } as any);
     }
   };
