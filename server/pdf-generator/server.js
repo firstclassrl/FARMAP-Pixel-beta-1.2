@@ -371,84 +371,84 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
       console.log('🔵 Starting image optimization...');
       const optimizationResult = await page.evaluate(async () => {
-      const images = document.querySelectorAll('img.product-image');
-      console.log('🔵 Found images to optimize:', images.length);
-      
-      const results = [];
-      for (const img of images) {
-        try {
-          // Attendi che l'immagine originale sia completamente caricata
-          if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-            await new Promise((resolve, reject) => {
-              const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000);
-              img.onload = () => {
-                clearTimeout(timeout);
-                resolve(true);
-              };
-              img.onerror = () => {
-                clearTimeout(timeout);
-                reject(new Error('Image load error'));
-              };
-              // Se già caricata
-              if (img.complete && img.naturalWidth > 0) {
-                clearTimeout(timeout);
-                resolve(true);
-              }
+        const images = document.querySelectorAll('img.product-image');
+        console.log('🔵 Found images to optimize:', images.length);
+        
+        const results = [];
+        for (const img of images) {
+          try {
+            // Attendi che l'immagine originale sia completamente caricata
+            if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+              await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000);
+                img.onload = () => {
+                  clearTimeout(timeout);
+                  resolve(true);
+                };
+                img.onerror = () => {
+                  clearTimeout(timeout);
+                  reject(new Error('Image load error'));
+                };
+                // Se già caricata
+                if (img.complete && img.naturalWidth > 0) {
+                  clearTimeout(timeout);
+                  resolve(true);
+                }
+              });
+            }
+            
+            const maxSize = 64; // pixel massimi
+            const originalWidth = img.naturalWidth;
+            const originalHeight = img.naturalHeight;
+            
+            // Calcola dimensioni mantenendo aspect ratio
+            let width = originalWidth;
+            let height = originalHeight;
+            
+            if (width > maxSize || height > maxSize) {
+              const ratio = Math.min(maxSize / width, maxSize / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+            }
+            
+            // Crea canvas e ridisegna con dimensioni precise
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Imposta qualità rendering
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Disegna immagine ridimensionata
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Converti in JPEG compresso (qualità 0.4 per file molto più piccoli)
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
+            
+            // Sostituisci l'immagine con quella compressa
+            img.src = compressedDataUrl;
+            img.style.width = width + 'px';
+            img.style.height = height + 'px';
+            img.style.maxWidth = '64px';
+            img.style.maxHeight = '64px';
+            
+            const originalSize = img.getAttribute('data-original-src')?.length || 0;
+            const compressedSize = compressedDataUrl.length;
+            
+            results.push({
+              optimized: true,
+              originalSize,
+              compressedSize,
+              dimensions: { width, height, originalWidth, originalHeight }
             });
+          } catch (error) {
+            console.error('Error optimizing image:', error);
+            results.push({ optimized: false, error: error.message });
           }
-          
-          const maxSize = 64; // pixel massimi
-          const originalWidth = img.naturalWidth;
-          const originalHeight = img.naturalHeight;
-          
-          // Calcola dimensioni mantenendo aspect ratio
-          let width = originalWidth;
-          let height = originalHeight;
-          
-          if (width > maxSize || height > maxSize) {
-            const ratio = Math.min(maxSize / width, maxSize / height);
-            width = Math.round(width * ratio);
-            height = Math.round(height * ratio);
-          }
-          
-          // Crea canvas e ridisegna con dimensioni precise
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          
-          // Imposta qualità rendering
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          
-          // Disegna immagine ridimensionata
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Converti in JPEG compresso (qualità 0.4 per file molto più piccoli)
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
-          
-          // Sostituisci l'immagine con quella compressa
-          img.src = compressedDataUrl;
-          img.style.width = width + 'px';
-          img.style.height = height + 'px';
-          img.style.maxWidth = '64px';
-          img.style.maxHeight = '64px';
-          
-          const originalSize = img.getAttribute('data-original-src')?.length || 0;
-          const compressedSize = compressedDataUrl.length;
-          
-          results.push({
-            optimized: true,
-            originalSize,
-            compressedSize,
-            dimensions: { width, height, originalWidth, originalHeight }
-          });
-        } catch (error) {
-          console.error('Error optimizing image:', error);
-          results.push({ optimized: false, error: error.message });
         }
-      }
-      
+        
         return results;
       });
       
@@ -471,20 +471,20 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       // Generate PDF con compressione
       console.log('🔵 Generating PDF...');
       const pdf = await page.pdf({
-      format: 'A4',
-      landscape: true,
-      printBackground: true,
-      preferCSSPageSize: false,
-      margin: {
-        top: '10mm',
-        right: '10mm',
-        bottom: '10mm',
-        left: '10mm'
-      },
-      // Opzioni per ridurre dimensione file
-      displayHeaderFooter: false,
-      // Puppeteer usa compressione di default, ma possiamo forzarla
-    });
+        format: 'A4',
+        landscape: true,
+        printBackground: true,
+        preferCSSPageSize: false,
+        margin: {
+          top: '10mm',
+          right: '10mm',
+          bottom: '10mm',
+          left: '10mm'
+        },
+        // Opzioni per ridurre dimensione file
+        displayHeaderFooter: false,
+        // Puppeteer usa compressione di default, ma possiamo forzarla
+      });
 
       const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
       console.log('🔵 PDF generated - Size:', pdfSizeMB, 'MB');
