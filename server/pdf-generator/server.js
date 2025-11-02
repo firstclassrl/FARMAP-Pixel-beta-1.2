@@ -5,7 +5,12 @@ import cors from 'cors';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({
+  origin: '*', // Permetti tutte le origini
+  credentials: false,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Helper functions
