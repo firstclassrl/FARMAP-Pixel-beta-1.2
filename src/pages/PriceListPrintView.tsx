@@ -120,7 +120,14 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       } as any);
 
       // Get backend URL from environment variable or use default
-      const backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
+      let backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
+      
+      // Assicurati che l'URL abbia il protocollo
+      if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
+        backendUrl = 'https://' + backendUrl;
+      }
+      
+      // Assicurati che l'URL non finisca con /
       const cleanBackendUrl = backendUrl.replace(/\/$/, '');
       const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
       
@@ -214,16 +221,20 @@ Team FARMAP`;
       } as any);
 
       // Get backend URL from environment variable or use default
-      const backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
-      console.log('🔵 PDF Generation - Using backend:', backendUrl);
-      console.log('🔵 PDF Generation - Env var exists:', !!import.meta.env.VITE_PDF_GENERATOR_URL);
+      let backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
+      
+      // Assicurati che l'URL abbia il protocollo
+      if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
+        backendUrl = 'https://' + backendUrl;
+      }
       
       // Assicurati che l'URL non finisca con /
       const cleanBackendUrl = backendUrl.replace(/\/$/, '');
-      console.log('🔵 PDF Generation - Price list items:', priceList.price_list_items?.length);
-      
-      // Call backend to generate PDF
       const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
+      
+      console.log('🔵 PDF Generation - Using backend:', cleanBackendUrl);
+      console.log('🔵 PDF Generation - Env var exists:', !!import.meta.env.VITE_PDF_GENERATOR_URL);
+      console.log('🔵 PDF Generation - Price list items:', priceList.price_list_items?.length);
       console.log('🔵 PDF Generation - Full endpoint:', endpoint);
       const response = await fetch(endpoint, {
         method: 'POST',
