@@ -295,7 +295,18 @@ export const Header = () => {
           <UserProfile />
         </div>
       </div>
-
+      {/* Neon red laser line at bottom */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-90"
+        style={{
+          boxShadow: '0 0 8px #ef4444, 0 0 12px #ef4444, 0 0 16px #ef4444, 0 4px 20px rgba(239, 68, 68, 0.3)',
+          filter: 'blur(0.5px)',
+        }}
+      />
+      {/* Light shadow below */}
+      <div 
+        className="absolute bottom-[-4px] left-0 right-0 h-[4px] bg-red-500/20 blur-md"
+      />
     </header>
   );
 };
