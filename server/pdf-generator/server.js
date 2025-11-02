@@ -472,9 +472,12 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     await browser.close();
 
     // Send PDF as response
+    console.log('🔵 Sending PDF response - Size:', pdf.length, 'bytes');
     res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdf.length);
     res.setHeader('Content-Disposition', 'attachment; filename="listino.pdf"');
     res.send(pdf);
+    console.log('🔵 PDF response sent successfully');
 
   } catch (error) {
     console.error('Error generating PDF:', error);
