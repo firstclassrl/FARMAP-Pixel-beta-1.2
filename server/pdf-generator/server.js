@@ -520,6 +520,19 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       
       console.log('🔵 PDF generated - raw size:', pdf.length, 'bytes');
       console.log('🔵 PDF generated - size in MB:', (pdf.length / (1024 * 1024)).toFixed(2));
+      
+      // Verifica che il PDF sia valido (dovrebbe iniziare con %PDF)
+      if (pdf.length === 0) {
+        throw new Error('PDF generato è vuoto!');
+      }
+      
+      const pdfHeader = pdf.slice(0, 4).toString();
+      if (pdfHeader !== '%PDF') {
+        console.error('🔴 WARNING: PDF header non valido:', pdfHeader);
+        throw new Error('PDF generato non è valido! Header: ' + pdfHeader);
+      }
+      
+      console.log('🔵 PDF header verificato:', pdfHeader);
 
       const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
       console.log('🔵 PDF generated - Size:', pdfSizeMB, 'MB');
