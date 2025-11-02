@@ -142,14 +142,22 @@ const generateHTML = (priceList) => {
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: white;
-      padding: 24px;
+      padding: 0;
+      margin: 0;
     }
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+    
     .print-page {
-      width: 297mm;
-      min-height: 210mm;
+      width: 277mm; /* 297mm - 20mm (margini) */
+      min-height: 190mm; /* 210mm - 20mm (margini) */
       background: white;
       padding: 24px;
-      margin: 0 auto;
+      margin: 0;
+      page-break-after: auto;
+      page-break-inside: avoid;
     }
     .print-header {
       text-align: center;
@@ -203,6 +211,7 @@ const generateHTML = (priceList) => {
     .note-section {
       margin-top: 16px;
       padding: 8px;
+      page-break-inside: avoid;
     }
     .note-text {
       font-size: 11px;
@@ -218,6 +227,16 @@ const generateHTML = (priceList) => {
       color: #6b7280;
       display: flex;
       justify-content: space-between;
+      page-break-inside: avoid;
+    }
+    
+    /* Evita che la tabella venga tagliata tra pagine */
+    .print-table {
+      page-break-inside: auto;
+    }
+    .print-table tbody tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
     }
     .acceptance-box {
       margin-top: 8px;
@@ -243,7 +262,7 @@ const generateHTML = (priceList) => {
     <!-- Header -->
     <div class="print-header">
       <div class="header-content">
-        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjMwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiNkYzI2MjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5GQVJNQVA8L3RleHQ+PC9zdmc+" alt="Farmap Logo" />
+        <span style="font-size: 24px; font-weight: bold; color: #dc2626; margin-right: 8px;">FARMAP</span>
         <h1>Listino ${priceList.customer?.company_name || 'Cliente'}</h1>
       </div>
     </div>
@@ -503,6 +522,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       console.log('🔵 Generating PDF (forcing vector rendering)...');
       
       // Genera PDF con opzioni minime - NO printBackground, NO scale
+      // tagPages: false evita pagine extra
       const pdf = await page.pdf({
         format: 'A4',
         landscape: true,
@@ -515,6 +535,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           left: '10mm'
         },
         displayHeaderFooter: false,
+        tagPages: false, // Evita pagine extra vuote
         // NON usare: scale, tagged, outline, omitBackground
       });
       
