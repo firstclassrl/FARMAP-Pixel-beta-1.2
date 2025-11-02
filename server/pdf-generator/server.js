@@ -373,16 +373,49 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       const page = await browser.newPage();
       console.log('🔵 New page created');
       
-      // Set content - usa networkidle2 per render più veloce
+      // Set content - usa load invece di networkidle per evitare attese eccessive
       console.log('🔵 Setting page content...');
+      
+      // Disabilita immagini e font esterni per test (poi riabiliteremo solo immagini)
+      await page.setRequestInterception(true);
+      page.on('request', (request) => {
+        const resourceType = request.resourceType();
+        const url = request.url();
+        
+        // Blocca solo font e CSS esterni, ma permetti immagini
+        if (resourceType === 'font' || resourceType === 'stylesheet') {
+          request.abort();
+        } else {
+          request.continue();
+        }
+      });
+      
       await page.setContent(html, { 
-        waitUntil: 'networkidle2',
+        waitUntil: 'domcontentloaded', // Più veloce, non aspetta tutte le risorse
         timeout: 30000 
       });
       console.log('🔵 Page content set successfully');
+      
+      // Rimuovi request interception dopo il caricamento
+      await page.setRequestInterception(false);
     
-      // Attendi che le immagini originali siano caricate (senza compressione, manteniamo originali)
-      console.log('🔵 Waiting for images to load...');
+      // Verifica lo stato delle immagini e il tipo di rendering
+      console.log('🔵 Checking images and rendering type...');
+      const imageInfo = await page.evaluate(() => {
+        const images = document.querySelectorAll('img.product-image');
+        return Array.from(images).map(img => ({
+          src: img.src.substring(0, 100), // Primi 100 caratteri per vedere il tipo
+          complete: img.complete,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          isDataUrl: img.src.startsWith('data:'),
+          width: img.width,
+          height: img.height
+        }));
+      });
+      console.log('🔵 Image info:', JSON.stringify(imageInfo, null, 2));
+      
+      // Attendi che le immagini siano caricate
       await page.evaluate(async () => {
         const images = document.querySelectorAll('img.product-image');
         const loadPromises = Array.from(images).map(img => {
@@ -390,23 +423,38 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
             return Promise.resolve();
           }
           return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('Image load timeout')), 10000);
+            const timeout = setTimeout(() => {
+              console.warn('Image load timeout for:', img.src.substring(0, 50));
+              resolve(false); // Non fallire, continua comunque
+            }, 10000);
             img.onload = () => {
               clearTimeout(timeout);
               resolve(true);
             };
             img.onerror = () => {
               clearTimeout(timeout);
-              reject(new Error('Image load error'));
+              console.error('Image load error for:', img.src.substring(0, 50));
+              resolve(false); // Non fallire, continua comunque
             };
           });
         });
         await Promise.all(loadPromises);
       });
-      console.log('🔵 Images loaded successfully');
+      console.log('🔵 Images checked');
       
-      // Attendi un attimo per stabilizzare il rendering
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Verifica se ci sono problemi di rendering che causano rasterizzazione
+      const renderingCheck = await page.evaluate(() => {
+        const body = document.body;
+        const computedStyle = window.getComputedStyle(body);
+        return {
+          transform: computedStyle.transform,
+          willChange: computedStyle.willChange,
+          hasCanvas: document.querySelectorAll('canvas').length > 0,
+          hasSVG: document.querySelectorAll('svg').length > 0,
+          imageCount: document.querySelectorAll('img').length
+        };
+      });
+      console.log('🔵 Rendering check:', JSON.stringify(renderingCheck, null, 2));
 
       // Generate PDF - testo vettoriale, immagini embeddare come sono
       // IMPORTANTE: rimuoviamo printBackground per evitare rasterizzazione dello sfondo
@@ -426,10 +474,12 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         });
       });
       
+      // Genera PDF con opzioni minime per evitare rasterizzazione
+      console.log('🔵 Generating PDF with minimal options to force vector rendering...');
       const pdf = await page.pdf({
         format: 'A4',
         landscape: true,
-        printBackground: false, // RIMOSSO: evitare rasterizzazione sfondi
+        printBackground: false, // CRITICO: false per evitare rasterizzazione
         preferCSSPageSize: false,
         margin: {
           top: '10mm',
@@ -438,9 +488,11 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           left: '10mm'
         },
         displayHeaderFooter: false,
-        // Opzioni per PDF vettoriale (default)
-        omitBackground: false, // Mantieni background se necessario (ma senza rasterizzare)
+        omitBackground: false,
+        // NON usare scale, tagged, outline - potrebbero causare problemi
       });
+      
+      console.log('🔵 PDF generated - raw size:', pdf.length, 'bytes');
 
       const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
       console.log('🔵 PDF generated - Size:', pdfSizeMB, 'MB');
