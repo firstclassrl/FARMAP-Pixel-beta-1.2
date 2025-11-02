@@ -7,7 +7,6 @@ import {
   Edit,
   Trash2,
   Box,
-  Filter,
   Plus,
   Upload,
   FileSpreadsheet,
@@ -82,7 +81,6 @@ export const ProductsPage = () => {
   const [showProductFormModal, setShowProductFormModal] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
-  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
   const [filterPhoto, setFilterPhoto] = useState<'all' | 'with' | 'without'>('all');
@@ -438,23 +436,18 @@ export const ProductsPage = () => {
     }
   };
 
-  // Filter products based on search term and filters
+  // Filter products based on search term (prefisso codice prodotto - solo lettere) and filters
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesActive = filterActive === 'all' || 
-      (filterActive === 'active' && product.is_active) ||
-      (filterActive === 'inactive' && !product.is_active);
+    // Filtra per prefisso codice prodotto (solo lettere ammesse)
+    const codePrefix = searchTerm.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const matchesSearch = !codePrefix || product.code.toUpperCase().startsWith(codePrefix);
     
     const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
     const matchesCustomer = filterCustomer === 'all' || product.customer_id === filterCustomer;
     const hasPhoto = Boolean(product.photo_url && String(product.photo_url).trim() !== '');
     const matchesPhoto = filterPhoto === 'all' || (filterPhoto === 'with' && hasPhoto) || (filterPhoto === 'without' && !hasPhoto);
     
-    return matchesSearch && matchesActive && matchesCategory && matchesCustomer && matchesPhoto;
+    return matchesSearch && matchesCategory && matchesCustomer && matchesPhoto;
   });
 
   const handleExportExcel = async () => {
@@ -635,25 +628,18 @@ export const ProductsPage = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Cerca per nome, codice, descrizione o categoria..."
+                  placeholder="Prefisso codice prodotto (solo lettere)..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    // Accetta solo lettere (rimuove automaticamente numeri e caratteri speciali)
+                    const lettersOnly = e.target.value.replace(/[^a-zA-Z]/g, '');
+                    setSearchTerm(lettersOnly);
+                  }}
                   className="pl-10"
                 />
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-gray-400" />
-              <Select value={filterActive} onValueChange={(value: any) => setFilterActive(value)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutti</SelectItem>
-                  <SelectItem value="active">Attivi</SelectItem>
-                  <SelectItem value="inactive">Inattivi</SelectItem>
-                </SelectContent>
-              </Select>
               <Select value={filterPhoto} onValueChange={(value: any) => setFilterPhoto(value)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Foto" />
