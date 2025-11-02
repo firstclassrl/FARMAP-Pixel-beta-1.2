@@ -336,58 +336,104 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     });
     
     // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
-    const optimizationResult = await page.evaluate(() => {
+    console.log('🔵 Starting image optimization...');
+    const optimizationResult = await page.evaluate(async () => {
       const images = document.querySelectorAll('img.product-image');
       console.log('🔵 Found images to optimize:', images.length);
-      return Promise.all(Array.from(images).map(async (img) => {
+      
+      const results = [];
+      for (const img of images) {
         try {
-          // Attendi che l'immagine originale sia caricata
-          if (!img.complete || img.naturalWidth === 0) {
+          // Attendi che l'immagine originale sia completamente caricata
+          if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
             await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
+              const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000);
+              img.onload = () => {
+                clearTimeout(timeout);
+                resolve(true);
+              };
+              img.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error('Image load error'));
+              };
+              // Se già caricata
+              if (img.complete && img.naturalWidth > 0) {
+                clearTimeout(timeout);
+                resolve(true);
+              }
             });
           }
           
-          const maxSize = 64;
-          let width = img.naturalWidth;
-          let height = img.naturalHeight;
+          const maxSize = 64; // pixel massimi
+          const originalWidth = img.naturalWidth;
+          const originalHeight = img.naturalHeight;
           
           // Calcola dimensioni mantenendo aspect ratio
+          let width = originalWidth;
+          let height = originalHeight;
+          
           if (width > maxSize || height > maxSize) {
             const ratio = Math.min(maxSize / width, maxSize / height);
             width = Math.round(width * ratio);
             height = Math.round(height * ratio);
           }
           
-          // Crea canvas e ridisegna
+          // Crea canvas e ridisegna con dimensioni precise
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           
+          // Imposta qualità rendering
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
           // Disegna immagine ridimensionata
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Converti in JPEG compresso (qualità 0.5 per file molto più piccoli)
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
-          const originalSize = img.src.length;
-          const compressedSize = compressedDataUrl.length;
-          console.log(`🔵 Image optimized: ${originalSize} -> ${compressedSize} bytes (${((1 - compressedSize/originalSize) * 100).toFixed(1)}% reduction)`);
-          img.src = compressedDataUrl;
+          // Converti in JPEG compresso (qualità 0.4 per file molto più piccoli)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
           
-          return { optimized: true, originalSize, compressedSize };
+          // Sostituisci l'immagine con quella compressa
+          img.src = compressedDataUrl;
+          img.style.width = width + 'px';
+          img.style.height = height + 'px';
+          img.style.maxWidth = '64px';
+          img.style.maxHeight = '64px';
+          
+          const originalSize = img.getAttribute('data-original-src')?.length || 0;
+          const compressedSize = compressedDataUrl.length;
+          
+          results.push({
+            optimized: true,
+            originalSize,
+            compressedSize,
+            dimensions: { width, height, originalWidth, originalHeight }
+          });
         } catch (error) {
           console.error('Error optimizing image:', error);
-          return { optimized: false, error: error.message };
+          results.push({ optimized: false, error: error.message });
         }
-      }));
+      }
+      
+      return results;
     });
     
-    console.log('🔵 Image optimization result:', optimizationResult);
+    console.log('🔵 Image optimization completed:', optimizationResult);
     
-    // Attendi che le immagini ottimizzate siano caricate
-    await page.waitForTimeout(1000);
+    // Attendi che le immagini ottimizzate siano completamente caricate e renderizzate
+    await page.waitForTimeout(2000);
+    
+    // Verifica che le immagini siano state ottimizzate
+    const imageCheck = await page.evaluate(() => {
+      const images = document.querySelectorAll('img.product-image');
+      return Array.from(images).map(img => ({
+        srcType: img.src.startsWith('data:image') ? 'base64' : 'url',
+        width: img.naturalWidth,
+        height: img.naturalHeight
+      }));
+    });
+    console.log('🔵 Image check after optimization:', imageCheck);
 
     // Generate PDF con compressione
     console.log('🔵 Generating PDF...');
