@@ -382,7 +382,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       console.log('🔵 Page content set successfully');
     
       // Verifica lo stato delle immagini e il tipo di rendering
-      console.log('🔵 Checking images and rendering type...');
+      console.log('🔵 ====== DEBUG: Checking images and rendering type ======');
       const imageInfo = await page.evaluate(() => {
         const images = document.querySelectorAll('img.product-image');
         return Array.from(images).map(img => ({
@@ -395,7 +395,9 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           height: img.height
         }));
       });
-      console.log('🔵 Image info:', JSON.stringify(imageInfo, null, 2));
+      console.log('🔵 ====== DEBUG: Image info ======');
+      console.log(JSON.stringify(imageInfo, null, 2));
+      console.log('🔵 ====== END Image info ======');
       
       // Attendi che le immagini siano caricate (con timeout più corto)
       try {
@@ -439,7 +441,9 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           imageCount: document.querySelectorAll('img').length
         };
       });
-      console.log('🔵 Rendering check:', JSON.stringify(renderingCheck, null, 2));
+      console.log('🔵 ====== DEBUG: Rendering check ======');
+      console.log(JSON.stringify(renderingCheck, null, 2));
+      console.log('🔵 ====== END Rendering check ======');
 
       // CRITICO: Puppeteer potrebbe rasterizzare se trova elementi problematici
       // Verifica e rimuovi qualsiasi elemento che potrebbe causare rasterizzazione
@@ -542,6 +546,67 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'pdf-generator' });
+});
+
+// Debug endpoint per testare PDF semplice senza immagini
+app.post('/api/test-simple-pdf', async (req, res) => {
+  let browser;
+  try {
+    console.log('🔵 Test simple PDF - starting...');
+    
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    
+    const page = await browser.newPage();
+    
+    // HTML molto semplice - solo testo
+    const simpleHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial; padding: 20px; }
+          h1 { color: #333; }
+          table { border-collapse: collapse; width: 100%; }
+          td { border: 1px solid #ccc; padding: 8px; }
+        </style>
+      </head>
+      <body>
+        <h1>Test PDF</h1>
+        <table>
+          <tr><td>Prodotto 1</td><td>€10.00</td></tr>
+          <tr><td>Prodotto 2</td><td>€20.00</td></tr>
+        </table>
+      </body>
+      </html>
+    `;
+    
+    await page.setContent(simpleHTML, { waitUntil: 'load' });
+    
+    const pdf = await page.pdf({
+      format: 'A4',
+      landscape: true,
+      printBackground: false,
+      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+    });
+    
+    await browser.close();
+    
+    const sizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
+    console.log('🔵 Test simple PDF - Size:', sizeMB, 'MB');
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdf.length);
+    res.send(pdf);
+    
+  } catch (error) {
+    console.error('🔴 Test simple PDF error:', error);
+    if (browser) await browser.close();
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Test Puppeteer endpoint
