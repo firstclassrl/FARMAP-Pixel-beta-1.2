@@ -131,6 +131,14 @@ const generateHTML = (priceList) => {
       padding: 0;
       box-sizing: border-box;
     }
+    
+    /* Forza rendering vettoriale - evita rasterizzazione */
+    body, html {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      transform: none !important;
+      will-change: auto !important;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: white;
@@ -365,138 +373,63 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       const page = await browser.newPage();
       console.log('🔵 New page created');
       
-      // Set content
+      // Set content - usa networkidle2 per render più veloce
       console.log('🔵 Setting page content...');
       await page.setContent(html, { 
-        waitUntil: 'networkidle0',
+        waitUntil: 'networkidle2',
         timeout: 30000 
       });
       console.log('🔵 Page content set successfully');
     
-      // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
-      console.log('🔵 Starting image optimization...');
-      
-      // Prima verifica quante immagini ci sono
-      const imageCount = await page.evaluate(() => {
-        return document.querySelectorAll('img.product-image').length;
-      });
-      console.log('🔵 Found images before optimization:', imageCount);
-      
-      if (imageCount === 0) {
-        console.log('⚠️ No images found to optimize, skipping...');
-      } else {
-        const optimizationResult = await page.evaluate(async () => {
+      // Attendi che le immagini originali siano caricate (senza compressione, manteniamo originali)
+      console.log('🔵 Waiting for images to load...');
+      await page.evaluate(async () => {
         const images = document.querySelectorAll('img.product-image');
-        console.log('🔵 Found images to optimize:', images.length);
-        
-        const results = [];
-        for (const img of images) {
-          try {
-            // Attendi che l'immagine originale sia completamente caricata
-            if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-              await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000);
-                img.onload = () => {
-                  clearTimeout(timeout);
-                  resolve(true);
-                };
-                img.onerror = () => {
-                  clearTimeout(timeout);
-                  reject(new Error('Image load error'));
-                };
-                // Se già caricata
-                if (img.complete && img.naturalWidth > 0) {
-                  clearTimeout(timeout);
-                  resolve(true);
-                }
-              });
-            }
-            
-            const maxSize = 32; // pixel massimi (ridotto ulteriormente per file più piccoli)
-            const originalWidth = img.naturalWidth;
-            const originalHeight = img.naturalHeight;
-            
-            // Calcola dimensioni mantenendo aspect ratio
-            let width = originalWidth;
-            let height = originalHeight;
-            
-            if (width > maxSize || height > maxSize) {
-              const ratio = Math.min(maxSize / width, maxSize / height);
-              width = Math.round(width * ratio);
-              height = Math.round(height * ratio);
-            }
-            
-            // Crea canvas e ridisegna con dimensioni precise
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            
-            // Imposta qualità rendering
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            
-            // Disegna immagine ridimensionata
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Converti in JPEG compresso (qualità 0.2 per file molto più piccoli)
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.2);
-            
-            // Sostituisci l'immagine con quella compressa
-            img.src = compressedDataUrl;
-            img.style.width = width + 'px';
-            img.style.height = height + 'px';
-            img.style.maxWidth = '32px';
-            img.style.maxHeight = '32px';
-            
-            const originalSize = img.getAttribute('data-original-src')?.length || 0;
-            const compressedSize = compressedDataUrl.length;
-            
-            results.push({
-              optimized: true,
-              originalSize,
-              compressedSize,
-              dimensions: { width, height, originalWidth, originalHeight }
-            });
-          } catch (error) {
-            console.error('Error optimizing image:', error);
-            results.push({ optimized: false, error: error.message });
+        const loadPromises = Array.from(images).map(img => {
+          if (img.complete && img.naturalWidth > 0) {
+            return Promise.resolve();
           }
-        }
-        
-          return results;
+          return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Image load timeout')), 10000);
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve(true);
+            };
+            img.onerror = () => {
+              clearTimeout(timeout);
+              reject(new Error('Image load error'));
+            };
+          });
         });
-        
-        console.log('🔵 Image optimization completed:', optimizationResult);
-        
-        // Log della compressione totale
-        const totalOriginal = optimizationResult.reduce((sum, r) => sum + (r.originalSize || 0), 0);
-        const totalCompressed = optimizationResult.reduce((sum, r) => sum + (r.compressedSize || 0), 0);
-        const compressionRatio = totalOriginal > 0 ? ((totalOriginal - totalCompressed) / totalOriginal * 100).toFixed(1) : 0;
-        console.log(`🔵 Compression: ${totalOriginal} → ${totalCompressed} bytes (${compressionRatio}% reduction)`);
-      }
-      
-      // Attendi che le immagini ottimizzate siano completamente caricate e renderizzate
-      // waitForTimeout è deprecato in Puppeteer 24+, usiamo Promise setTimeout
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Verifica che le immagini siano state ottimizzate
-      const imageCheck = await page.evaluate(() => {
-        const images = document.querySelectorAll('img.product-image');
-        return Array.from(images).map(img => ({
-          srcType: img.src.startsWith('data:image') ? 'base64' : 'url',
-          width: img.naturalWidth,
-          height: img.naturalHeight
-        }));
+        await Promise.all(loadPromises);
       });
-      console.log('🔵 Image check after optimization:', imageCheck);
+      console.log('🔵 Images loaded successfully');
+      
+      // Attendi un attimo per stabilizzare il rendering
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Generate PDF con compressione massima
-      console.log('🔵 Generating PDF...');
+      // Generate PDF - testo vettoriale, immagini embeddare come sono
+      // IMPORTANTE: rimuoviamo printBackground per evitare rasterizzazione dello sfondo
+      console.log('🔵 Generating PDF (vector text, embedded images)...');
+      
+      // Forza il rendering vettoriale: rimuovi qualsiasi CSS che potrebbe causare rasterizzazione
+      await page.evaluate(() => {
+        // Rimuovi trasformazioni CSS che causano rasterizzazione
+        document.body.style.transform = 'none';
+        document.body.style.willChange = 'auto';
+        
+        // Assicurati che le immagini non vengano rasterizzate
+        const images = document.querySelectorAll('img');
+        images.forEach(img => {
+          img.style.imageRendering = 'auto';
+          img.style.transform = 'none';
+        });
+      });
+      
       const pdf = await page.pdf({
         format: 'A4',
         landscape: true,
-        printBackground: true,
+        printBackground: false, // RIMOSSO: evitare rasterizzazione sfondi
         preferCSSPageSize: false,
         margin: {
           top: '10mm',
@@ -505,8 +438,8 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           left: '10mm'
         },
         displayHeaderFooter: false,
-        // Opzioni per ridurre dimensione file
-        compress: true
+        // Opzioni per PDF vettoriale (default)
+        omitBackground: false, // Mantieni background se necessario (ma senza rasterizzare)
       });
 
       const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
