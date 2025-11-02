@@ -116,7 +116,7 @@ export const Header = () => {
 
   return (
     <header 
-      className="px-8 py-4 header-line-texture"
+      className="px-8 py-4 header-line-texture relative"
       onKeyDown={handleKeyDown}
     >
       <div className="flex items-center justify-between header-content">
