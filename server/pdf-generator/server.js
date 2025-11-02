@@ -42,7 +42,7 @@ const generateHTML = (priceList) => {
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
           <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" crossOrigin="anonymous" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block;" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
@@ -542,10 +542,22 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
 
       // Send PDF as response
       console.log('🔵 Sending PDF response - Size:', pdf.length, 'bytes');
+      
+      // Verifica che il PDF sia un Buffer valido
+      if (!Buffer.isBuffer(pdf) && !(pdf instanceof Uint8Array)) {
+        throw new Error('PDF non è un Buffer valido!');
+      }
+      
+      // Converti in Buffer se necessario
+      const pdfBuffer = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+      
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Length', pdf.length);
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
       res.setHeader('Content-Disposition', 'attachment; filename="listino.pdf"');
-      res.send(pdf);
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      // Invia il PDF come Buffer
+      res.send(pdfBuffer);
       console.log('🔵 PDF response sent successfully');
     } catch (innerError) {
       // Close browser if it was opened
