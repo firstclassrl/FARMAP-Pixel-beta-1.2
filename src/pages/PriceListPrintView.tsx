@@ -212,8 +212,12 @@ Team FARMAP`;
       } as any);
 
       // Get backend URL from environment variable or use default
-      const backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'http://localhost:3001';
+      const backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
       console.log('🔵 PDF Generation - Using backend:', backendUrl);
+      console.log('🔵 PDF Generation - Env var exists:', !!import.meta.env.VITE_PDF_GENERATOR_URL);
+      
+      // Assicurati che l'URL non finisca con /
+      const cleanBackendUrl = backendUrl.replace(/\/$/, '');
       console.log('🔵 PDF Generation - Price list items:', priceList.price_list_items?.length);
       
       // Call backend to generate PDF
