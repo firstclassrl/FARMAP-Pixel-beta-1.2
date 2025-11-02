@@ -445,93 +445,40 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       console.log(JSON.stringify(renderingCheck, null, 2));
       console.log('🔵 ====== END Rendering check ======');
 
-      // CRITICO: Riduci le dimensioni delle immagini prima del PDF
-      // Le immagini originali sono troppo grandi (1384x3344) e Puppeteer le embedda a risoluzione completa
-      console.log('🔵 Resizing images before PDF generation...');
+      // CRITICO: Riduci le dimensioni delle immagini prima del PDF usando CSS invece di canvas
+      // Usare CSS è più sicuro e non richiede crossOrigin
+      console.log('🔵 Limiting image size using CSS (no canvas resize to avoid CORS issues)...');
       
       await page.evaluate(async () => {
         const images = document.querySelectorAll('img.product-image');
         
         for (const img of images) {
-          // Imposta crossOrigin per evitare "tainted canvas" error
-          if (img.src && !img.src.startsWith('data:')) {
-            img.crossOrigin = 'anonymous';
-            
-            // Ricarica l'immagine con crossOrigin
-            const originalSrc = img.src;
-            img.src = '';
-            await new Promise(resolve => setTimeout(resolve, 100));
-            img.src = originalSrc;
-            
-            // Attendi che l'immagine sia ricaricata con crossOrigin
+          // Attendi che l'immagine sia caricata
+          if (!img.complete || img.naturalWidth === 0) {
             await new Promise((resolve) => {
               const timeout = setTimeout(() => resolve(), 5000);
-              if (img.complete && img.naturalWidth > 0) {
+              img.onload = () => {
                 clearTimeout(timeout);
                 resolve();
-              } else {
-                img.onload = () => {
-                  clearTimeout(timeout);
-                  resolve();
-                };
-                img.onerror = () => {
-                  clearTimeout(timeout);
-                  resolve(); // Continua anche in caso di errore
-                };
-              }
+              };
+              img.onerror = () => {
+                clearTimeout(timeout);
+                resolve();
+              };
             });
           }
           
-          // Dimensione massima per thumbnail nel PDF (64px)
-          const maxSize = 64;
-          const originalWidth = img.naturalWidth || img.width;
-          const originalHeight = img.naturalHeight || img.height;
-          
-          if (originalWidth > maxSize || originalHeight > maxSize) {
-            try {
-              // Calcola nuove dimensioni mantenendo aspect ratio
-              const ratio = Math.min(maxSize / originalWidth, maxSize / originalHeight);
-              const newWidth = Math.round(originalWidth * ratio);
-              const newHeight = Math.round(originalHeight * ratio);
-              
-              // Crea canvas e ridimensiona
-              const canvas = document.createElement('canvas');
-              canvas.width = newWidth;
-              canvas.height = newHeight;
-              const ctx = canvas.getContext('2d');
-              
-              // Disegna immagine ridimensionata
-              ctx.drawImage(img, 0, 0, newWidth, newHeight);
-              
-              // Converti in data URL (JPEG compresso)
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-              
-              // Sostituisci src con immagine ridimensionata
-              img.src = dataUrl;
-              img.style.width = newWidth + 'px';
-              img.style.height = newHeight + 'px';
-              img.style.maxWidth = maxSize + 'px';
-              img.style.maxHeight = maxSize + 'px';
-              
-              // Attendi che la nuova immagine sia caricata
-              await new Promise((resolve) => {
-                if (img.complete) {
-                  resolve();
-                } else {
-                  img.onload = () => resolve();
-                  img.onerror = () => resolve();
-                  setTimeout(() => resolve(), 2000);
-                }
-              });
-            } catch (error) {
-              console.warn('Error resizing image:', error.message);
-              // Continua anche se il resize fallisce
-            }
-          }
+          // Limita dimensioni usando solo CSS (non canvas per evitare CORS)
+          // Puppeteer dovrebbe rispettare le dimensioni CSS quando genera il PDF
+          img.style.maxWidth = '64px';
+          img.style.maxHeight = '64px';
+          img.style.width = 'auto';
+          img.style.height = 'auto';
+          img.style.objectFit = 'contain';
         }
       });
       
-      console.log('🔵 Images resized successfully');
+      console.log('🔵 Image sizes limited via CSS');
       
       // Rimuovi qualsiasi elemento che potrebbe causare rasterizzazione
       await page.evaluate(() => {
