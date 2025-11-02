@@ -199,7 +199,10 @@ Team FARMAP`;
   };
 
   const handleDownloadPDF = async () => {
-    if (!priceList) return;
+    if (!priceList) {
+      console.error('🔴 handleDownloadPDF: priceList is null');
+      return;
+    }
 
     try {
       addNotification({
@@ -210,6 +213,8 @@ Team FARMAP`;
 
       // Get backend URL from environment variable or use default
       const backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'http://localhost:3001';
+      console.log('🔵 PDF Generation - Using backend:', backendUrl);
+      console.log('🔵 PDF Generation - Price list items:', priceList.price_list_items?.length);
       
       // Call backend to generate PDF
       const response = await fetch(`${backendUrl}/api/generate-price-list-pdf`, {
@@ -222,28 +227,63 @@ Team FARMAP`;
         })
       });
 
+      console.log('🔵 PDF Response status:', response.status, response.statusText);
+      console.log('🔵 PDF Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText || `HTTP error! status: ${response.status}` };
+        }
+        console.error('🔴 PDF Generation Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       // Get PDF blob
       const pdfBlob = await response.blob();
+      const fileSizeMB = (pdfBlob.size / (1024 * 1024)).toFixed(2);
+      console.log('🔵 PDF Generated - File size:', fileSizeMB, 'MB');
+      console.log('🔵 PDF Blob type:', pdfBlob.type);
+      console.log('🔵 PDF Blob size:', pdfBlob.size, 'bytes');
+      
+      if (pdfBlob.size === 0) {
+        throw new Error('Il PDF generato è vuoto. Controlla i log del servizio.');
+      }
+      
       const pdfUrl = URL.createObjectURL(pdfBlob);
+      console.log('🔵 PDF URL created');
       
       // Download PDF with proper filename
       const today = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
       const customerName = priceList.customer?.company_name || 'Cliente';
       const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`;
+      
+      console.log('🔵 Starting download:', fileName);
       const link = document.createElement('a');
       link.href = pdfUrl;
       link.download = fileName;
+      link.style.display = 'none';
       document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
       
-      // Clean up URL
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+      // Usa requestAnimationFrame per assicurarsi che il DOM sia aggiornato
+      requestAnimationFrame(() => {
+        link.click();
+        console.log('🔵 Download link clicked');
+        
+        // Clean up after download (più tempo per assicurarsi che il download inizi)
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(pdfUrl);
+          console.log('🔵 Cleanup completed');
+        }, 2000);
+      });
 
       addNotification({
         type: 'success',
