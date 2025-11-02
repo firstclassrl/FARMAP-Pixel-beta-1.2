@@ -460,7 +460,8 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       console.log('🔵 Image optimization completed:', optimizationResult);
       
       // Attendi che le immagini ottimizzate siano completamente caricate e renderizzate
-      await page.waitForTimeout(2000);
+      // waitForTimeout è deprecato in Puppeteer 24+, usiamo Promise setTimeout
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Verifica che le immagini siano state ottimizzate
       const imageCheck = await page.evaluate(() => {
