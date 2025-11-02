@@ -441,30 +441,46 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       });
       console.log('🔵 Rendering check:', JSON.stringify(renderingCheck, null, 2));
 
-      // Generate PDF - testo vettoriale, immagini embeddare come sono
-      // IMPORTANTE: rimuoviamo printBackground per evitare rasterizzazione dello sfondo
-      console.log('🔵 Generating PDF (vector text, embedded images)...');
+      // CRITICO: Puppeteer potrebbe rasterizzare se trova elementi problematici
+      // Verifica e rimuovi qualsiasi elemento che potrebbe causare rasterizzazione
+      console.log('🔵 Preparing page for vector PDF generation...');
       
-      // Forza il rendering vettoriale: rimuovi qualsiasi CSS che potrebbe causare rasterizzazione
       await page.evaluate(() => {
-        // Rimuovi trasformazioni CSS che causano rasterizzazione
+        // Rimuovi qualsiasi canvas (causano rasterizzazione)
+        const canvases = document.querySelectorAll('canvas');
+        canvases.forEach(canvas => canvas.remove());
+        
+        // Forza stili semplici per evitare rasterizzazione
         document.body.style.transform = 'none';
         document.body.style.willChange = 'auto';
+        document.body.style.backfaceVisibility = 'visible';
         
-        // Assicurati che le immagini non vengano rasterizzate
+        // Rimuovi filtri e effetti che causano rasterizzazione
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+          const style = window.getComputedStyle(el);
+          if (style.filter !== 'none' || style.backdropFilter !== 'none') {
+            el.style.filter = 'none';
+            el.style.backdropFilter = 'none';
+          }
+        });
+        
+        // Assicurati che le immagini siano semplici
         const images = document.querySelectorAll('img');
         images.forEach(img => {
-          img.style.imageRendering = 'auto';
           img.style.transform = 'none';
+          img.style.imageRendering = 'auto';
+          img.style.objectFit = 'contain';
         });
       });
       
-      // Genera PDF con opzioni minime per evitare rasterizzazione
-      console.log('🔵 Generating PDF with minimal options to force vector rendering...');
+      console.log('🔵 Generating PDF (forcing vector rendering)...');
+      
+      // Genera PDF con opzioni minime - NO printBackground, NO scale
       const pdf = await page.pdf({
         format: 'A4',
         landscape: true,
-        printBackground: false, // CRITICO: false per evitare rasterizzazione
+        printBackground: false, // CRITICO: false evita rasterizzazione sfondi
         preferCSSPageSize: false,
         margin: {
           top: '10mm',
@@ -473,11 +489,11 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           left: '10mm'
         },
         displayHeaderFooter: false,
-        omitBackground: false,
-        // NON usare scale, tagged, outline - potrebbero causare problemi
+        // NON usare: scale, tagged, outline, omitBackground
       });
       
       console.log('🔵 PDF generated - raw size:', pdf.length, 'bytes');
+      console.log('🔵 PDF generated - size in MB:', (pdf.length / (1024 * 1024)).toFixed(2));
 
       const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
       console.log('🔵 PDF generated - Size:', pdfSizeMB, 'MB');
