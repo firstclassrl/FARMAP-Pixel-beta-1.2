@@ -312,11 +312,24 @@ const generateHTML = (priceList) => {
 // Endpoint to generate PDF
 app.post('/api/generate-price-list-pdf', async (req, res) => {
   try {
+    console.log('🔵 PDF Request received');
+    console.log('🔵 Request body keys:', Object.keys(req.body));
+    console.log('🔵 priceListData exists:', !!req.body.priceListData);
+    console.log('🔵 priceListData items:', req.body.priceListData?.price_list_items?.length);
+    
     const { priceListData } = req.body;
 
     if (!priceListData) {
+      console.error('🔴 Error: priceListData is missing');
       return res.status(400).json({ error: 'priceListData is required' });
     }
+    
+    if (!priceListData.price_list_items || priceListData.price_list_items.length === 0) {
+      console.error('🔴 Error: priceListData.price_list_items is empty');
+      return res.status(400).json({ error: 'priceListData must contain price_list_items' });
+    }
+    
+    console.log('🔵 Starting PDF generation for price list:', priceListData.name);
 
     // Generate HTML
     const html = generateHTML(priceListData);
