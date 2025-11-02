@@ -373,31 +373,13 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       const page = await browser.newPage();
       console.log('🔵 New page created');
       
-      // Set content - usa load invece di networkidle per evitare attese eccessive
+      // Set content - carica HTML
       console.log('🔵 Setting page content...');
-      
-      // Disabilita immagini e font esterni per test (poi riabiliteremo solo immagini)
-      await page.setRequestInterception(true);
-      page.on('request', (request) => {
-        const resourceType = request.resourceType();
-        const url = request.url();
-        
-        // Blocca solo font e CSS esterni, ma permetti immagini
-        if (resourceType === 'font' || resourceType === 'stylesheet') {
-          request.abort();
-        } else {
-          request.continue();
-        }
-      });
-      
       await page.setContent(html, { 
-        waitUntil: 'domcontentloaded', // Più veloce, non aspetta tutte le risorse
+        waitUntil: 'load', // Aspetta che tutto sia caricato
         timeout: 30000 
       });
       console.log('🔵 Page content set successfully');
-      
-      // Rimuovi request interception dopo il caricamento
-      await page.setRequestInterception(false);
     
       // Verifica lo stato delle immagini e il tipo di rendering
       console.log('🔵 Checking images and rendering type...');
@@ -415,32 +397,35 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       });
       console.log('🔵 Image info:', JSON.stringify(imageInfo, null, 2));
       
-      // Attendi che le immagini siano caricate
-      await page.evaluate(async () => {
-        const images = document.querySelectorAll('img.product-image');
-        const loadPromises = Array.from(images).map(img => {
-          if (img.complete && img.naturalWidth > 0) {
-            return Promise.resolve();
-          }
-          return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              console.warn('Image load timeout for:', img.src.substring(0, 50));
-              resolve(false); // Non fallire, continua comunque
-            }, 10000);
-            img.onload = () => {
-              clearTimeout(timeout);
-              resolve(true);
-            };
-            img.onerror = () => {
-              clearTimeout(timeout);
-              console.error('Image load error for:', img.src.substring(0, 50));
-              resolve(false); // Non fallire, continua comunque
-            };
+      // Attendi che le immagini siano caricate (con timeout più corto)
+      try {
+        await page.evaluate(async () => {
+          const images = document.querySelectorAll('img.product-image');
+          const loadPromises = Array.from(images).map(img => {
+            if (img.complete && img.naturalWidth > 0) {
+              return Promise.resolve();
+            }
+            return new Promise((resolve) => {
+              const timeout = setTimeout(() => {
+                resolve(false); // Timeout: continua comunque
+              }, 5000);
+              img.onload = () => {
+                clearTimeout(timeout);
+                resolve(true);
+              };
+              img.onerror = () => {
+                clearTimeout(timeout);
+                resolve(false); // Errore: continua comunque
+              };
+            });
           });
+          await Promise.all(loadPromises);
         });
-        await Promise.all(loadPromises);
-      });
-      console.log('🔵 Images checked');
+        console.log('🔵 Images checked');
+      } catch (imgError) {
+        console.warn('⚠️ Image loading warning:', imgError.message);
+        // Continua comunque
+      }
       
       // Verifica se ci sono problemi di rendering che causano rasterizzazione
       const renderingCheck = await page.evaluate(() => {
