@@ -37,7 +37,7 @@ const generateHTML = (priceList) => {
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
           <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block;" loading="lazy" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block;" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
@@ -329,44 +329,57 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
 
     const page = await browser.newPage();
     
-    // Set content and wait for images to load
+    // Set content
     await page.setContent(html, { 
       waitUntil: 'networkidle0',
       timeout: 30000 
     });
-
-    // Ottimizza le immagini: ridimensiona e comprimi prima di generare PDF
+    
+    // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
     await page.evaluate(() => {
-      const images = document.querySelectorAll('img');
-      images.forEach(img => {
-        // Imposta dimensioni massime e mantieni aspect ratio
-        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-          const maxHeight = 64; // pixel
-          const aspectRatio = img.naturalWidth / img.naturalHeight;
-          let newWidth = img.naturalWidth;
-          let newHeight = img.naturalHeight;
-          
-          if (img.naturalHeight > maxHeight) {
-            newHeight = maxHeight;
-            newWidth = maxHeight * aspectRatio;
+      const images = document.querySelectorAll('img.product-image');
+      return Promise.all(Array.from(images).map(async (img) => {
+        try {
+          // Attendi che l'immagine originale sia caricata
+          if (!img.complete || img.naturalWidth === 0) {
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+            });
           }
           
-          // Crea canvas per ridimensionare e comprimere
+          const maxSize = 64;
+          let width = img.naturalWidth;
+          let height = img.naturalHeight;
+          
+          // Calcola dimensioni mantenendo aspect ratio
+          if (width > maxSize || height > maxSize) {
+            const ratio = Math.min(maxSize / width, maxSize / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          
+          // Crea canvas e ridisegna
           const canvas = document.createElement('canvas');
-          canvas.width = newWidth;
-          canvas.height = newHeight;
+          canvas.width = width;
+          canvas.height = height;
           const ctx = canvas.getContext('2d');
           
           // Disegna immagine ridimensionata
-          ctx.drawImage(img, 0, 0, newWidth, newHeight);
+          ctx.drawImage(img, 0, 0, width, height);
           
-          // Converti in base64 JPEG compresso (qualità 0.7 per bilanciare qualità/dimensione)
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          // Converti in JPEG compresso (qualità 0.5 per file molto più piccoli)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
           img.src = compressedDataUrl;
+          
+          return true;
+        } catch (error) {
+          console.error('Error optimizing image:', error);
+          return false;
         }
-      });
+      }));
     });
-
+    
     // Attendi che le immagini ottimizzate siano caricate
     await page.waitForTimeout(1000);
 
