@@ -62,7 +62,7 @@ export default function GardenPage() {
           
           const { data: fallbackData, error: fallbackError } = await supabase
             .from('products')
-            .select('id, name, code, description, category, base_price, unit, photo_url, brand_name, customer_id')
+            .select('id, name, code, description, category, base_price, unit, photo_url, brand_name, customer_id, cartone, pallet, strati')
             .eq('is_active', true);
             
           if (fallbackError) {
@@ -79,7 +79,7 @@ export default function GardenPage() {
           if (ids.length > 0) {
             const { data: photos } = await supabase
               .from('products')
-              .select('id, photo_url, image_url, photo_thumb_url, st_url')
+              .select('id, photo_url, image_url, photo_thumb_url, st_url, cartone, pallet, strati')
               .in('id', ids);
             const photoMap = new Map((photos || []).map((r: any) => [r.id, r]));
             const merged = base.map((p: any) => ({

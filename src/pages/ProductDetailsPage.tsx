@@ -421,25 +421,25 @@ export default function ProductDetailsPage() {
 
                 {/* Terza riga: Pezzi per Cartone + Pezzi per Pallet */}
                 <div className="grid grid-cols-2 gap-2">
-                  {/* Pezzi per Cartone */}
+                  {/* Cartone */}
                   <div className="bg-white/40 backdrop-blur-sm rounded-lg p-2 border border-white/50">
                     <div className="flex items-center space-x-1 mb-1">
                       <Package className="w-3 h-3 text-orange-600" />
                       <span className="text-xs font-bold text-gray-800">Pezzi/Cartone</span>
                     </div>
                     <p className="text-sm font-bold text-gray-900">
-                      {product.pieces_per_carton || 'N/A'}
+                      {product.cartone || 'N/A'}
                     </p>
                   </div>
 
-                  {/* Pezzi per Pallet */}
+                  {/* Pallet */}
                   <div className="bg-white/40 backdrop-blur-sm rounded-lg p-2 border border-white/50">
                     <div className="flex items-center space-x-1 mb-1">
                       <Package className="w-3 h-3 text-purple-600" />
                       <span className="text-xs font-bold text-gray-800">Pezzi/Pallet</span>
                     </div>
                     <p className="text-sm font-bold text-gray-900">
-                      {product.pieces_per_pallet || 'N/A'}
+                      {product.pallet || 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -457,14 +457,14 @@ export default function ProductDetailsPage() {
                     </p>
                   </div>
 
-                  {/* Unità */}
+                  {/* Strati */}
                   <div className="bg-white/40 backdrop-blur-sm rounded-lg p-2 border border-white/50">
                     <div className="flex items-center space-x-1 mb-1">
                       <Package className="w-3 h-3 text-teal-600" />
-                      <span className="text-xs font-bold text-gray-800">Unità</span>
+                      <span className="text-xs font-bold text-gray-800">Strati</span>
                     </div>
                     <p className="text-sm font-bold text-gray-900">
-                      {product.unit || 'pz'}
+                      {product.strati !== null && product.strati !== undefined ? product.strati : 'N/A'}
                     </p>
                   </div>
                 </div>
