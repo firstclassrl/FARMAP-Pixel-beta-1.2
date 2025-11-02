@@ -262,9 +262,11 @@ Team FARMAP`;
         console.error('🔴 PDF Generation Error:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          error: errorData,
+          errorText: errorText
         });
-        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+        const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       // Get PDF blob

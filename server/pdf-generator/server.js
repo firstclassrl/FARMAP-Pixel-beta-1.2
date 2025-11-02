@@ -335,27 +335,42 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     }
     
     console.log('🔵 Starting PDF generation for price list:', priceListData.name);
+    console.log('🔵 Price list items count:', priceListData.price_list_items?.length || 0);
 
-    // Generate HTML
-    const html = generateHTML(priceListData);
+    let browser;
+    try {
+      // Generate HTML
+      console.log('🔵 Generating HTML...');
+      const html = generateHTML(priceListData);
+      console.log('🔵 HTML generated, length:', html.length);
 
-    // Launch Puppeteer
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+      // Launch Puppeteer
+      console.log('🔵 Launching Puppeteer...');
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+        ]
+      });
+      console.log('🔵 Puppeteer launched successfully');
 
-    const page = await browser.newPage();
+      const page = await browser.newPage();
+      console.log('🔵 New page created');
+      
+      // Set content
+      console.log('🔵 Setting page content...');
+      await page.setContent(html, { 
+        waitUntil: 'networkidle0',
+        timeout: 30000 
+      });
+      console.log('🔵 Page content set successfully');
     
-    // Set content
-    await page.setContent(html, { 
-      waitUntil: 'networkidle0',
-      timeout: 30000 
-    });
-    
-    // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
-    console.log('🔵 Starting image optimization...');
-    const optimizationResult = await page.evaluate(async () => {
+      // Ottimizza immagini: ridimensiona e comprimi usando Canvas API del browser
+      console.log('🔵 Starting image optimization...');
+      const optimizationResult = await page.evaluate(async () => {
       const images = document.querySelectorAll('img.product-image');
       console.log('🔵 Found images to optimize:', images.length);
       
@@ -434,28 +449,28 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         }
       }
       
-      return results;
-    });
-    
-    console.log('🔵 Image optimization completed:', optimizationResult);
-    
-    // Attendi che le immagini ottimizzate siano completamente caricate e renderizzate
-    await page.waitForTimeout(2000);
-    
-    // Verifica che le immagini siano state ottimizzate
-    const imageCheck = await page.evaluate(() => {
-      const images = document.querySelectorAll('img.product-image');
-      return Array.from(images).map(img => ({
-        srcType: img.src.startsWith('data:image') ? 'base64' : 'url',
-        width: img.naturalWidth,
-        height: img.naturalHeight
-      }));
-    });
-    console.log('🔵 Image check after optimization:', imageCheck);
+        return results;
+      });
+      
+      console.log('🔵 Image optimization completed:', optimizationResult);
+      
+      // Attendi che le immagini ottimizzate siano completamente caricate e renderizzate
+      await page.waitForTimeout(2000);
+      
+      // Verifica che le immagini siano state ottimizzate
+      const imageCheck = await page.evaluate(() => {
+        const images = document.querySelectorAll('img.product-image');
+        return Array.from(images).map(img => ({
+          srcType: img.src.startsWith('data:image') ? 'base64' : 'url',
+          width: img.naturalWidth,
+          height: img.naturalHeight
+        }));
+      });
+      console.log('🔵 Image check after optimization:', imageCheck);
 
-    // Generate PDF con compressione
-    console.log('🔵 Generating PDF...');
-    const pdf = await page.pdf({
+      // Generate PDF con compressione
+      console.log('🔵 Generating PDF...');
+      const pdf = await page.pdf({
       format: 'A4',
       landscape: true,
       printBackground: true,
@@ -471,24 +486,44 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       // Puppeteer usa compressione di default, ma possiamo forzarla
     });
 
-    const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
-    console.log('🔵 PDF generated - Size:', pdfSizeMB, 'MB');
-    
-    await browser.close();
+      const pdfSizeMB = (pdf.length / (1024 * 1024)).toFixed(2);
+      console.log('🔵 PDF generated - Size:', pdfSizeMB, 'MB');
+      
+      await browser.close();
+      console.log('🔵 Browser closed');
 
-    // Send PDF as response
-    console.log('🔵 Sending PDF response - Size:', pdf.length, 'bytes');
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdf.length);
-    res.setHeader('Content-Disposition', 'attachment; filename="listino.pdf"');
-    res.send(pdf);
-    console.log('🔵 PDF response sent successfully');
+      // Send PDF as response
+      console.log('🔵 Sending PDF response - Size:', pdf.length, 'bytes');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', pdf.length);
+      res.setHeader('Content-Disposition', 'attachment; filename="listino.pdf"');
+      res.send(pdf);
+      console.log('🔵 PDF response sent successfully');
+    } catch (innerError) {
+      // Close browser if it was opened
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error('🔴 Error closing browser:', closeError);
+        }
+      }
+      throw innerError;
+    }
 
   } catch (error) {
-    console.error('Error generating PDF:', error);
+    console.error('🔴 Error generating PDF:', error);
+    console.error('🔴 Error stack:', error.stack);
+    console.error('🔴 Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code
+    });
+    
     res.status(500).json({ 
       error: 'Error generating PDF', 
-      message: error.message 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
