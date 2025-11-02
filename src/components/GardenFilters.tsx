@@ -10,6 +10,7 @@ interface GardenFiltersProps {
   onViewModeChange: (mode: 'grid' | 'list') => void;
   onFilterClick: () => void;
   hideFilterButton?: boolean;
+  hideViewModeButtons?: boolean;
 }
 
 export const GardenFilters: React.FC<GardenFiltersProps> = ({
@@ -18,7 +19,8 @@ export const GardenFilters: React.FC<GardenFiltersProps> = ({
   viewMode,
   onViewModeChange,
   onFilterClick,
-  hideFilterButton
+  hideFilterButton,
+  hideViewModeButtons
 }) => {
   return (
     <div className="bg-white/30 backdrop-blur-xl border border-white/40 rounded-xl p-3 sm:p-4 shadow-2xl">
@@ -48,33 +50,35 @@ export const GardenFilters: React.FC<GardenFiltersProps> = ({
         )}
 
         {/* View Mode Toggle - Tablet Optimized */}
-        <div className="flex items-center space-x-1 bg-white/40 backdrop-blur-sm rounded-lg p-1 border border-white/50">
-          <Button
-            onClick={() => onViewModeChange('grid')}
-            variant={viewMode === 'grid' ? 'default' : 'ghost'}
-            size="sm"
-            className={`h-8 sm:h-7 px-3 sm:px-2 touch-manipulation ${
-              viewMode === 'grid'
-                ? 'bg-emerald-500 text-white shadow-lg'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <Grid className="w-4 h-4 sm:w-3 sm:h-3" />
-          </Button>
-          
-          <Button
-            onClick={() => onViewModeChange('list')}
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
-            size="sm"
-            className={`h-8 sm:h-7 px-3 sm:px-2 touch-manipulation ${
-              viewMode === 'list'
-                ? 'bg-emerald-500 text-white shadow-lg'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <List className="w-4 h-4 sm:w-3 sm:h-3" />
-          </Button>
-        </div>
+        {!hideViewModeButtons && (
+          <div className="flex items-center space-x-1 bg-white/40 backdrop-blur-sm rounded-lg p-1 border border-white/50">
+            <Button
+              onClick={() => onViewModeChange('grid')}
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              className={`h-8 sm:h-7 px-3 sm:px-2 touch-manipulation ${
+                viewMode === 'grid'
+                  ? 'bg-emerald-500 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Grid className="w-4 h-4 sm:w-3 sm:h-3" />
+            </Button>
+            
+            <Button
+              onClick={() => onViewModeChange('list')}
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className={`h-8 sm:h-7 px-3 sm:px-2 touch-manipulation ${
+                viewMode === 'list'
+                  ? 'bg-emerald-500 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <List className="w-4 h-4 sm:w-3 sm:h-3" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Search Results Info */}

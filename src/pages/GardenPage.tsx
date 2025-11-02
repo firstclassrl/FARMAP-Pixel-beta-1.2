@@ -17,7 +17,6 @@ export default function GardenPage() {
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterPhoto, setFilterPhoto] = useState<'all' | 'with' | 'without'>('all');
   
@@ -231,19 +230,24 @@ export default function GardenPage() {
           productCount={filteredProducts.length}
         />
 
-        {/* Filters - Tablet Optimized */}
+        {/* Filters - All on one line */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-6 sm:mb-8">
-          <GardenFilters
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            onFilterClick={() => {}}
-            hideFilterButton
-          />
-          {/* Inline filters under search */}
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            {/* Search Bar - Largest */}
+            <div className="flex-1 w-full">
+              <GardenFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                viewMode="grid"
+                onViewModeChange={() => {}}
+                onFilterClick={() => {}}
+                hideFilterButton
+                hideViewModeButtons
+              />
+            </div>
+            
+            {/* Category Filter */}
+            <div className="w-full sm:w-48">
               <label className="block text-sm text-gray-200 mb-1">Categoria</label>
               <select
                 value={filterCategory}
@@ -256,7 +260,9 @@ export default function GardenPage() {
                 ))}
               </select>
             </div>
-            <div>
+            
+            {/* Photo Filter */}
+            <div className="w-full sm:w-48">
               <label className="block text-sm text-gray-200 mb-1">Foto</label>
               <select
                 value={filterPhoto}
@@ -289,11 +295,7 @@ export default function GardenPage() {
               </p>
             </div>
           ) : (
-            <div className={`grid gap-4 sm:gap-6 ${
-              viewMode === 'grid' 
-                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-                : 'grid-cols-1 max-w-4xl mx-auto'
-            }`}>
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredProducts.map((product) => (
                 <GardenProductCard
                   key={product.id}
