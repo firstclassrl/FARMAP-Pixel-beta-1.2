@@ -526,9 +526,13 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         throw new Error('PDF generato è vuoto!');
       }
       
-      const pdfHeader = pdf.slice(0, 4).toString();
+      // Converti in Buffer se necessario e verifica header
+      const pdfBuffer = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+      const pdfHeader = pdfBuffer.slice(0, 4).toString('latin1'); // Usa latin1 per leggere byte come stringa
+      
       if (pdfHeader !== '%PDF') {
         console.error('🔴 WARNING: PDF header non valido:', pdfHeader);
+        console.error('🔴 PDF first bytes (hex):', pdfBuffer.slice(0, 4).toString('hex'));
         throw new Error('PDF generato non è valido! Header: ' + pdfHeader);
       }
       
@@ -543,13 +547,8 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       // Send PDF as response
       console.log('🔵 Sending PDF response - Size:', pdf.length, 'bytes');
       
-      // Verifica che il PDF sia un Buffer valido
-      if (!Buffer.isBuffer(pdf) && !(pdf instanceof Uint8Array)) {
-        throw new Error('PDF non è un Buffer valido!');
-      }
-      
-      // Converti in Buffer se necessario
-      const pdfBuffer = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+      // pdfBuffer già creato sopra durante la verifica header
+      // Non serve ricrearlo
       
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Length', pdfBuffer.length.toString());
