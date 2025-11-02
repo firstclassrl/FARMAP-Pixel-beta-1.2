@@ -221,7 +221,9 @@ Team FARMAP`;
       console.log('🔵 PDF Generation - Price list items:', priceList.price_list_items?.length);
       
       // Call backend to generate PDF
-      const response = await fetch(`${backendUrl}/api/generate-price-list-pdf`, {
+      const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
+      console.log('🔵 PDF Generation - Full endpoint:', endpoint);
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
