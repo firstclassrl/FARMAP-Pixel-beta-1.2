@@ -730,9 +730,6 @@ export const ProductsPage = () => {
                         <h3 className="font-semibold text-lg text-gray-900 mb-1">
                           {product.name}
                         </h3>
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {product.description || 'Nessuna descrizione disponibile'}
-                        </p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         product.is_active 
