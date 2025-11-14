@@ -96,6 +96,13 @@ export const PriceListsPage = () => {
         .order('created_at', { ascending: false });
 
       if (priceListsError) throw priceListsError;
+      
+      // Ensure we have valid data
+      if (!priceListsData) {
+        console.warn('No price lists data returned');
+        setPriceLists([]);
+        return;
+      }
 
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
@@ -105,8 +112,9 @@ export const PriceListsPage = () => {
       if (customersError) throw customersError;
 
       // Fetch creator profiles - try to get all profiles, fallback to individual queries if RLS blocks
-      const creatorIds = [...new Set((priceListsData || []).map(pl => pl.created_by).filter(Boolean))];
-      let profilesData: Array<{ id: string; full_name: string | null; email?: string | null }> | null = null;
+      const creatorIds = [...new Set(priceListsData.map((pl: any) => pl.created_by).filter(Boolean))];
+      console.log('Creator IDs to fetch:', creatorIds);
+      let profilesData: Array<{ id: string; full_name: string | null; email?: string | null }> = [];
       if (creatorIds.length > 0) {
         try {
           // Try to fetch all creator profiles at once
@@ -119,16 +127,18 @@ export const PriceListsPage = () => {
             console.warn('Error fetching creator profiles (batch):', profilesError);
             // If batch query fails due to RLS, try fetching individually
             // This is a fallback - ideally RLS should allow reading profiles for list creators
-            profilesData = [];
             for (const creatorId of creatorIds) {
               try {
-                const { data: singleProfile } = await supabase
+                const { data: singleProfile, error: singleError } = await supabase
                   .from('profiles')
                   .select('id, full_name, email')
                   .eq('id', creatorId)
                   .single();
                 if (singleProfile) {
-                  profilesData.push(singleProfile);
+                  profilesData.push(singleProfile as { id: string; full_name: string | null; email?: string | null });
+                  console.log(`Retrieved profile for ${creatorId}:`, { full_name: (singleProfile as any).full_name, email: (singleProfile as any).email });
+                } else if (singleError) {
+                  console.warn(`Cannot access profile ${creatorId}:`, singleError);
                 }
               } catch (err) {
                 // Skip profiles that can't be accessed
@@ -136,17 +146,20 @@ export const PriceListsPage = () => {
               }
             }
           } else {
-            profilesData = data;
+            profilesData = data || [];
+            console.log('Retrieved profiles (batch):', profilesData.map(p => ({ id: p.id, full_name: p.full_name, email: p.email })));
           }
         } catch (error) {
           console.warn('Error fetching creator profiles:', error);
           profilesData = [];
         }
       }
+      
+      console.log('Final profilesData:', profilesData);
 
-      const processedPriceLists: PriceListWithDetails[] = (priceListsData || []).map(priceList => {
-        const customer = customersData?.find(c => c.price_list_id === priceList.id);
-        const creator = profilesData?.find(p => p.id === priceList.created_by);
+      const processedPriceLists: PriceListWithDetails[] = priceListsData.map((priceList: any) => {
+        const customer = (customersData as any[])?.find((c: any) => c.price_list_id === priceList.id);
+        const creator = profilesData.find(p => p.id === priceList.created_by);
         const productCount = (priceList.price_list_items as any)[0]?.count || 0;
         const now = new Date();
         const validFrom = new Date(priceList.valid_from);
@@ -158,8 +171,24 @@ export const PriceListsPage = () => {
           status = 'expired';
         }
 
-        // Use only full_name - email fallback removed for clarity
-        const creatorDisplayName = creator?.full_name || null;
+        // Prefer full_name, but use email as fallback if full_name is not available
+        // This ensures we always show something meaningful
+        const creatorDisplayName = creator?.full_name || creator?.email || null;
+        
+        // Debug log to see what we're getting
+        if (priceList.created_by) {
+          if (!creator) {
+            console.warn(`No profile found for creator ${priceList.created_by} (price list: ${priceList.name})`);
+          } else {
+            console.log(`Matched creator for ${priceList.name}:`, { 
+              created_by: priceList.created_by, 
+              creator_id: creator.id, 
+              full_name: creator.full_name, 
+              email: creator.email,
+              display_name: creatorDisplayName 
+            });
+          }
+        }
 
         return {
           ...priceList,
@@ -172,6 +201,12 @@ export const PriceListsPage = () => {
           creator_name: creatorDisplayName
         };
       });
+      
+      console.log('Processed price lists with creators:', processedPriceLists.map(pl => ({ 
+        name: pl.name, 
+        creator_name: pl.creator_name,
+        created_by: pl.created_by 
+      })));
 
       setPriceLists(processedPriceLists);
 
@@ -287,15 +322,19 @@ export const PriceListsPage = () => {
   const getCreatorColor = (creatorName: string | null | undefined): string => {
     if (!creatorName) return '#9CA3AF'; // gray for null/undefined
     
-    const nameLower = creatorName.toLowerCase();
+    const nameLower = creatorName.toLowerCase().trim();
     
     // Special cases for specific creators with fixed colors
-    if (nameLower === 'gigi') {
+    // Check for exact match or if name contains the keyword
+    if (nameLower === 'gigi' || nameLower.startsWith('gigi ')) {
       return '#3B82F6'; // blue
     }
     
-    // Contabilita gets yellow
-    if (nameLower.includes('contabilita') || nameLower === 'contabilita') {
+    // Contabilita gets yellow - check both in name and email
+    if (nameLower.includes('contabilita') || 
+        nameLower.includes('contabilità') ||
+        nameLower.startsWith('contabilita') ||
+        (nameLower.includes('@') && nameLower.includes('contabilita'))) {
       return '#EAB308'; // yellow
     }
     

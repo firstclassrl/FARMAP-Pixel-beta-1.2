@@ -766,7 +766,7 @@ export function PriceListDetailPage({
                             min="1"
                             value={item.min_quantity}
                             onChange={(e) => handleMOQChange(item.id, parseInt(e.target.value) || 1)}
-                            className="h-5 text-xs w-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="h-5 text-xs w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                           <span className="text-xs text-gray-500">{item.products.unit}</span>
                         </div>
