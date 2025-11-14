@@ -48,61 +48,139 @@ const formatDate = (dateString) => {
 };
 
 // Generate HTML template from price list data
-const generateHTML = (priceList) => {
-  const items = priceList.price_list_items || [];
+const generateHTML = (priceList, options = {}) => {
+  const { printByCategory = false, groupedByCategory = null, categoryOrder = [] } = options;
   
-  const itemsHTML = items.map((item, index) => {
-    const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
-    const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-    const photoUrl = item.products?.photo_url || '';
+  let itemsHTML = '';
+  let globalIndex = 0;
+  
+  if (printByCategory && groupedByCategory && categoryOrder.length > 0) {
+    // Genera HTML raggruppato per categoria
+    categoryOrder.forEach((category) => {
+      const categoryItems = groupedByCategory[category] || [];
+      
+      // Intestazione categoria
+      itemsHTML += `
+        <tr style="background-color: #dbeafe; page-break-inside: avoid;">
+          <td colspan="10" style="border: 1px solid #93c5fd; padding: 12px 16px; font-weight: bold; font-size: 13px; color: #1e40af;">
+            ${category}
+          </td>
+        </tr>
+      `;
+      
+      // Prodotti della categoria
+      categoryItems.forEach((item) => {
+        const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+        const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
+        const photoUrl = item.products?.photo_url || '';
+        const rowBgColor = globalIndex % 2 === 0 ? '#f9fafb' : '#ffffff';
+        
+        itemsHTML += `
+          <tr style="background-color: ${rowBgColor};">
+            <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
+              <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                ${photoUrl ? 
+                  `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+                  `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 10px; color: #9ca3af;">N/A</span>
+                  </div>`
+                }
+              </div>
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; font-family: monospace; font-size: 11px; vertical-align: top;">
+              ${item.products?.code || ''}
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; vertical-align: top;">
+              <div>
+                <div style="font-weight: 500; font-size: 11px;">${item.products?.name || ''}</div>
+                ${item.products?.description ? 
+                  `<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">${item.products.description}</div>` : ''
+                }
+              </div>
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+              ${item.min_quantity} ${item.products?.unit || ''}
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+              ${item.products?.cartone || '-'}
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+              ${item.products?.pallet || '-'}
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+              ${item.products?.scadenza || '-'}
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; font-family: monospace; vertical-align: top;">
+              ${item.products?.ean || '-'}
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+              ${vatRate}%
+            </td>
+            <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: 500; color: #dc2626; font-size: 11px; vertical-align: top;">
+              ${formatCurrency(finalPrice)}
+            </td>
+          </tr>
+        `;
+        globalIndex++;
+      });
+    });
+  } else {
+    // Comportamento normale: lista piatta
+    const items = priceList.price_list_items || [];
     
-    return `
-      <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
-        <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-          <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-            ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
-              `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 10px; color: #9ca3af;">N/A</span>
-              </div>`
-            }
-          </div>
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; font-family: monospace; font-size: 11px; vertical-align: top;">
-          ${item.products?.code || ''}
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; vertical-align: top;">
-          <div>
-            <div style="font-weight: 500; font-size: 11px;">${item.products?.name || ''}</div>
-            ${item.products?.description ? 
-              `<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">${item.products.description}</div>` : ''
-            }
-          </div>
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
-          ${item.min_quantity} ${item.products?.unit || ''}
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
-          ${item.products?.cartone || '-'}
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
-          ${item.products?.pallet || '-'}
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
-          ${item.products?.scadenza || '-'}
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; font-family: monospace; vertical-align: top;">
-          ${item.products?.ean || '-'}
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
-          ${vatRate}%
-        </td>
-        <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: 500; color: #dc2626; font-size: 11px; vertical-align: top;">
-          ${formatCurrency(finalPrice)}
-        </td>
-      </tr>
-    `;
-  }).join('');
+    itemsHTML = items.map((item, index) => {
+      const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+      const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
+      const photoUrl = item.products?.photo_url || '';
+      
+      return `
+        <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
+          <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
+            <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+              ${photoUrl ? 
+                `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+                `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 10px; color: #9ca3af;">N/A</span>
+                </div>`
+              }
+            </div>
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; font-family: monospace; font-size: 11px; vertical-align: top;">
+            ${item.products?.code || ''}
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; vertical-align: top;">
+            <div>
+              <div style="font-weight: 500; font-size: 11px;">${item.products?.name || ''}</div>
+              ${item.products?.description ? 
+                `<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">${item.products.description}</div>` : ''
+              }
+            </div>
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+            ${item.min_quantity} ${item.products?.unit || ''}
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+            ${item.products?.cartone || '-'}
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+            ${item.products?.pallet || '-'}
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+            ${item.products?.scadenza || '-'}
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; font-family: monospace; vertical-align: top;">
+            ${item.products?.ean || '-'}
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size: 11px; vertical-align: top;">
+            ${vatRate}%
+          </td>
+          <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: 500; color: #dc2626; font-size: 11px; vertical-align: top;">
+            ${formatCurrency(finalPrice)}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
 
   const conditionsHTML = (priceList.payment_conditions || priceList.shipping_conditions || 
     priceList.delivery_conditions || priceList.brand_conditions) ? `
@@ -384,8 +462,11 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     console.log('🔵 Request body keys:', Object.keys(req.body));
     console.log('🔵 priceListData exists:', !!req.body.priceListData);
     console.log('🔵 priceListData items:', req.body.priceListData?.price_list_items?.length);
+    console.log('🔵 printByCategory:', req.body.printByCategory);
+    console.log('🔵 groupedByCategory exists:', !!req.body.groupedByCategory);
+    console.log('🔵 categoryOrder:', req.body.categoryOrder);
     
-    const { priceListData } = req.body;
+    const { priceListData, printByCategory, groupedByCategory, categoryOrder } = req.body;
 
     if (!priceListData) {
       console.error('🔴 Error: priceListData is missing');
@@ -399,8 +480,12 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     
     let browser;
     try {
-      // Generate HTML
-      const html = generateHTML(priceListData);
+      // Generate HTML con opzioni per raggruppamento categorie
+      const html = generateHTML(priceListData, {
+        printByCategory: printByCategory || false,
+        groupedByCategory: groupedByCategory || null,
+        categoryOrder: categoryOrder || []
+      });
 
       // Launch Puppeteer
       browser = await puppeteer.launch({

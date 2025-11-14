@@ -151,29 +151,25 @@ export function PriceListPrintView({
         return item.products.category === selectedCategory;
       });
 
-      // Se printByCategory è true, ordina prima per categoria e poi all'interno di ogni categoria
-      // Se printByCategory è false, ordina i prodotti normalmente
-      const itemsToSend = printByCategory 
-        ? filteredItems.sort((a, b) => {
-            // Prima ordina per categoria
-            const categoryA = a.products.category || 'Senza categoria';
-            const categoryB = b.products.category || 'Senza categoria';
-            const categoryComparison = categoryA.localeCompare(categoryB);
-            
-            // Se sono nella stessa categoria, ordina per il campo selezionato
-            if (categoryComparison === 0) {
-              let comparison = 0;
-              if (sortField === 'code') {
-                comparison = (a.products.code || '').localeCompare(b.products.code || '');
-              } else {
-                comparison = (a.products.name || '').localeCompare(b.products.name || '');
-              }
-              return sortDirection === 'asc' ? comparison : -comparison;
-            }
-            
-            return categoryComparison;
-          })
-        : filteredItems.sort((a, b) => {
+      let requestBody: any;
+      
+      if (printByCategory) {
+        // Raggruppa i prodotti per categoria
+        const groupedByCategory = filteredItems.reduce((acc, item) => {
+          const category = item.products.category || 'Senza categoria';
+          if (!acc[category]) {
+            acc[category] = [];
+          }
+          acc[category].push(item);
+          return acc;
+        }, {} as Record<string, typeof filteredItems>);
+
+        // Ordina le categorie alfabeticamente
+        const sortedCategories = Object.keys(groupedByCategory).sort();
+        
+        // Ordina i prodotti all'interno di ogni categoria
+        sortedCategories.forEach(category => {
+          groupedByCategory[category] = groupedByCategory[category].sort((a, b) => {
             let comparison = 0;
             if (sortField === 'code') {
               comparison = (a.products.code || '').localeCompare(b.products.code || '');
@@ -182,6 +178,53 @@ export function PriceListPrintView({
             }
             return sortDirection === 'asc' ? comparison : -comparison;
           });
+        });
+
+        // Crea una lista piatta ordinata per categoria (per compatibilità)
+        const flatItems = sortedCategories.flatMap(category => groupedByCategory[category]);
+        
+        // Aggiungi un campo _category_group a ogni prodotto per aiutare il backend
+        const itemsWithCategoryGroup = flatItems.map(item => ({
+          ...item,
+          _category_group: item.products.category || 'Senza categoria',
+          _is_category_header: false
+        }));
+
+        requestBody = {
+          priceListData: {
+            ...priceList,
+            price_list_items: itemsWithCategoryGroup
+          },
+          printByCategory: true,
+          groupedByCategory: groupedByCategory,
+          categoryOrder: sortedCategories,
+          sortField: sortField,
+          sortDirection: sortDirection,
+          selectedCategory: selectedCategory
+        };
+      } else {
+        // Comportamento normale: ordina i prodotti
+        const itemsToSend = filteredItems.sort((a, b) => {
+          let comparison = 0;
+          if (sortField === 'code') {
+            comparison = (a.products.code || '').localeCompare(b.products.code || '');
+          } else {
+            comparison = (a.products.name || '').localeCompare(b.products.name || '');
+          }
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+
+        requestBody = {
+          priceListData: {
+            ...priceList,
+            price_list_items: itemsToSend
+          },
+          printByCategory: false,
+          sortField: sortField,
+          sortDirection: sortDirection,
+          selectedCategory: selectedCategory
+        };
+      }
       
       // Call backend to generate PDF
       const response = await fetch(endpoint, {
@@ -189,16 +232,7 @@ export function PriceListPrintView({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          priceListData: {
-            ...priceList,
-            price_list_items: itemsToSend
-          },
-          printByCategory: printByCategory,
-          sortField: sortField,
-          sortDirection: sortDirection,
-          selectedCategory: selectedCategory
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -232,7 +266,7 @@ In allegato troverete il vostro listino prezzi personalizzato.
 
 Listino: ${priceList.name}
 Data: ${new Date().toLocaleDateString('it-IT')}
-Prodotti inclusi: ${itemsToSend.length}
+Prodotti inclusi: ${printByCategory ? Object.values(requestBody.groupedByCategory).flat().length : requestBody.priceListData.price_list_items.length}
 
 IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
 Per allegarlo:
@@ -304,29 +338,25 @@ Team FARMAP`;
         return item.products.category === selectedCategory;
       });
 
-      // Se printByCategory è true, ordina prima per categoria e poi all'interno di ogni categoria
-      // Se printByCategory è false, ordina i prodotti normalmente
-      const itemsToSend = printByCategory 
-        ? filteredItems.sort((a, b) => {
-            // Prima ordina per categoria
-            const categoryA = a.products.category || 'Senza categoria';
-            const categoryB = b.products.category || 'Senza categoria';
-            const categoryComparison = categoryA.localeCompare(categoryB);
-            
-            // Se sono nella stessa categoria, ordina per il campo selezionato
-            if (categoryComparison === 0) {
-              let comparison = 0;
-              if (sortField === 'code') {
-                comparison = (a.products.code || '').localeCompare(b.products.code || '');
-              } else {
-                comparison = (a.products.name || '').localeCompare(b.products.name || '');
-              }
-              return sortDirection === 'asc' ? comparison : -comparison;
-            }
-            
-            return categoryComparison;
-          })
-        : filteredItems.sort((a, b) => {
+      let requestBody: any;
+      
+      if (printByCategory) {
+        // Raggruppa i prodotti per categoria
+        const groupedByCategory = filteredItems.reduce((acc, item) => {
+          const category = item.products.category || 'Senza categoria';
+          if (!acc[category]) {
+            acc[category] = [];
+          }
+          acc[category].push(item);
+          return acc;
+        }, {} as Record<string, typeof filteredItems>);
+
+        // Ordina le categorie alfabeticamente
+        const sortedCategories = Object.keys(groupedByCategory).sort();
+        
+        // Ordina i prodotti all'interno di ogni categoria
+        sortedCategories.forEach(category => {
+          groupedByCategory[category] = groupedByCategory[category].sort((a, b) => {
             let comparison = 0;
             if (sortField === 'code') {
               comparison = (a.products.code || '').localeCompare(b.products.code || '');
@@ -335,25 +365,64 @@ Team FARMAP`;
             }
             return sortDirection === 'asc' ? comparison : -comparison;
           });
+        });
+
+        // Crea una lista piatta ordinata per categoria (per compatibilità)
+        const flatItems = sortedCategories.flatMap(category => groupedByCategory[category]);
+        
+        // Aggiungi un campo _category_group a ogni prodotto per aiutare il backend
+        const itemsWithCategoryGroup = flatItems.map(item => ({
+          ...item,
+          _category_group: item.products.category || 'Senza categoria',
+          _is_category_header: false
+        }));
+
+        requestBody = {
+          priceListData: {
+            ...priceList,
+            price_list_items: itemsWithCategoryGroup
+          },
+          printByCategory: true,
+          groupedByCategory: groupedByCategory,
+          categoryOrder: sortedCategories,
+          sortField: sortField,
+          sortDirection: sortDirection,
+          selectedCategory: selectedCategory
+        };
+      } else {
+        // Comportamento normale: ordina i prodotti
+        const itemsToSend = filteredItems.sort((a, b) => {
+          let comparison = 0;
+          if (sortField === 'code') {
+            comparison = (a.products.code || '').localeCompare(b.products.code || '');
+          } else {
+            comparison = (a.products.name || '').localeCompare(b.products.name || '');
+          }
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+
+        requestBody = {
+          priceListData: {
+            ...priceList,
+            price_list_items: itemsToSend
+          },
+          printByCategory: false,
+          sortField: sortField,
+          sortDirection: sortDirection,
+          selectedCategory: selectedCategory
+        };
+      }
       
-      console.log('🔵 PDF Generation - Price list items:', itemsToSend.length);
+      console.log('🔵 PDF Generation - Price list items:', printByCategory ? Object.values(requestBody.groupedByCategory).flat().length : requestBody.priceListData.price_list_items.length);
       console.log('🔵 PDF Generation - Full endpoint:', endpoint);
       console.log('🔵 PDF Generation - Print by category:', printByCategory);
+      console.log('🔵 PDF Generation - Categories:', printByCategory ? requestBody.categoryOrder : 'N/A');
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          priceListData: {
-            ...priceList,
-            price_list_items: itemsToSend
-          },
-          printByCategory: printByCategory,
-          sortField: sortField,
-          sortDirection: sortDirection,
-          selectedCategory: selectedCategory
-        })
+        body: JSON.stringify(requestBody)
       });
 
       console.log('🔵 PDF Response status:', response.status, response.statusText);
