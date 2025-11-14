@@ -158,8 +158,8 @@ export const PriceListsPage = () => {
           status = 'expired';
         }
 
-        // Use full_name if available, otherwise use email, otherwise use created_by ID
-        const creatorDisplayName = creator?.full_name || creator?.email || priceList.created_by || null;
+        // Use only full_name - email fallback removed for clarity
+        const creatorDisplayName = creator?.full_name || null;
 
         return {
           ...priceList,
@@ -287,31 +287,36 @@ export const PriceListsPage = () => {
   const getCreatorColor = (creatorName: string | null | undefined): string => {
     if (!creatorName) return '#9CA3AF'; // gray for null/undefined
     
-    // Special case: Gigi always gets blue
-    if (creatorName.toLowerCase() === 'gigi') {
+    const nameLower = creatorName.toLowerCase();
+    
+    // Special cases for specific creators with fixed colors
+    if (nameLower === 'gigi') {
       return '#3B82F6'; // blue
     }
     
-    // Generate a hash from the name
+    // Contabilita gets yellow
+    if (nameLower.includes('contabilita') || nameLower === 'contabilita') {
+      return '#EAB308'; // yellow
+    }
+    
+    // Generate a hash from the name for other creators
     let hash = 0;
     for (let i = 0; i < creatorName.length; i++) {
       hash = creatorName.charCodeAt(i) + ((hash << 5) - hash);
     }
     
-    // Use a predefined color palette
+    // Use a predefined color palette with better color separation
     const colors = [
       '#EF4444', // red
-      '#F59E0B', // amber
       '#10B981', // green
-      '#3B82F6', // blue
       '#8B5CF6', // violet
       '#EC4899', // pink
       '#06B6D4', // cyan
-      '#84CC16', // lime
       '#F97316', // orange
       '#6366F1', // indigo
       '#14B8A6', // teal
       '#A855F7', // purple
+      '#84CC16', // lime
     ];
     
     return colors[Math.abs(hash) % colors.length];

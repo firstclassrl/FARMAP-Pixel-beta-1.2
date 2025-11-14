@@ -193,7 +193,17 @@ export function PriceListDetailPage({
   useEffect(() => {
     if (isOpen) {
       loadData();
+      // Prevenire lo scroll del body quando la modale è aperta
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Ripristinare lo scroll del body quando la modale è chiusa
+      document.body.style.overflow = 'unset';
     }
+    
+    // Cleanup quando il componente viene smontato
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen, priceListId]);
 
   const handleMainFormSubmit = async (data: PriceListFormData) => {
@@ -556,13 +566,13 @@ export function PriceListDetailPage({
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col px-2 py-1 overflow-hidden">
+        <div className="flex-1 flex flex-col px-2 py-1 overflow-hidden min-h-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
             {/* Informazioni Listino Section - Immediatamente sotto i pulsanti */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-1 mt-0">
               <div className="flex items-center justify-between">
@@ -677,8 +687,8 @@ export function PriceListDetailPage({
             </div>
 
             {/* Prodotti nel Listino Section - Espansa per riempire tutto lo spazio */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-1 mt-0 mb-0 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-1">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-1 mt-0 mb-0 flex-1 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-1 flex-shrink-0">
                 <div className="flex items-center space-x-2">
                   <Package className="w-5 h-5 text-green-600" />
                   <h3 className="text-lg font-semibold text-green-800">
@@ -705,7 +715,7 @@ export function PriceListDetailPage({
                   </p>
                 </div>
               ) : currentPriceList.price_list_items && currentPriceList.price_list_items.length > 0 ? (
-              <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-1 pr-1 min-h-0">
                   {currentPriceList.price_list_items.map((item) => (
                     <div key={item.id} className="bg-white border border-green-200 rounded p-2">
                     <div className="flex items-center justify-between">
