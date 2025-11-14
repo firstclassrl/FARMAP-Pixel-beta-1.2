@@ -87,6 +87,7 @@ export function PriceListDetailPage({
   const [sortField, setSortField] = useState<'code' | 'name'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [printByCategory, setPrintByCategory] = useState(false);
 
   // Main form
   const {
@@ -770,6 +771,18 @@ export function PriceListDetailPage({
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="printByCategory"
+                    checked={printByCategory}
+                    onChange={(e) => setPrintByCategory(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <Label htmlFor="printByCategory" className="text-xs text-gray-600 cursor-pointer">
+                    Stampa per categorie
+                  </Label>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto space-y-1 pr-1 min-h-0">
                   {[...currentPriceList.price_list_items]
@@ -1010,6 +1023,7 @@ export function PriceListDetailPage({
         sortField={sortField}
         sortDirection={sortDirection}
         selectedCategory={selectedCategory}
+        printByCategory={printByCategory}
       />
     </div>
   );

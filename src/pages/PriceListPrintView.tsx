@@ -53,6 +53,7 @@ interface PriceListPrintViewProps {
   sortField?: 'code' | 'name';
   sortDirection?: 'asc' | 'desc';
   selectedCategory?: string;
+  printByCategory?: boolean;
 }
 
 export function PriceListPrintView({ 
@@ -61,12 +62,12 @@ export function PriceListPrintView({
   priceListId,
   sortField = 'name',
   sortDirection = 'asc',
-  selectedCategory = 'all'
+  selectedCategory = 'all',
+  printByCategory = false
 }: PriceListPrintViewProps) {
   const [priceList, setPriceList] = useState<PriceListWithItems | null>(null);
   const [loading, setLoading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [printByCategory, setPrintByCategory] = useState(false);
   const { addNotification } = useNotifications();
   const printContentRef = useRef<HTMLDivElement>(null);
 
@@ -144,21 +145,26 @@ export function PriceListPrintView({
       const cleanBackendUrl = backendUrl.replace(/\/$/, '');
       const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
       
-      // Applica filtro categoria e ordinamento ai prodotti
-      const filteredAndSortedItems = [...priceList.price_list_items]
-        .filter(item => {
-          if (selectedCategory === 'all') return true;
-          return item.products.category === selectedCategory;
-        })
-        .sort((a, b) => {
-          let comparison = 0;
-          if (sortField === 'code') {
-            comparison = (a.products.code || '').localeCompare(b.products.code || '');
-          } else {
-            comparison = (a.products.name || '').localeCompare(b.products.name || '');
-          }
-          return sortDirection === 'asc' ? comparison : -comparison;
-        });
+      // Applica filtro categoria ai prodotti
+      const filteredItems = [...priceList.price_list_items].filter(item => {
+        if (selectedCategory === 'all') return true;
+        return item.products.category === selectedCategory;
+      });
+
+      // Se printByCategory è true, invia i prodotti filtrati ma non ordinati globalmente
+      // Il backend li raggrupperà per categoria e ordinerà all'interno di ogni categoria
+      // Se printByCategory è false, ordina i prodotti prima di inviarli
+      const itemsToSend = printByCategory 
+        ? filteredItems  // Non ordinare, lascia che il backend raggruppi per categoria
+        : filteredItems.sort((a, b) => {
+            let comparison = 0;
+            if (sortField === 'code') {
+              comparison = (a.products.code || '').localeCompare(b.products.code || '');
+            } else {
+              comparison = (a.products.name || '').localeCompare(b.products.name || '');
+            }
+            return sortDirection === 'asc' ? comparison : -comparison;
+          });
       
       // Call backend to generate PDF
       const response = await fetch(endpoint, {
@@ -169,7 +175,7 @@ export function PriceListPrintView({
         body: JSON.stringify({
           priceListData: {
             ...priceList,
-            price_list_items: filteredAndSortedItems
+            price_list_items: itemsToSend
           },
           printByCategory: printByCategory,
           sortField: sortField,
@@ -209,7 +215,7 @@ In allegato troverete il vostro listino prezzi personalizzato.
 
 Listino: ${priceList.name}
 Data: ${new Date().toLocaleDateString('it-IT')}
-Prodotti inclusi: ${filteredAndSortedItems.length}
+Prodotti inclusi: ${itemsToSend.length}
 
 IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
 Per allegarlo:
@@ -275,23 +281,28 @@ Team FARMAP`;
       console.log('🔵 PDF Generation - Env var exists:', !!import.meta.env.VITE_PDF_GENERATOR_URL);
       console.log('🔵 PDF Generation - Env var value:', import.meta.env.VITE_PDF_GENERATOR_URL || 'NOT SET');
       
-      // Applica filtro categoria e ordinamento ai prodotti
-      const filteredAndSortedItems = [...priceList.price_list_items]
-        .filter(item => {
-          if (selectedCategory === 'all') return true;
-          return item.products.category === selectedCategory;
-        })
-        .sort((a, b) => {
-          let comparison = 0;
-          if (sortField === 'code') {
-            comparison = (a.products.code || '').localeCompare(b.products.code || '');
-          } else {
-            comparison = (a.products.name || '').localeCompare(b.products.name || '');
-          }
-          return sortDirection === 'asc' ? comparison : -comparison;
-        });
+      // Applica filtro categoria ai prodotti
+      const filteredItems = [...priceList.price_list_items].filter(item => {
+        if (selectedCategory === 'all') return true;
+        return item.products.category === selectedCategory;
+      });
+
+      // Se printByCategory è true, invia i prodotti filtrati ma non ordinati globalmente
+      // Il backend li raggrupperà per categoria e ordinerà all'interno di ogni categoria
+      // Se printByCategory è false, ordina i prodotti prima di inviarli
+      const itemsToSend = printByCategory 
+        ? filteredItems  // Non ordinare, lascia che il backend raggruppi per categoria
+        : filteredItems.sort((a, b) => {
+            let comparison = 0;
+            if (sortField === 'code') {
+              comparison = (a.products.code || '').localeCompare(b.products.code || '');
+            } else {
+              comparison = (a.products.name || '').localeCompare(b.products.name || '');
+            }
+            return sortDirection === 'asc' ? comparison : -comparison;
+          });
       
-      console.log('🔵 PDF Generation - Price list items:', filteredAndSortedItems.length);
+      console.log('🔵 PDF Generation - Price list items:', itemsToSend.length);
       console.log('🔵 PDF Generation - Full endpoint:', endpoint);
       console.log('🔵 PDF Generation - Print by category:', printByCategory);
       const response = await fetch(endpoint, {
@@ -302,7 +313,7 @@ Team FARMAP`;
         body: JSON.stringify({
           priceListData: {
             ...priceList,
-            price_list_items: filteredAndSortedItems
+            price_list_items: itemsToSend
           },
           printByCategory: printByCategory,
           sortField: sortField,
@@ -805,20 +816,6 @@ Team FARMAP`;
           
           {/* Footer with action buttons */}
           <div className="no-print p-6 pt-0 border-t bg-gray-50">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="printByCategory"
-                  checked={printByCategory}
-                  onChange={(e) => setPrintByCategory(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <Label htmlFor="printByCategory" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  Stampa per categorie
-                </Label>
-              </div>
-            </div>
             <div className="flex items-center justify-end space-x-3">
               <Button 
                 onClick={handleSendEmail} 

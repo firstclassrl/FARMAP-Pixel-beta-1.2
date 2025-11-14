@@ -59,11 +59,11 @@ const generateHTML = (priceList) => {
     return `
       <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-          <div style="width: 32px; min-height: 32px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 32px; max-width: 32px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 9px; color: #9ca3af;">N/A</span>
+                <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
             }
           </div>
@@ -321,7 +321,7 @@ const generateHTML = (priceList) => {
     <table class="print-table">
       <thead>
         <tr>
-          <th style="text-align: center; width: 45px;">Foto</th>
+          <th style="text-align: center; width: 80px;">Foto</th>
           <th style="text-align: left; width: 80px;">Codice</th>
           <th style="text-align: left; width: 160px;">Prodotto</th>
           <th style="text-align: center; width: 64px;">MOQ</th>
@@ -397,18 +397,12 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       return res.status(400).json({ error: 'priceListData must contain price_list_items' });
     }
     
-    console.log('🔵 Starting PDF generation for price list:', priceListData.name);
-    console.log('🔵 Price list items count:', priceListData.price_list_items?.length || 0);
-
     let browser;
     try {
       // Generate HTML
-      console.log('🔵 Generating HTML...');
       const html = generateHTML(priceListData);
-      console.log('🔵 HTML generated, length:', html.length);
 
       // Launch Puppeteer
-      console.log('🔵 Launching Puppeteer...');
       browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -421,102 +415,98 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           '--single-process',
           '--no-zygote'
         ],
-        timeout: 60000
+        timeout: 30000 // Ridotto per velocità
       });
-      console.log('🔵 Puppeteer launched successfully');
 
       const page = await browser.newPage();
-      console.log('🔵 New page created');
       
       // Set content - carica HTML (ottimizzato: non aspettare tutte le immagini)
-      console.log('🔵 Setting page content...');
       await page.setContent(html, { 
         waitUntil: 'domcontentloaded', // Più veloce: non aspetta tutte le immagini
-        timeout: 15000 
+        timeout: 10000 // Ridotto per velocità
       });
-      console.log('🔵 Page content set successfully');
     
-      // Ottimizzazione: Riduci dimensioni immagini e comprimi usando canvas
-      console.log('🔵 Compressing images for smaller PDF size...');
-      
+      // Ottimizzazione velocità: comprimi immagini in parallelo senza attendere
+      // Processa immagini in parallelo senza attendere il caricamento completo
       await page.evaluate(async () => {
-        const images = document.querySelectorAll('img.product-image');
+        const images = Array.from(document.querySelectorAll('img.product-image'));
         
-        for (const img of images) {
+        // Processa tutte le immagini in parallelo
+        await Promise.all(images.map(async (img) => {
           try {
-            // Attendi che l'immagine sia caricata (timeout ridotto a 2 secondi)
-            if (!img.complete || img.naturalWidth === 0) {
-              await new Promise((resolve) => {
-                const timeout = setTimeout(() => resolve(), 2000);
-                img.onload = () => {
-                  clearTimeout(timeout);
-                  resolve();
-                };
-                img.onerror = () => {
-                  clearTimeout(timeout);
-                  resolve();
-                };
-              });
-            }
-            
-            // Se l'immagine è caricata, comprimila usando canvas
+            // Non aspettare il caricamento completo - procedi immediatamente se possibile
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              try {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Dimensioni target: 32x32px (molto piccole per ridurre peso)
-                const maxSize = 32;
-                let width = img.naturalWidth;
-                let height = img.naturalHeight;
-                
-                // Calcola dimensioni mantenendo aspect ratio
-                if (width > height) {
-                  if (width > maxSize) {
-                    height = (height * maxSize) / width;
-                    width = maxSize;
-                  }
-                } else {
-                  if (height > maxSize) {
-                    width = (width * maxSize) / height;
-                    height = maxSize;
-                  }
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                // Disegna immagine ridimensionata sul canvas
-                // Se fallisce per CORS, usa solo CSS
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Converti in JPEG compresso (qualità 0.5 per ridurre ulteriormente il peso)
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
-                img.src = compressedDataUrl;
-              } catch (corsError) {
-                // Se CORS blocca, usa solo ridimensionamento CSS
-                console.warn('CORS error compressing image, using CSS resize only');
+              // Immagine già caricata, comprimi subito
+              await compressImage(img);
+            } else {
+              // Immagine non ancora caricata - aspetta max 500ms poi procedi comunque
+              await Promise.race([
+                new Promise(resolve => {
+                  img.onload = () => resolve(true);
+                  img.onerror = () => resolve(false);
+                }),
+                new Promise(resolve => setTimeout(() => resolve(false), 500))
+              ]);
+              
+              // Prova a comprimere anche se non completamente caricata
+              if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                await compressImage(img);
               }
             }
             
-            // Applica dimensioni CSS finali
-            img.style.maxWidth = '32px';
-            img.style.maxHeight = '32px';
+            // Applica dimensioni CSS finali (64px come originale)
+            img.style.maxWidth = '64px';
+            img.style.maxHeight = '64px';
             img.style.width = 'auto';
             img.style.height = 'auto';
             img.style.objectFit = 'contain';
           } catch (error) {
-            // Se la compressione fallisce, usa solo CSS
-            img.style.maxWidth = '32px';
-            img.style.maxHeight = '32px';
+            // Se fallisce, applica solo CSS
+            img.style.maxWidth = '64px';
+            img.style.maxHeight = '64px';
             img.style.width = 'auto';
             img.style.height = 'auto';
             img.style.objectFit = 'contain';
           }
+        }));
+        
+        // Funzione helper per comprimere una singola immagine
+        async function compressImage(img) {
+          try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Mantieni dimensioni originali (64px) ma riduci qualità JPEG
+            const maxSize = 64;
+            let width = img.naturalWidth;
+            let height = img.naturalHeight;
+            
+            // Se l'immagine è più grande di 64px, ridimensiona mantenendo aspect ratio
+            if (width > maxSize || height > maxSize) {
+              if (width > height) {
+                height = (height * maxSize) / width;
+                width = maxSize;
+              } else {
+                width = (width * maxSize) / height;
+                height = maxSize;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Disegna immagine sul canvas
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Converti in JPEG con qualità molto bassa (0.3) per ridurre peso mantenendo dimensione
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.3);
+            img.src = compressedDataUrl;
+          } catch (corsError) {
+            // CORS error - mantieni immagine originale con CSS
+            console.warn('CORS error, keeping original image');
+          }
         }
       });
-      
-      console.log('🔵 Images compressed and resized');
       
       // Rimuovi solo i canvas temporanei di compressione (non le immagini convertite)
       await page.evaluate(() => {
@@ -533,8 +523,6 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         document.body.style.transform = 'none';
         document.body.style.willChange = 'auto';
       });
-      
-      console.log('🔵 Generating PDF (allowing multi-page)...');
       
       // Permetti paginazione naturale - rimossi limiti di altezza e page-break
       // Il contenuto può ora espandersi su più pagine A4
