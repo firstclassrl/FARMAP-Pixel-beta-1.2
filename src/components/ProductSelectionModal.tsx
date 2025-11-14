@@ -49,16 +49,25 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [existingProductIds, setExistingProductIds] = useState<Set<string>>(new Set());
+  const [isAdding, setIsAdding] = useState(false);
   const { addNotification } = useNotifications();
 
-  // Carica dati
+  // Carica dati quando la modale viene aperta
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && priceListId) {
+      // Reset dello stato quando si apre la modale
+      setSelectedProducts([]);
+      setSearchTerm('');
+      setSelectedCategory('all');
+      // Ricarica sempre i dati quando si apre la modale per avere dati aggiornati
       loadData();
     }
-  }, [isOpen, currentCustomer]);
+  }, [isOpen, currentCustomer, priceListId]);
 
   const loadData = async () => {
+    if (!priceListId) return;
+    
     setIsLoading(true);
     try {
       // Carica clienti
@@ -70,6 +79,22 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
       if (customersError) throw customersError;
       setCustomers(customersData || []);
+
+      // Carica prodotti già presenti nel listino - IMPORTANTE: sempre ricaricare per avere dati aggiornati
+      const { data: existingItems, error: existingError } = await supabase
+        .from('price_list_items')
+        .select('product_id')
+        .eq('price_list_id', priceListId);
+
+      if (existingError) {
+        console.error('Errore nel caricamento prodotti esistenti:', existingError);
+        throw existingError;
+      }
+      
+      // Crea un nuovo Set per forzare l'aggiornamento
+      const existingIds = new Set(existingItems?.map(item => item.product_id) || []);
+      console.log(`Prodotti già presenti nel listino: ${existingIds.size}`);
+      setExistingProductIds(existingIds);
 
       // Carica prodotti
       const { data: productsData, error: productsError } = await supabase
@@ -83,7 +108,11 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
-      addNotification('Errore nel caricamento dei dati', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Errore nel caricamento dei dati'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +148,18 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   // Categorie uniche
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
 
-  const handleProductToggle = (product: Product) => {
+  const handleProductToggle = (product: Product, e?: React.MouseEvent) => {
+    // Previeni la propagazione dell'evento se fornito
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Non permettere la selezione se il prodotto è già nel listino
+    if (existingProductIds.has(product.id)) {
+      return;
+    }
+
     setSelectedProducts(prev => {
       const isSelected = prev.some(p => p.id === product.id);
       if (isSelected) {
@@ -132,32 +172,110 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   const handleAddSelectedProducts = async () => {
     if (selectedProducts.length === 0) {
-      addNotification('Seleziona almeno un prodotto', 'warning');
+      addNotification({
+        type: 'warning',
+        title: 'Attenzione',
+        message: 'Seleziona almeno un prodotto'
+      });
       return;
     }
 
-    try {
-      for (const product of selectedProducts) {
-        const { error } = await supabase
-          .from('price_list_items')
-          .insert({
-            price_list_id: priceListId,
-            product_id: product.id,
-            price: product.base_price,
-            min_quantity: 1,
-            discount_percentage: 0
-          });
+    if (isAdding) {
+      return; // Previeni click multipli
+    }
 
-        if (error) throw error;
+    setIsAdding(true);
+    try {
+      // Filtra i prodotti già presenti per evitare duplicati
+      const productsToAdd = selectedProducts.filter(p => !existingProductIds.has(p.id));
+      
+      if (productsToAdd.length === 0) {
+        addNotification({
+          type: 'warning',
+          title: 'Attenzione',
+          message: 'Tutti i prodotti selezionati sono già presenti nel listino'
+        });
+        setIsAdding(false);
+        return;
       }
 
-      addNotification(`${selectedProducts.length} prodotti aggiunti al listino`, 'success');
+      // Prepara i dati per l'inserimento batch
+      const itemsToInsert = productsToAdd.map(product => ({
+        price_list_id: priceListId,
+        product_id: product.id,
+        price: product.base_price,
+        min_quantity: 1,
+        discount_percentage: 0
+      }));
+
+      // Inserisci tutti i prodotti in una singola operazione
+      const { error } = await supabase
+        .from('price_list_items')
+        .insert(itemsToInsert);
+
+      if (error) {
+        // Se c'è un errore di duplicato, prova ad aggiungere uno per uno
+        if (error.code === '23505' || error.message.includes('duplicate')) {
+          let added = 0;
+          let skipped = 0;
+          for (const product of productsToAdd) {
+            const { error: singleError } = await supabase
+              .from('price_list_items')
+              .insert({
+                price_list_id: priceListId,
+                product_id: product.id,
+                price: product.base_price,
+                min_quantity: 1,
+                discount_percentage: 0
+              });
+            if (singleError) {
+              if (singleError.code === '23505' || singleError.message.includes('duplicate')) {
+                skipped++;
+              } else {
+                throw singleError;
+              }
+            } else {
+              added++;
+            }
+          }
+          if (added > 0) {
+            addNotification({
+              type: 'success',
+              title: 'Prodotti aggiunti',
+              message: `${added} prodotti aggiunti${skipped > 0 ? `, ${skipped} già presenti` : ''}`
+            });
+          }
+        } else {
+          throw error;
+        }
+      } else {
+        addNotification({
+          type: 'success',
+          title: 'Successo',
+          message: `${productsToAdd.length} prodotti aggiunti al listino`
+        });
+      }
+
+      // Chiama il callback PRIMA di chiudere per aggiornare i dati nel componente padre
+      onProductsAdded?.(); 
+      
+      // Reset dello stato
       setSelectedProducts([]);
-      onProductsAdded?.(); // Ricarica i dati nel componente padre
-      onClose();
-    } catch (error) {
+      setExistingProductIds(new Set()); // Reset per forzare il ricaricamento alla prossima apertura
+      
+      // Chiudi la modale dopo un breve delay per permettere l'aggiornamento
+      setTimeout(() => {
+        onClose();
+      }, 100);
+    } catch (error: any) {
       console.error('Errore nell\'aggiunta prodotti:', error);
-      addNotification('Errore nell\'aggiunta dei prodotti', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: error.message || 'Errore nell\'aggiunta dei prodotti'
+      });
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -165,6 +283,8 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     setSearchTerm('');
     setSelectedCategory('all');
     setSelectedProducts([]);
+    setExistingProductIds(new Set());
+    setIsAdding(false);
     onClose();
   };
 
@@ -239,10 +359,20 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
               {selectedProducts.length > 0 && (
                 <Button
                   onClick={handleAddSelectedProducts}
-                  className="h-7 text-xs px-3 bg-green-600 hover:bg-green-700"
+                  disabled={isAdding}
+                  className="h-7 text-xs px-3 bg-green-600 hover:bg-green-700 disabled:opacity-50"
                 >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Aggiungi {selectedProducts.length} Prodotti
+                  {isAdding ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                      Aggiunta...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3 h-3 mr-1" />
+                      Aggiungi {selectedProducts.length} Prodotti
+                    </>
+                  )}
                 </Button>
               )}
             </div>
@@ -265,14 +395,17 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
                 {filteredProducts.map(product => {
                   const isSelected = selectedProducts.some(p => p.id === product.id);
+                  const isAlreadyInList = existingProductIds.has(product.id);
                   return (
                     <div
                       key={product.id}
-                      onClick={() => handleProductToggle(product)}
-                      className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                        isSelected 
-                          ? 'border-green-500 bg-green-50' 
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      onClick={(e) => handleProductToggle(product, e)}
+                      className={`border rounded-lg p-3 transition-all ${
+                        isAlreadyInList
+                          ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                          : isSelected 
+                            ? 'border-green-500 bg-green-50 cursor-pointer' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
                       }`}
                     >
                       <div className="flex items-start justify-between">
@@ -283,9 +416,14 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                             <div className="text-xs text-gray-500">Categoria: {product.category}</div>
                           )}
                           <div className="text-xs text-gray-500">Prezzo: €{product.base_price.toFixed(2)}</div>
+                          {isAlreadyInList && (
+                            <div className="text-xs text-orange-600 mt-1 font-medium">Già nel listino</div>
+                          )}
                         </div>
-                        <div className="ml-2">
-                          {isSelected ? (
+                        <div className="ml-2 flex-shrink-0">
+                          {isAlreadyInList ? (
+                            <Check className="w-4 h-4 text-gray-400" />
+                          ) : isSelected ? (
                             <Check className="w-4 h-4 text-green-600" />
                           ) : (
                             <div className="w-4 h-4 border border-gray-300 rounded"></div>

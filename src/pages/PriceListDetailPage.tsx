@@ -5,10 +5,17 @@ import { z } from 'zod';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../store/useStore';
 import { supabase } from '../lib/supabase';
-import { Loader2, FileText, Package, Plus, Trash2, X, Building, Eye } from 'lucide-react';
+import { Loader2, FileText, Package, Plus, Trash2, X, Building, Eye, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Database } from '../types/database.types';
 import { CustomerSelectionModal } from '../components/CustomerSelectionModal';
 import ProductSelectionModal from '../components/ProductSelectionModal';
@@ -77,6 +84,8 @@ export function PriceListDetailPage({
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [sortField, setSortField] = useState<'code' | 'name'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Main form
   const {
@@ -715,8 +724,48 @@ export function PriceListDetailPage({
                   </p>
                 </div>
               ) : currentPriceList.price_list_items && currentPriceList.price_list_items.length > 0 ? (
+              <>
+              {/* Controlli di ordinamento */}
+              <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-gray-600">Ordina per:</Label>
+                  <Select value={sortField} onValueChange={(value: 'code' | 'name') => setSortField(value)}>
+                    <SelectTrigger className="h-6 text-xs w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Nome</SelectItem>
+                      <SelectItem value="code">Codice</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+                    className="h-6 text-xs px-2"
+                    title={sortDirection === 'asc' ? 'Crescente' : 'Decrescente'}
+                  >
+                    {sortDirection === 'asc' ? (
+                      <ArrowUp className="w-3 h-3" />
+                    ) : (
+                      <ArrowDown className="w-3 h-3" />
+                    )}
+                  </Button>
+                </div>
+              </div>
               <div className="flex-1 overflow-y-auto space-y-1 pr-1 min-h-0">
-                  {currentPriceList.price_list_items.map((item) => (
+                  {[...currentPriceList.price_list_items]
+                    .sort((a, b) => {
+                      let comparison = 0;
+                      if (sortField === 'code') {
+                        comparison = (a.products.code || '').localeCompare(b.products.code || '');
+                      } else {
+                        comparison = (a.products.name || '').localeCompare(b.products.name || '');
+                      }
+                      return sortDirection === 'asc' ? comparison : -comparison;
+                    })
+                    .map((item) => (
                     <div key={item.id} className="bg-white border border-green-200 rounded p-2">
                     <div className="flex items-center justify-between">
                         <div className="flex-1 grid grid-cols-2 gap-3 items-center">
@@ -811,8 +860,9 @@ export function PriceListDetailPage({
                         </div>
                     </div>
                   </div>
-                ))}
+                    ))}
               </div>
+              </>
               ) : (
                 <div className="text-center py-8">
                   <Package className="w-12 h-12 text-green-600 mx-auto mb-4" />
