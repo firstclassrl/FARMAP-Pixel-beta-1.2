@@ -59,11 +59,11 @@ const generateHTML = (priceList) => {
     return `
       <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-          <div style="width: 48px; min-height: 48px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 32px; min-height: 32px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 48px; max-width: 48px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 32px; max-width: 32px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 10px; color: #9ca3af;">N/A</span>
+                <span style="font-size: 9px; color: #9ca3af;">N/A</span>
               </div>`
             }
           </div>
@@ -321,7 +321,7 @@ const generateHTML = (priceList) => {
     <table class="print-table">
       <thead>
         <tr>
-          <th style="text-align: center; width: 60px;">Foto</th>
+          <th style="text-align: center; width: 45px;">Foto</th>
           <th style="text-align: left; width: 80px;">Codice</th>
           <th style="text-align: left; width: 160px;">Prodotto</th>
           <th style="text-align: center; width: 64px;">MOQ</th>
@@ -428,132 +428,110 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       const page = await browser.newPage();
       console.log('🔵 New page created');
       
-      // Set content - carica HTML
+      // Set content - carica HTML (ottimizzato: non aspettare tutte le immagini)
       console.log('🔵 Setting page content...');
       await page.setContent(html, { 
-        waitUntil: 'load', // Aspetta che tutto sia caricato
-        timeout: 30000 
+        waitUntil: 'domcontentloaded', // Più veloce: non aspetta tutte le immagini
+        timeout: 15000 
       });
       console.log('🔵 Page content set successfully');
     
-      // Verifica lo stato delle immagini e il tipo di rendering
-      console.log('🔵 ====== DEBUG: Checking images and rendering type ======');
-      const imageInfo = await page.evaluate(() => {
-        const images = document.querySelectorAll('img.product-image');
-        return Array.from(images).map(img => ({
-          src: img.src.substring(0, 100), // Primi 100 caratteri per vedere il tipo
-          complete: img.complete,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
-          isDataUrl: img.src.startsWith('data:'),
-          width: img.width,
-          height: img.height
-        }));
-      });
-      console.log('🔵 ====== DEBUG: Image info ======');
-      console.log(JSON.stringify(imageInfo, null, 2));
-      console.log('🔵 ====== END Image info ======');
-      
-      // Attendi che le immagini siano caricate (con timeout più corto)
-      try {
-        await page.evaluate(async () => {
-          const images = document.querySelectorAll('img.product-image');
-          const loadPromises = Array.from(images).map(img => {
-            if (img.complete && img.naturalWidth > 0) {
-              return Promise.resolve();
-            }
-            return new Promise((resolve) => {
-              const timeout = setTimeout(() => {
-                resolve(false); // Timeout: continua comunque
-              }, 5000);
-              img.onload = () => {
-                clearTimeout(timeout);
-                resolve(true);
-              };
-              img.onerror = () => {
-                clearTimeout(timeout);
-                resolve(false); // Errore: continua comunque
-              };
-            });
-          });
-          await Promise.all(loadPromises);
-        });
-        console.log('🔵 Images checked');
-      } catch (imgError) {
-        console.warn('⚠️ Image loading warning:', imgError.message);
-        // Continua comunque
-      }
-      
-      // Verifica se ci sono problemi di rendering che causano rasterizzazione
-      const renderingCheck = await page.evaluate(() => {
-        const body = document.body;
-        const computedStyle = window.getComputedStyle(body);
-        return {
-          transform: computedStyle.transform,
-          willChange: computedStyle.willChange,
-          hasCanvas: document.querySelectorAll('canvas').length > 0,
-          hasSVG: document.querySelectorAll('svg').length > 0,
-          imageCount: document.querySelectorAll('img').length
-        };
-      });
-      console.log('🔵 ====== DEBUG: Rendering check ======');
-      console.log(JSON.stringify(renderingCheck, null, 2));
-      console.log('🔵 ====== END Rendering check ======');
-
-      // CRITICO: Riduci le dimensioni delle immagini prima del PDF usando CSS invece di canvas
-      // Usare CSS è più sicuro e non richiede crossOrigin
-      console.log('🔵 Limiting image size using CSS (no canvas resize to avoid CORS issues)...');
+      // Ottimizzazione: Riduci dimensioni immagini e comprimi usando canvas
+      console.log('🔵 Compressing images for smaller PDF size...');
       
       await page.evaluate(async () => {
         const images = document.querySelectorAll('img.product-image');
         
         for (const img of images) {
-          // Attendi che l'immagine sia caricata
-          if (!img.complete || img.naturalWidth === 0) {
-            await new Promise((resolve) => {
-              const timeout = setTimeout(() => resolve(), 5000);
-              img.onload = () => {
-                clearTimeout(timeout);
-                resolve();
-              };
-              img.onerror = () => {
-                clearTimeout(timeout);
-                resolve();
-              };
-            });
+          try {
+            // Attendi che l'immagine sia caricata (timeout ridotto a 2 secondi)
+            if (!img.complete || img.naturalWidth === 0) {
+              await new Promise((resolve) => {
+                const timeout = setTimeout(() => resolve(), 2000);
+                img.onload = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+                img.onerror = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+              });
+            }
+            
+            // Se l'immagine è caricata, comprimila usando canvas
+            if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Dimensioni target: 32x32px (molto piccole per ridurre peso)
+                const maxSize = 32;
+                let width = img.naturalWidth;
+                let height = img.naturalHeight;
+                
+                // Calcola dimensioni mantenendo aspect ratio
+                if (width > height) {
+                  if (width > maxSize) {
+                    height = (height * maxSize) / width;
+                    width = maxSize;
+                  }
+                } else {
+                  if (height > maxSize) {
+                    width = (width * maxSize) / height;
+                    height = maxSize;
+                  }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Disegna immagine ridimensionata sul canvas
+                // Se fallisce per CORS, usa solo CSS
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Converti in JPEG compresso (qualità 0.5 per ridurre ulteriormente il peso)
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                img.src = compressedDataUrl;
+              } catch (corsError) {
+                // Se CORS blocca, usa solo ridimensionamento CSS
+                console.warn('CORS error compressing image, using CSS resize only');
+              }
+            }
+            
+            // Applica dimensioni CSS finali
+            img.style.maxWidth = '32px';
+            img.style.maxHeight = '32px';
+            img.style.width = 'auto';
+            img.style.height = 'auto';
+            img.style.objectFit = 'contain';
+          } catch (error) {
+            // Se la compressione fallisce, usa solo CSS
+            img.style.maxWidth = '32px';
+            img.style.maxHeight = '32px';
+            img.style.width = 'auto';
+            img.style.height = 'auto';
+            img.style.objectFit = 'contain';
           }
-          
-          // Limita dimensioni usando solo CSS (non canvas per evitare CORS)
-          // Puppeteer dovrebbe rispettare le dimensioni CSS quando genera il PDF
-          // Ridotte a 48px per ridurre il peso del PDF
-          img.style.maxWidth = '48px';
-          img.style.maxHeight = '48px';
-          img.style.width = 'auto';
-          img.style.height = 'auto';
-          img.style.objectFit = 'contain';
         }
       });
       
-      console.log('🔵 Image sizes limited via CSS');
+      console.log('🔵 Images compressed and resized');
       
-      // Rimuovi qualsiasi elemento che potrebbe causare rasterizzazione
+      // Rimuovi solo i canvas temporanei di compressione (non le immagini convertite)
       await page.evaluate(() => {
-        // Rimuovi qualsiasi canvas (causano rasterizzazione)
+        // Rimuovi canvas temporanei lasciati in giro (non le immagini già convertite)
         const canvases = document.querySelectorAll('canvas');
-        canvases.forEach(canvas => canvas.remove());
-        
-        // Forza stili semplici
-        document.body.style.transform = 'none';
-        document.body.style.willChange = 'auto';
-        
-        // Rimuovi filtri
-        const allElements = document.querySelectorAll('*');
-        allElements.forEach(el => {
-          const style = window.getComputedStyle(el);
-          if (style.filter !== 'none') {
-            el.style.filter = 'none';
+        canvases.forEach(canvas => {
+          // Rimuovi solo se non è parte di un'immagine già processata
+          if (!canvas.closest('td')) {
+            canvas.remove();
           }
         });
+        
+        // Forza stili semplici per ottimizzazione rendering
+        document.body.style.transform = 'none';
+        document.body.style.willChange = 'auto';
       });
       
       console.log('🔵 Generating PDF (allowing multi-page)...');

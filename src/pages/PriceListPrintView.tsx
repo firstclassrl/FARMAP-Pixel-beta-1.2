@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mail, Download, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { Label } from '../components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,7 @@ export function PriceListPrintView({
   const [priceList, setPriceList] = useState<PriceListWithItems | null>(null);
   const [loading, setLoading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [printByCategory, setPrintByCategory] = useState(false);
   const { addNotification } = useNotifications();
   const printContentRef = useRef<HTMLDivElement>(null);
 
@@ -168,7 +170,11 @@ export function PriceListPrintView({
           priceListData: {
             ...priceList,
             price_list_items: filteredAndSortedItems
-          }
+          },
+          printByCategory: printByCategory,
+          sortField: sortField,
+          sortDirection: sortDirection,
+          selectedCategory: selectedCategory
         })
       });
 
@@ -287,6 +293,7 @@ Team FARMAP`;
       
       console.log('🔵 PDF Generation - Price list items:', filteredAndSortedItems.length);
       console.log('🔵 PDF Generation - Full endpoint:', endpoint);
+      console.log('🔵 PDF Generation - Print by category:', printByCategory);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -296,7 +303,11 @@ Team FARMAP`;
           priceListData: {
             ...priceList,
             price_list_items: filteredAndSortedItems
-          }
+          },
+          printByCategory: printByCategory,
+          sortField: sortField,
+          sortDirection: sortDirection,
+          selectedCategory: selectedCategory
         })
       });
 
@@ -531,28 +542,57 @@ Team FARMAP`;
                     </tr>
                   </thead>
                   <tbody>
-                    {[...priceList.price_list_items]
-                      .filter(item => {
-                        // Filtro per categoria
+                    {(() => {
+                      // Filtra i prodotti
+                      const filteredItems = [...priceList.price_list_items].filter(item => {
                         if (selectedCategory === 'all') return true;
                         return item.products.category === selectedCategory;
-                      })
-                      .sort((a, b) => {
-                        // Ordinamento
-                        let comparison = 0;
-                        if (sortField === 'code') {
-                          comparison = (a.products.code || '').localeCompare(b.products.code || '');
-                        } else {
-                          comparison = (a.products.name || '').localeCompare(b.products.name || '');
-                        }
-                        return sortDirection === 'asc' ? comparison : -comparison;
-                      })
-                      .map((item, index) => {
-                      const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
-                      const vatRate = item.products.category === 'Farmaci' ? 10 : 22; // Example VAT logic
-                      
-                      return (
-                        <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                      });
+
+                      // Se printByCategory è true, raggruppa per categoria
+                      if (printByCategory) {
+                        // Raggruppa per categoria
+                        const groupedByCategory = filteredItems.reduce((acc, item) => {
+                          const category = item.products.category || 'Senza categoria';
+                          if (!acc[category]) {
+                            acc[category] = [];
+                          }
+                          acc[category].push(item);
+                          return acc;
+                        }, {} as Record<string, typeof filteredItems>);
+
+                        // Ordina le categorie alfabeticamente
+                        const sortedCategories = Object.keys(groupedByCategory).sort();
+
+                        // Genera le righe raggruppate per categoria
+                        let globalIndex = 0;
+                        return sortedCategories.flatMap(category => {
+                          const categoryItems = groupedByCategory[category]
+                            .sort((a, b) => {
+                              let comparison = 0;
+                              if (sortField === 'code') {
+                                comparison = (a.products.code || '').localeCompare(b.products.code || '');
+                              } else {
+                                comparison = (a.products.name || '').localeCompare(b.products.name || '');
+                              }
+                              return sortDirection === 'asc' ? comparison : -comparison;
+                            });
+
+                          return [
+                            // Intestazione categoria
+                            <tr key={`category-${category}`} className="bg-blue-100">
+                              <td colSpan={10} className="border border-gray-300 px-4 py-2 font-bold text-sm text-blue-900">
+                                {category}
+                              </td>
+                            </tr>,
+                            // Prodotti della categoria
+                            ...categoryItems.map((item) => {
+                              const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+                              const vatRate = item.products.category === 'Farmaci' ? 10 : 22;
+                              const rowIndex = globalIndex++;
+                              
+                              return (
+                                <tr key={item.id} className={rowIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                           <td className="border border-gray-300 p-0 text-center align-top">
                             <div className="w-16 h-16 bg-gray-200 overflow-hidden">
                               {item.products.photo_url ? (
@@ -602,9 +642,83 @@ Team FARMAP`;
                           <td className="border border-gray-300 px-2 py-2 text-right font-medium text-red-600 text-xs align-top">
                             {formatCurrency(finalPrice)}
                           </td>
-                        </tr>
-                      );
-                    })}
+                                </tr>
+                              );
+                            })
+                          ];
+                        });
+                      } else {
+                        // Comportamento normale: lista piatta ordinata
+                        return filteredItems
+                          .sort((a, b) => {
+                            let comparison = 0;
+                            if (sortField === 'code') {
+                              comparison = (a.products.code || '').localeCompare(b.products.code || '');
+                            } else {
+                              comparison = (a.products.name || '').localeCompare(b.products.name || '');
+                            }
+                            return sortDirection === 'asc' ? comparison : -comparison;
+                          })
+                          .map((item, index) => {
+                            const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+                            const vatRate = item.products.category === 'Farmaci' ? 10 : 22;
+                            
+                            return (
+                              <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                                <td className="border border-gray-300 p-0 text-center align-top">
+                                  <div className="w-16 h-16 bg-gray-200 overflow-hidden">
+                                    {item.products.photo_url ? (
+                                      <img 
+                                        src={item.products.photo_url} 
+                                        alt={item.products.name}
+                                        className="w-full h-full object-contain"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <span className="text-xs text-gray-400">N/A</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 font-mono text-xs align-top">
+                                  {item.products.code}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 align-top">
+                                  <div>
+                                    <div className="font-medium text-xs">{item.products.name}</div>
+                                    {item.products.description && (
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        {item.products.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                                  {item.min_quantity} {item.products.unit}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                                  {item.products.cartone || '-'}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                                  {item.products.pallet || '-'}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                                  {item.products.scadenza || '-'}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top font-mono">
+                                  {item.products.ean || '-'}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-xs align-top">
+                                  {vatRate}%
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-right font-medium text-red-600 text-xs align-top">
+                                  {formatCurrency(finalPrice)}
+                                </td>
+                              </tr>
+                            );
+                          });
+                      }
+                    })()}
                   </tbody>
                 </table>
 
@@ -691,15 +805,38 @@ Team FARMAP`;
           
           {/* Footer with action buttons */}
           <div className="no-print p-6 pt-0 border-t bg-gray-50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="printByCategory"
+                  checked={printByCategory}
+                  onChange={(e) => setPrintByCategory(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <Label htmlFor="printByCategory" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  Stampa per categorie
+                </Label>
+              </div>
+            </div>
             <div className="flex items-center justify-end space-x-3">
               <Button 
                 onClick={handleSendEmail} 
                 variant="outline" 
                 className="flex items-center space-x-2"
-                disabled={!priceList?.customer?.email}
+                disabled={!priceList?.customer?.email || isGeneratingPDF}
               >
-                <Mail className="w-4 h-4" />
-                <span>Invia Email</span>
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Generazione in corso...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    <span>Invia Email</span>
+                  </>
+                )}
               </Button>
               <Button 
                 onClick={handleDownloadPDF} 
