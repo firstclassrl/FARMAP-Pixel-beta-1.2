@@ -39,6 +39,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { useNotifications } from '../store/useStore';
+import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { PriceListDetailPage } from './PriceListDetailPage';
 import { PriceListPrintView } from './PriceListPrintView';
@@ -72,7 +73,7 @@ export const PriceListsPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCreatorFilter, setSelectedCreatorFilter] = useState<string>('all');
+  const [selectedCreatorFilter, setSelectedCreatorFilter] = useState<string>('me'); // Default: mostra solo i propri listini
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedPriceListId, setSelectedPriceListId] = useState<string | undefined>();
   const [showPrintView, setShowPrintView] = useState(false);
@@ -81,11 +82,22 @@ export const PriceListsPage = () => {
   const [showBulkModal, setShowBulkModal] = useState(false);
 
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
 
   const loadPriceLists = useCallback(async () => {
     try {
       setLoading(true);
       
+      // Se l'utente non è loggato, non caricare nulla
+      if (!user?.id) {
+        setPriceLists([]);
+        setKpiData({ total: 0, active: 0, drafts: 0, averageDiscount: 0 });
+        setLoading(false);
+        return;
+      }
+      
+      // Carica TUTTI i listini attivi (non solo quelli dell'utente corrente)
+      // Il filtro per utente verrà applicato nel rendering
       const { data: priceListsData, error: priceListsError } = await supabase
         .from('price_lists')
         .select(`
@@ -114,14 +126,14 @@ export const PriceListsPage = () => {
       // Fetch creator profiles - try to get all profiles, fallback to individual queries if RLS blocks
       const creatorIds = [...new Set(priceListsData.map((pl: any) => pl.created_by).filter(Boolean))];
       console.log('Creator IDs to fetch:', creatorIds);
-      let profilesData: Array<{ id: string; full_names: string | null; email?: string | null }> = [];
+      let profilesData: Array<{ id: string; full_name: string | null; email?: string | null }> = [];
       if (creatorIds.length > 0) {
         try {
           // Try to fetch all creator profiles at once
-          // Note: using full_names (plural) as per database schema
+          // Note: using full_name (singular) as per database schema
           const { data, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, full_names, email')
+            .select('id, full_name, email')
             .in('id', creatorIds);
 
           if (profilesError) {
@@ -132,12 +144,12 @@ export const PriceListsPage = () => {
               try {
                 const { data: singleProfile, error: singleError } = await supabase
                   .from('profiles')
-                  .select('id, full_names, email')
+                  .select('id, full_name, email')
                   .eq('id', creatorId)
                   .single();
                 if (singleProfile) {
-                  profilesData.push(singleProfile as { id: string; full_names: string | null; email?: string | null });
-                  console.log(`Retrieved profile for ${creatorId}:`, { full_names: (singleProfile as any).full_names, email: (singleProfile as any).email });
+                  profilesData.push(singleProfile as { id: string; full_name: string | null; email?: string | null });
+                  console.log(`Retrieved profile for ${creatorId}:`, { full_name: (singleProfile as any).full_name, email: (singleProfile as any).email });
                 } else if (singleError) {
                   console.warn(`Cannot access profile ${creatorId}:`, singleError);
                 }
@@ -148,7 +160,7 @@ export const PriceListsPage = () => {
             }
           } else {
             profilesData = data || [];
-            console.log('Retrieved profiles (batch):', profilesData.map(p => ({ id: p.id, full_names: p.full_names, email: p.email })));
+            console.log('Retrieved profiles (batch):', profilesData.map(p => ({ id: p.id, full_name: p.full_name, email: p.email })));
           }
         } catch (error) {
           console.warn('Error fetching creator profiles:', error);
@@ -172,11 +184,11 @@ export const PriceListsPage = () => {
           status = 'expired';
         }
 
-        // Prefer full_names from profiles table, but use email as fallback if full_names is not available
-        // Extract a more readable name from email if full_names is missing
+        // Prefer full_name from profiles table, but use email as fallback if full_name is not available
+        // Extract a more readable name from email if full_name is missing
         let creatorDisplayName: string | null = null;
-        if (creator?.full_names) {
-          creatorDisplayName = creator.full_names;
+        if (creator?.full_name) {
+          creatorDisplayName = creator.full_name;
         } else if (creator?.email) {
           // Extract name from email: "antonio.pasetti@farmapindustry.it" -> "Antonio Pasetti"
           const emailParts = creator.email.split('@')[0];
@@ -194,7 +206,7 @@ export const PriceListsPage = () => {
             console.log(`Matched creator for ${priceList.name}:`, { 
               created_by: priceList.created_by, 
               creator_id: creator.id, 
-              full_names: creator.full_names, 
+              full_name: creator.full_name, 
               email: creator.email,
               display_name: creatorDisplayName 
             });
@@ -221,13 +233,20 @@ export const PriceListsPage = () => {
 
       setPriceLists(processedPriceLists);
 
-      const total = processedPriceLists.length;
-      const active = processedPriceLists.filter(pl => pl.status === 'active').length;
-      const drafts = processedPriceLists.filter(pl => pl.status === 'draft').length;
+      // Calcola i KPI solo sui listini dell'utente corrente (default)
+      const userPriceLists = processedPriceLists.filter(pl => pl.created_by === user.id);
+      const total = userPriceLists.length;
+      const active = userPriceLists.filter(pl => pl.status === 'active').length;
+      const drafts = userPriceLists.filter(pl => pl.status === 'draft').length;
+      
+      // Calcola lo sconto medio solo sui listini dell'utente corrente
+      // Ottieni gli ID dei listini dell'utente corrente
+      const userPriceListIds = userPriceLists.map(pl => pl.id);
       
       const { data: itemsData } = await supabase
         .from('price_list_items')
-        .select('discount_percentage');
+        .select('discount_percentage')
+        .in('price_list_id', userPriceListIds);
       
       let totalDiscount = 0;
       let itemCount = 0;
@@ -258,11 +277,11 @@ export const PriceListsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [addNotification]);
+  }, [addNotification, user?.id]);
 
   useEffect(() => {
     loadPriceLists();
-  }, [loadPriceLists]);
+  }, [loadPriceLists, user?.id]);
 
   const handleNewPriceList = () => {
     setSelectedPriceListId(undefined);
@@ -390,8 +409,18 @@ export const PriceListsPage = () => {
       priceList.customer?.company_name?.toLowerCase().includes(searchLower) ||
       priceList.description?.toLowerCase().includes(searchLower);
     
-    const matchesCreator = selectedCreatorFilter === 'all' || 
-      priceList.creator_name === selectedCreatorFilter;
+    // Filtro per creatore:
+    // - 'me': solo i listini dell'utente corrente (default)
+    // - 'all': tutti i listini
+    // - altrimenti: solo i listini del creatore selezionato
+    let matchesCreator = false;
+    if (selectedCreatorFilter === 'me') {
+      matchesCreator = priceList.created_by === user?.id;
+    } else if (selectedCreatorFilter === 'all') {
+      matchesCreator = true;
+    } else {
+      matchesCreator = priceList.creator_name === selectedCreatorFilter;
+    }
     
     return matchesSearch && matchesCreator;
   });
@@ -515,7 +544,7 @@ export const PriceListsPage = () => {
             <Select value={selectedCreatorFilter} onValueChange={setSelectedCreatorFilter}>
               <SelectTrigger className="flex items-center gap-2 w-full">
                 <SelectValue placeholder="Filtra per creatore" />
-                {selectedCreatorFilter !== 'all' && (
+                {selectedCreatorFilter !== 'all' && selectedCreatorFilter !== 'me' && (
                   <div
                     className="w-3 h-3 rounded-full ml-2"
                     style={{ backgroundColor: getCreatorColor(selectedCreatorFilter) }}
@@ -523,6 +552,7 @@ export const PriceListsPage = () => {
                 )}
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="me">I miei listini</SelectItem>
                 <SelectItem value="all">Tutti i creatori</SelectItem>
                 {uniqueCreators.map((creator) => (
                   <SelectItem key={creator} value={creator}>
