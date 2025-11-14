@@ -151,11 +151,28 @@ export function PriceListPrintView({
         return item.products.category === selectedCategory;
       });
 
-      // Se printByCategory è true, invia i prodotti filtrati ma non ordinati globalmente
-      // Il backend li raggrupperà per categoria e ordinerà all'interno di ogni categoria
-      // Se printByCategory è false, ordina i prodotti prima di inviarli
+      // Se printByCategory è true, ordina prima per categoria e poi all'interno di ogni categoria
+      // Se printByCategory è false, ordina i prodotti normalmente
       const itemsToSend = printByCategory 
-        ? filteredItems  // Non ordinare, lascia che il backend raggruppi per categoria
+        ? filteredItems.sort((a, b) => {
+            // Prima ordina per categoria
+            const categoryA = a.products.category || 'Senza categoria';
+            const categoryB = b.products.category || 'Senza categoria';
+            const categoryComparison = categoryA.localeCompare(categoryB);
+            
+            // Se sono nella stessa categoria, ordina per il campo selezionato
+            if (categoryComparison === 0) {
+              let comparison = 0;
+              if (sortField === 'code') {
+                comparison = (a.products.code || '').localeCompare(b.products.code || '');
+              } else {
+                comparison = (a.products.name || '').localeCompare(b.products.name || '');
+              }
+              return sortDirection === 'asc' ? comparison : -comparison;
+            }
+            
+            return categoryComparison;
+          })
         : filteredItems.sort((a, b) => {
             let comparison = 0;
             if (sortField === 'code') {
@@ -287,11 +304,28 @@ Team FARMAP`;
         return item.products.category === selectedCategory;
       });
 
-      // Se printByCategory è true, invia i prodotti filtrati ma non ordinati globalmente
-      // Il backend li raggrupperà per categoria e ordinerà all'interno di ogni categoria
-      // Se printByCategory è false, ordina i prodotti prima di inviarli
+      // Se printByCategory è true, ordina prima per categoria e poi all'interno di ogni categoria
+      // Se printByCategory è false, ordina i prodotti normalmente
       const itemsToSend = printByCategory 
-        ? filteredItems  // Non ordinare, lascia che il backend raggruppi per categoria
+        ? filteredItems.sort((a, b) => {
+            // Prima ordina per categoria
+            const categoryA = a.products.category || 'Senza categoria';
+            const categoryB = b.products.category || 'Senza categoria';
+            const categoryComparison = categoryA.localeCompare(categoryB);
+            
+            // Se sono nella stessa categoria, ordina per il campo selezionato
+            if (categoryComparison === 0) {
+              let comparison = 0;
+              if (sortField === 'code') {
+                comparison = (a.products.code || '').localeCompare(b.products.code || '');
+              } else {
+                comparison = (a.products.name || '').localeCompare(b.products.name || '');
+              }
+              return sortDirection === 'asc' ? comparison : -comparison;
+            }
+            
+            return categoryComparison;
+          })
         : filteredItems.sort((a, b) => {
             let comparison = 0;
             if (sortField === 'code') {
