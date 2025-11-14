@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mail, Download } from 'lucide-react';
+import { Mail, Download, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -49,11 +49,22 @@ interface PriceListPrintViewProps {
   isOpen: boolean;
   onClose: () => void;
   priceListId: string;
+  sortField?: 'code' | 'name';
+  sortDirection?: 'asc' | 'desc';
+  selectedCategory?: string;
 }
 
-export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPrintViewProps) {
+export function PriceListPrintView({ 
+  isOpen, 
+  onClose, 
+  priceListId,
+  sortField = 'name',
+  sortDirection = 'asc',
+  selectedCategory = 'all'
+}: PriceListPrintViewProps) {
   const [priceList, setPriceList] = useState<PriceListWithItems | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const { addNotification } = useNotifications();
   const printContentRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +72,7 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
     if (isOpen && priceListId) {
       loadPriceListData();
     }
-  }, [isOpen, priceListId]);
+  }, [isOpen, priceListId, sortField, sortDirection, selectedCategory]);
 
   const loadPriceListData = async () => {
     try {
@@ -131,6 +142,22 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
       const cleanBackendUrl = backendUrl.replace(/\/$/, '');
       const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
       
+      // Applica filtro categoria e ordinamento ai prodotti
+      const filteredAndSortedItems = [...priceList.price_list_items]
+        .filter(item => {
+          if (selectedCategory === 'all') return true;
+          return item.products.category === selectedCategory;
+        })
+        .sort((a, b) => {
+          let comparison = 0;
+          if (sortField === 'code') {
+            comparison = (a.products.code || '').localeCompare(b.products.code || '');
+          } else {
+            comparison = (a.products.name || '').localeCompare(b.products.name || '');
+          }
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+      
       // Call backend to generate PDF
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -138,7 +165,10 @@ export function PriceListPrintView({ isOpen, onClose, priceListId }: PriceListPr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceListData: priceList
+          priceListData: {
+            ...priceList,
+            price_list_items: filteredAndSortedItems
+          }
         })
       });
 
@@ -173,7 +203,7 @@ In allegato troverete il vostro listino prezzi personalizzato.
 
 Listino: ${priceList.name}
 Data: ${new Date().toLocaleDateString('it-IT')}
-Prodotti inclusi: ${priceList.price_list_items?.length || 0}
+Prodotti inclusi: ${filteredAndSortedItems.length}
 
 IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
 Per allegarlo:
@@ -213,12 +243,14 @@ Team FARMAP`;
       return;
     }
 
+    // Previeni click multipli
+    if (isGeneratingPDF) {
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+
     try {
-      addNotification({
-        type: 'info',
-        title: 'Generazione PDF in corso',
-        message: 'Sto creando il PDF...'
-      } as any);
 
       // Get backend URL from environment variable or use default
       let backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
@@ -236,7 +268,24 @@ Team FARMAP`;
       console.log('🔵 PDF Generation - Clean backendUrl:', cleanBackendUrl);
       console.log('🔵 PDF Generation - Env var exists:', !!import.meta.env.VITE_PDF_GENERATOR_URL);
       console.log('🔵 PDF Generation - Env var value:', import.meta.env.VITE_PDF_GENERATOR_URL || 'NOT SET');
-      console.log('🔵 PDF Generation - Price list items:', priceList.price_list_items?.length);
+      
+      // Applica filtro categoria e ordinamento ai prodotti
+      const filteredAndSortedItems = [...priceList.price_list_items]
+        .filter(item => {
+          if (selectedCategory === 'all') return true;
+          return item.products.category === selectedCategory;
+        })
+        .sort((a, b) => {
+          let comparison = 0;
+          if (sortField === 'code') {
+            comparison = (a.products.code || '').localeCompare(b.products.code || '');
+          } else {
+            comparison = (a.products.name || '').localeCompare(b.products.name || '');
+          }
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+      
+      console.log('🔵 PDF Generation - Price list items:', filteredAndSortedItems.length);
       console.log('🔵 PDF Generation - Full endpoint:', endpoint);
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -244,7 +293,10 @@ Team FARMAP`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceListData: priceList
+          priceListData: {
+            ...priceList,
+            price_list_items: filteredAndSortedItems
+          }
         })
       });
 
@@ -326,6 +378,8 @@ Team FARMAP`;
         title: 'Errore',
         message: errorMessage
       } as any);
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -477,7 +531,23 @@ Team FARMAP`;
                     </tr>
                   </thead>
                   <tbody>
-                    {priceList.price_list_items.map((item, index) => {
+                    {[...priceList.price_list_items]
+                      .filter(item => {
+                        // Filtro per categoria
+                        if (selectedCategory === 'all') return true;
+                        return item.products.category === selectedCategory;
+                      })
+                      .sort((a, b) => {
+                        // Ordinamento
+                        let comparison = 0;
+                        if (sortField === 'code') {
+                          comparison = (a.products.code || '').localeCompare(b.products.code || '');
+                        } else {
+                          comparison = (a.products.name || '').localeCompare(b.products.name || '');
+                        }
+                        return sortDirection === 'asc' ? comparison : -comparison;
+                      })
+                      .map((item, index) => {
                       const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
                       const vatRate = item.products.category === 'Farmaci' ? 10 : 22; // Example VAT logic
                       
@@ -634,9 +704,19 @@ Team FARMAP`;
               <Button 
                 onClick={handleDownloadPDF} 
                 className="flex items-center space-x-2"
+                disabled={isGeneratingPDF}
               >
-                <Download className="w-4 h-4" />
-                <span>Download PDF</span>
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Generazione in corso...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>Download PDF</span>
+                  </>
+                )}
               </Button>
             </div>
             {!priceList?.customer?.email && (
@@ -647,6 +727,27 @@ Team FARMAP`;
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modale di loading durante generazione PDF */}
+      {isGeneratingPDF && (
+        <Dialog open={isGeneratingPDF} onOpenChange={() => {}}>
+          <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Generazione PDF in corso</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+              <p className="text-center text-gray-600">
+                Stiamo generando il PDF del listino...
+                <br />
+                <span className="text-sm text-gray-500 mt-2 block">
+                  Attendere il completamento del download
+                </span>
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

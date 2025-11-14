@@ -59,9 +59,9 @@ const generateHTML = (priceList) => {
     return `
       <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-          <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 48px; min-height: 48px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 48px; max-width: 48px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
@@ -321,7 +321,7 @@ const generateHTML = (priceList) => {
     <table class="print-table">
       <thead>
         <tr>
-          <th style="text-align: center; width: 80px;">Foto</th>
+          <th style="text-align: center; width: 60px;">Foto</th>
           <th style="text-align: left; width: 80px;">Codice</th>
           <th style="text-align: left; width: 160px;">Prodotto</th>
           <th style="text-align: center; width: 64px;">MOQ</th>
@@ -525,8 +525,9 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           
           // Limita dimensioni usando solo CSS (non canvas per evitare CORS)
           // Puppeteer dovrebbe rispettare le dimensioni CSS quando genera il PDF
-          img.style.maxWidth = '64px';
-          img.style.maxHeight = '64px';
+          // Ridotte a 48px per ridurre il peso del PDF
+          img.style.maxWidth = '48px';
+          img.style.maxHeight = '48px';
           img.style.width = 'auto';
           img.style.height = 'auto';
           img.style.objectFit = 'contain';

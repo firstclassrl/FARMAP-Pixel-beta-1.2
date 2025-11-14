@@ -86,6 +86,7 @@ export function PriceListDetailPage({
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [sortField, setSortField] = useState<'code' | 'name'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Main form
   const {
@@ -725,8 +726,8 @@ export function PriceListDetailPage({
                 </div>
               ) : currentPriceList.price_list_items && currentPriceList.price_list_items.length > 0 ? (
               <>
-              {/* Controlli di ordinamento */}
-              <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+              {/* Controlli di ordinamento e filtro categoria */}
+              <div className="flex items-center gap-2 mb-2 flex-shrink-0 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-gray-600">Ordina per:</Label>
                   <Select value={sortField} onValueChange={(value: 'code' | 'name') => setSortField(value)}>
@@ -753,9 +754,30 @@ export function PriceListDetailPage({
                     )}
                   </Button>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-gray-600">Categoria:</Label>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="h-6 text-xs w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutte le categorie</SelectItem>
+                      {Array.from(new Set(currentPriceList.price_list_items.map(item => item.products.category).filter(Boolean))).map(category => (
+                        <SelectItem key={category} value={category || ''}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto space-y-1 pr-1 min-h-0">
                   {[...currentPriceList.price_list_items]
+                    .filter(item => {
+                      // Filtro per categoria
+                      if (selectedCategory === 'all') return true;
+                      return item.products.category === selectedCategory;
+                    })
                     .sort((a, b) => {
                       let comparison = 0;
                       if (sortField === 'code') {
@@ -985,6 +1007,9 @@ export function PriceListDetailPage({
         isOpen={showPreviewModal && !!priceListId}
         onClose={() => setShowPreviewModal(false)}
         priceListId={priceListId || ''}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        selectedCategory={selectedCategory}
       />
     </div>
   );
