@@ -76,27 +76,27 @@ export default function ProductDetailsPage() {
 
     try {
       setUploading(true);
-      // prepare filename and upload
-      // Upload to Supabase storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${product.id}_${Date.now()}.${fileExt}`;
-
       
+      // Compress image before upload to reduce file size
+      const { compressImage, blobToFile } = await import('../lib/imageUtils');
+      const compressedBlob = await compressImage(file, 600, 0.35);
+      const compressedFile = blobToFile(compressedBlob, `${product.id}_${Date.now()}.jpg`);
+
+      // Upload to Supabase storage
+      const fileName = `${product.id}/main.jpg`;
 
       const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(fileName, file);
+        .from('product-photos')
+        .upload(fileName, compressedFile, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) {
         console.error('❌ Upload error:', uploadError);
         throw uploadError;
       }
 
-      
-
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
+        .from('product-photos')
         .getPublicUrl(fileName);
 
       // Update product with new image URL

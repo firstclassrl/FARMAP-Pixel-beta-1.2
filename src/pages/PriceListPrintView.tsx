@@ -714,6 +714,15 @@ Team FARMAP`;
                                   src={item.products.photo_url} 
                                   alt={item.products.name}
                                   className="w-full h-full object-contain"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-xs text-gray-400">N/A</span></div>';
+                                    }
+                                  }}
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
@@ -786,6 +795,15 @@ Team FARMAP`;
                                         src={item.products.photo_url} 
                                         alt={item.products.name}
                                         className="w-full h-full object-contain"
+                                        loading="lazy"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                          const parent = target.parentElement;
+                                          if (parent) {
+                                            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-xs text-gray-400">N/A</span></div>';
+                                          }
+                                        }}
                                       />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center">

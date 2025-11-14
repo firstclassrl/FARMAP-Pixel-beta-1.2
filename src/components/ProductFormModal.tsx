@@ -161,11 +161,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setUploadingPhoto(true);
 
     try {
+      // Compress image before upload to reduce file size
+      const { compressImage, blobToFile } = await import('../lib/imageUtils');
+      const compressedBlob = await compressImage(selectedPhoto, 600, 0.35);
+      const compressedFile = blobToFile(compressedBlob, `product_photo.jpg`);
+
       // Prefer saving under the product ID folder if we are editing,
       // otherwise use a temporary path and rely on create flow to upload after save
-      const fileExt = selectedPhoto.name.split('.').pop();
-      const fileName = `product_photo.${fileExt}`;
-      const filePath = editingProduct ? `${editingProduct.id}/${fileName}` : null;
+      const filePath = editingProduct ? `${editingProduct.id}/main.jpg` : null;
 
       if (!filePath) {
         addNotification({
@@ -178,7 +181,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       const { error: uploadError } = await supabase.storage
         .from('product-photos')
-        .upload(filePath, selectedPhoto, { upsert: true });
+        .upload(filePath, compressedFile, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) {
         console.error('❌ Upload error:', uploadError);

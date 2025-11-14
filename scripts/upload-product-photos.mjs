@@ -69,8 +69,9 @@ function ensureDir(p) {
 
 async function generateImages(inputPath) {
   const img = sharp(inputPath, { failOn: 'none' });
-  const main = await img.clone().rotate().resize({ width: 1600, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-  const thumb = await img.clone().rotate().resize({ width: 320, withoutEnlargement: true }).webp({ quality: 70 }).toBuffer();
+  // Ridotte drasticamente qualità e dimensioni per ridurre il peso del catalogo
+  const main = await img.clone().rotate().resize({ width: 600, withoutEnlargement: true }).webp({ quality: 35 }).toBuffer();
+  const thumb = await img.clone().rotate().resize({ width: 200, withoutEnlargement: true }).webp({ quality: 25 }).toBuffer();
   return { main, thumb };
 }
 

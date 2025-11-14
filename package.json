@@ -1,13 +1,14 @@
 {
   "name": "pixel-farmap",
   "private": true,
-  "version": "1.4.96",
+  "version": "1.4.97",
   "description": "Pixel - Farmap",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "upload:photos": "node scripts/upload-product-photos.mjs",
+    "update:photos": "node scripts/update-products-from-bucket.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
