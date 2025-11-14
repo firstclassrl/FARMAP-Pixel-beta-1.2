@@ -78,13 +78,19 @@ export default function ProductDetailsPage() {
       setUploading(true);
       
       // Compress image before upload to reduce file size
-      const { compressImage, blobToFile } = await import('../lib/imageUtils');
+      const { compressImage, generateThumbnail, blobToFile } = await import('../lib/imageUtils');
       const compressedBlob = await compressImage(file, 600, 0.35);
       const compressedFile = blobToFile(compressedBlob, `${product.id}_${Date.now()}.jpg`);
 
+      // Generate thumbnail
+      const thumbnailBlob = await generateThumbnail(file, 200, 0.7);
+      const thumbnailFile = blobToFile(thumbnailBlob, `thumb.jpg`);
+
       // Upload to Supabase storage
       const fileName = `${product.id}/main.jpg`;
+      const thumbName = `${product.id}/thumb.jpg`;
 
+      // Upload main photo
       const { error: uploadError } = await supabase.storage
         .from('product-photos')
         .upload(fileName, compressedFile, { upsert: true, contentType: 'image/jpeg' });
@@ -94,21 +100,38 @@ export default function ProductDetailsPage() {
         throw uploadError;
       }
 
-      // Get public URL
+      // Upload thumbnail
+      const { error: thumbUploadError } = await supabase.storage
+        .from('product-photos')
+        .upload(thumbName, thumbnailFile, { upsert: true, contentType: 'image/jpeg' });
+
+      if (thumbUploadError) {
+        console.error('❌ Thumbnail upload error:', thumbUploadError);
+        // Non bloccare se il thumbnail fallisce
+      }
+
+      // Get public URLs
       const { data: { publicUrl } } = supabase.storage
         .from('product-photos')
         .getPublicUrl(fileName);
 
-      // Update product with new image URL
+      const { data: { publicUrl: thumbUrl } } = supabase.storage
+        .from('product-photos')
+        .getPublicUrl(thumbName);
+
+      // Update product with both URLs
       const { error: updateError } = await supabase
         .from('products')
-        .update({ photo_url: publicUrl })
+        .update({ 
+          photo_url: publicUrl,
+          photo_thumb_url: thumbUrl || null
+        })
         .eq('id', product.id);
 
       if (updateError) throw updateError;
 
       // Update local state
-      setProduct(prev => ({ ...prev, photo_url: publicUrl }));
+      setProduct(prev => ({ ...prev, photo_url: publicUrl, photo_thumb_url: thumbUrl || null }));
 
       addNotification({
         type: 'success',

@@ -162,15 +162,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
     try {
       // Compress image before upload to reduce file size
-      const { compressImage, blobToFile } = await import('../lib/imageUtils');
+      const { compressImage, generateThumbnail, blobToFile } = await import('../lib/imageUtils');
       const compressedBlob = await compressImage(selectedPhoto, 600, 0.35);
       const compressedFile = blobToFile(compressedBlob, `product_photo.jpg`);
+
+      // Generate thumbnail
+      const thumbnailBlob = await generateThumbnail(selectedPhoto, 200, 0.7);
+      const thumbnailFile = blobToFile(thumbnailBlob, `thumb.jpg`);
 
       // Prefer saving under the product ID folder if we are editing,
       // otherwise use a temporary path and rely on create flow to upload after save
       const filePath = editingProduct ? `${editingProduct.id}/main.jpg` : null;
+      const thumbPath = editingProduct ? `${editingProduct.id}/thumb.jpg` : null;
 
-      if (!filePath) {
+      if (!filePath || !thumbPath) {
         addNotification({
           type: 'warning',
           title: 'Salva prima il prodotto',
@@ -179,6 +184,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         return;
       }
 
+      // Upload main photo
       const { error: uploadError } = await supabase.storage
         .from('product-photos')
         .upload(filePath, compressedFile, { upsert: true, contentType: 'image/jpeg' });
@@ -188,11 +194,39 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         throw uploadError;
       }
 
-      // Get public URL
+      // Upload thumbnail
+      const { error: thumbUploadError } = await supabase.storage
+        .from('product-photos')
+        .upload(thumbPath, thumbnailFile, { upsert: true, contentType: 'image/jpeg' });
+
+      if (thumbUploadError) {
+        console.error('❌ Thumbnail upload error:', thumbUploadError);
+        // Non bloccare se il thumbnail fallisce, ma logga l'errore
+      }
+
+      // Get public URLs
       const { data } = supabase.storage
         .from('product-photos')
         .getPublicUrl(filePath);
 
+      const { data: thumbData } = supabase.storage
+        .from('product-photos')
+        .getPublicUrl(thumbPath);
+
+      // Update product with both URLs if editing
+      if (editingProduct && thumbData) {
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ 
+            photo_url: data.publicUrl,
+            photo_thumb_url: thumbData.publicUrl 
+          })
+          .eq('id', editingProduct.id);
+
+        if (updateError) {
+          console.error('❌ Error updating photo URLs:', updateError);
+        }
+      }
       
       setUploadedPhotoUrl(data.publicUrl);
 
@@ -283,23 +317,43 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         // If user selected a photo, upload it under the new product ID and update photo_url
         if (selectedPhoto && inserted?.id) {
           try {
-            const fileExt = selectedPhoto.name.split('.').pop();
-            const fileName = `product_photo.${fileExt}`;
-            const filePath = `${inserted.id}/${fileName}`;
+            const { compressImage, generateThumbnail, blobToFile } = await import('../lib/imageUtils');
+            const compressedBlob = await compressImage(selectedPhoto, 600, 0.35);
+            const compressedFile = blobToFile(compressedBlob, `product_photo.jpg`);
 
+            // Generate thumbnail
+            const thumbnailBlob = await generateThumbnail(selectedPhoto, 200, 0.7);
+            const thumbnailFile = blobToFile(thumbnailBlob, `thumb.jpg`);
+
+            const filePath = `${inserted.id}/main.jpg`;
+            const thumbPath = `${inserted.id}/thumb.jpg`;
+
+            // Upload main photo
             const { error: uploadErr } = await supabase.storage
               .from('product-photos')
-              .upload(filePath, selectedPhoto, { upsert: true });
+              .upload(filePath, compressedFile, { upsert: true, contentType: 'image/jpeg' });
             if (uploadErr) throw uploadErr;
+
+            // Upload thumbnail
+            const { error: thumbUploadErr } = await supabase.storage
+              .from('product-photos')
+              .upload(thumbPath, thumbnailFile, { upsert: true, contentType: 'image/jpeg' });
 
             const { data: pub } = supabase.storage
               .from('product-photos')
               .getPublicUrl(filePath);
 
+            const { data: thumbPub } = supabase.storage
+              .from('product-photos')
+              .getPublicUrl(thumbPath);
+
             if (pub?.publicUrl) {
               await supabase
                 .from('products')
-                .update({ photo_url: pub.publicUrl })
+                .update({ 
+                  photo_url: pub.publicUrl,
+                  photo_thumb_url: thumbPub?.publicUrl || null
+                })
                 .eq('id', inserted.id);
             }
           } catch (e) {

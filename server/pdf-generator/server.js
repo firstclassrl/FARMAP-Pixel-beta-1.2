@@ -70,9 +70,10 @@ const generateHTML = (priceList, options = {}) => {
       
       // Prodotti della categoria
       categoryItems.forEach((item) => {
-        const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
-        const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-        const photoUrl = item.products?.photo_url || '';
+    const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+    const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
+    // Usa thumbnail se disponibile, altrimenti fallback a photo_url
+    const photoUrl = item.products?.photo_thumb_url || item.products?.photo_url || '';
         const rowBgColor = globalIndex % 2 === 0 ? '#f9fafb' : '#ffffff';
         
         itemsHTML += `
@@ -129,9 +130,10 @@ const generateHTML = (priceList, options = {}) => {
     const items = priceList.price_list_items || [];
     
     itemsHTML = items.map((item, index) => {
-      const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
-      const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-      const photoUrl = item.products?.photo_url || '';
+    const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
+    const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
+    // Usa thumbnail se disponibile, altrimenti fallback a photo_url
+    const photoUrl = item.products?.photo_thumb_url || item.products?.photo_url || '';
       
       return `
         <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
@@ -511,7 +513,8 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         timeout: 10000 // Ridotto per velocità
       });
     
-      // Ottimizzazione: comprimi immagini in parallelo con qualità molto bassa per ridurre peso
+      // Ottimizzazione: i thumbnail sono già leggeri, quindi compressione più semplice
+      // Aumentiamo timeout e miglioriamo gestione errori per evitare che si fermi a metà
       await page.evaluate(async () => {
         const images = Array.from(document.querySelectorAll('img.product-image'));
         
@@ -522,7 +525,8 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           }
         });
         
-        // Attendi che tutte le immagini originali siano caricate (con timeout)
+        // Attendi che tutte le immagini siano caricate (con timeout aumentato)
+        // I thumbnail sono più leggeri quindi dovrebbero caricarsi più velocemente
         await Promise.all(images.map(img => {
           return new Promise((resolve) => {
             if (img.complete && img.naturalWidth > 0) {
@@ -530,27 +534,35 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
               return;
             }
             
-            const timeout = setTimeout(() => resolve(), 3000); // Max 3 secondi per immagine
+            // Timeout aumentato a 5 secondi per thumbnail (più leggeri)
+            const timeout = setTimeout(() => {
+              console.warn('Image load timeout, continuing anyway');
+              resolve();
+            }, 5000);
+            
             img.onload = () => {
               clearTimeout(timeout);
               resolve();
             };
             img.onerror = () => {
               clearTimeout(timeout);
+              console.warn('Image load error, continuing anyway');
               resolve(); // Continua anche se errore
             };
           });
         }));
         
-        // Processa tutte le immagini in parallelo
-        await Promise.all(images.map(async (img) => {
+        // I thumbnail sono già ottimizzati, quindi compressione più leggera
+        // Processa tutte le immagini in parallelo con migliore gestione errori
+        await Promise.allSettled(images.map(async (img) => {
           try {
-            // Se l'immagine è caricata, comprimila
+            // Se l'immagine è caricata, comprimila leggermente (i thumbnail sono già piccoli)
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              // I thumbnail sono già 200x200px max, quindi possiamo ridurre ancora un po'
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
               
-              // Riduci dimensioni a 48px per compromesso peso/dimensione
+              // Riduci dimensioni a 48px per il PDF
               const maxSize = 48;
               let width = img.naturalWidth;
               let height = img.naturalHeight;
@@ -574,14 +586,24 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
               // Disegna immagine ridimensionata sul canvas
               ctx.drawImage(img, 0, 0, width, height);
               
-              // Converti in JPEG con qualità molto bassa (0.15) per ridurre drasticamente il peso
-              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.15);
+              // Converti in JPEG con qualità media (0.4) - i thumbnail sono già leggeri
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
               
               // Assegna direttamente il data URL e attendi che sia caricato
               await new Promise((resolve) => {
                 const originalSrc = img.src;
+                let resolved = false;
+                
+                const cleanup = () => {
+                  if (!resolved) {
+                    resolved = true;
+                    img.onload = null;
+                    img.onerror = null;
+                  }
+                };
+                
                 img.onload = () => {
-                  img.onload = null; // Rimuovi listener
+                  cleanup();
                   img.style.maxWidth = '48px';
                   img.style.maxHeight = '48px';
                   img.style.width = 'auto';
@@ -590,7 +612,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
                   resolve();
                 };
                 img.onerror = () => {
-                  img.onerror = null; // Rimuovi listener
+                  cleanup();
                   // Se fallisce, ripristina originale
                   img.src = originalSrc;
                   img.style.maxWidth = '48px';
@@ -603,14 +625,13 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
                 // Assegna il nuovo src
                 img.src = compressedDataUrl;
                 
-                // Timeout di sicurezza
+                // Timeout di sicurezza aumentato a 3 secondi
                 setTimeout(() => {
-                  if (img.onload || img.onerror) {
-                    img.onload = null;
-                    img.onerror = null;
+                  if (!resolved) {
+                    cleanup();
                     resolve();
                   }
-                }, 2000);
+                }, 3000);
               });
             } else {
               // Applica dimensioni CSS anche se immagine non caricata
@@ -622,6 +643,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
             }
           } catch (error) {
             // Se fallisce, mantieni immagine originale con CSS
+            console.warn('Error processing image:', error);
             img.style.maxWidth = '48px';
             img.style.maxHeight = '48px';
             img.style.width = 'auto';
@@ -631,20 +653,25 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         }));
         
         // Attendi che tutte le immagini compresse siano completamente caricate
-        await Promise.all(images.map(img => {
+        await Promise.allSettled(images.map(img => {
           return new Promise((resolve) => {
             if (img.complete && img.naturalWidth > 0) {
               resolve();
               return;
             }
             
-            const timeout = setTimeout(() => resolve(), 2000); // Max 2 secondi per immagine compressa
+            const timeout = setTimeout(() => {
+              console.warn('Compressed image load timeout, continuing');
+              resolve();
+            }, 3000); // Max 3 secondi per immagine compressa
+            
             img.onload = () => {
               clearTimeout(timeout);
               resolve();
             };
             img.onerror = () => {
               clearTimeout(timeout);
+              console.warn('Compressed image load error, continuing');
               resolve(); // Continua anche se errore
             };
           });
@@ -656,7 +683,6 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         return new Promise((resolve) => {
           // Verifica che tutte le immagini siano caricate
           const images = Array.from(document.querySelectorAll('img.product-image'));
-          let loadedCount = 0;
           const totalImages = images.length;
           
           if (totalImages === 0) {
@@ -664,30 +690,48 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
             return;
           }
           
+          let loadedCount = 0;
+          let errorCount = 0;
+          
           const checkComplete = () => {
-            loadedCount = images.filter(img => img.complete && img.naturalWidth > 0).length;
-            if (loadedCount === totalImages) {
+            const complete = images.filter(img => img.complete && img.naturalWidth > 0).length;
+            const errors = images.filter(img => img.complete === false && img.naturalWidth === 0).length;
+            
+            // Risolvi se tutte le immagini sono caricate o hanno dato errore
+            if (complete + errorCount >= totalImages) {
+              console.log(`Images loaded: ${complete}/${totalImages}, errors: ${errorCount}`);
               resolve();
             }
           };
           
           images.forEach(img => {
             if (img.complete && img.naturalWidth > 0) {
+              loadedCount++;
               checkComplete();
             } else {
-              img.addEventListener('load', checkComplete, { once: true });
-              img.addEventListener('error', checkComplete, { once: true });
+              img.addEventListener('load', () => {
+                loadedCount++;
+                checkComplete();
+              }, { once: true });
+              img.addEventListener('error', () => {
+                errorCount++;
+                checkComplete();
+              }, { once: true });
             }
           });
           
-          // Timeout di sicurezza
-          setTimeout(() => resolve(), 5000);
+          // Timeout di sicurezza aumentato a 10 secondi per tutte le immagini
+          setTimeout(() => {
+            console.log(`Timeout reached. Loaded: ${loadedCount}/${totalImages}, Errors: ${errorCount}`);
+            resolve();
+          }, 10000);
+          
           checkComplete();
         });
       });
       
       // Attendi un momento aggiuntivo per il rendering completo
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Rimuovi solo i canvas temporanei di compressione (non le immagini convertite)
       await page.evaluate(() => {

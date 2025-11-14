@@ -33,6 +33,7 @@ interface Product {
   unit: string;
   base_price: number;
   photo_url?: string;
+  photo_thumb_url?: string;
   cartone?: string;
   pallet?: string;
   ean?: string;
@@ -88,7 +89,7 @@ export function PriceListPrintView({
           *,
           price_list_items (
             *,
-            products (id, code, name, description, category, unit, base_price, photo_url, cartone, pallet, ean, scadenza)
+            products (id, code, name, description, category, unit, base_price, photo_url, photo_thumb_url, cartone, pallet, ean, scadenza)
           )
         `)
         .eq('id', priceListId)
@@ -709,9 +710,9 @@ Team FARMAP`;
                                 <tr key={item.id} className={rowIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                           <td className="border border-gray-300 p-0 text-center align-top">
                             <div className="w-16 h-16 bg-gray-200 overflow-hidden">
-                              {item.products.photo_url ? (
+                              {(item.products.photo_thumb_url || item.products.photo_url) ? (
                                 <img 
-                                  src={item.products.photo_url} 
+                                  src={item.products.photo_thumb_url || item.products.photo_url} 
                                   alt={item.products.name}
                                   className="w-full h-full object-contain"
                                   loading="lazy"

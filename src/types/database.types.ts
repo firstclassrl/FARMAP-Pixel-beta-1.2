@@ -155,6 +155,7 @@ export interface Database {
           is_active: boolean
           image_url: string | null
           photo_url: string | null
+          photo_thumb_url: string | null
           sds_url: string | null
           st_url: string | null
           brand_name: string | null
@@ -191,6 +192,7 @@ export interface Database {
           is_active?: boolean
           image_url?: string | null
           photo_url?: string | null
+          photo_thumb_url?: string | null
           sds_url?: string | null
           st_url?: string | null
           brand_name?: string | null
@@ -227,6 +229,7 @@ export interface Database {
           is_active?: boolean
           image_url?: string | null
           photo_url?: string | null
+          photo_thumb_url?: string | null
           sds_url?: string | null
           st_url?: string | null
           brand_name?: string | null
