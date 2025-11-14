@@ -95,7 +95,10 @@ export function PriceListPrintView({
         .eq('id', priceListId)
         .single();
 
-      if (priceListError) throw priceListError;
+      if (priceListError) {
+        console.error('🔴 Error loading price list:', priceListError);
+        throw priceListError;
+      }
       if (!priceListData) throw new Error('Price list not found');
 
       // Load associated customer
@@ -112,6 +115,11 @@ export function PriceListPrintView({
 
     } catch (error) {
       console.error('Error loading price list data:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: error instanceof Error ? error.message : 'Impossibile caricare il listino'
+      } as any);
     } finally {
       setLoading(false);
     }
@@ -791,9 +799,9 @@ Team FARMAP`;
                               <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                                 <td className="border border-gray-300 p-0 text-center align-top">
                                   <div className="w-16 h-16 bg-gray-200 overflow-hidden">
-                                    {item.products.photo_url ? (
+                                    {(item.products.photo_thumb_url || item.products.photo_url) ? (
                                       <img 
-                                        src={item.products.photo_url} 
+                                        src={item.products.photo_thumb_url || item.products.photo_url} 
                                         alt={item.products.name}
                                         className="w-full h-full object-contain"
                                         loading="lazy"

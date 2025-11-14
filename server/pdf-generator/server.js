@@ -73,7 +73,10 @@ const generateHTML = (priceList, options = {}) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
     // Usa thumbnail se disponibile, altrimenti fallback a photo_url
-    const photoUrl = item.products?.photo_thumb_url || item.products?.photo_url || '';
+    // photo_thumb_url potrebbe non esistere ancora per prodotti vecchi
+    const photoUrl = (item.products?.photo_thumb_url && item.products.photo_thumb_url.trim() !== '') 
+      ? item.products.photo_thumb_url 
+      : (item.products?.photo_url || '');
         const rowBgColor = globalIndex % 2 === 0 ? '#f9fafb' : '#ffffff';
         
         itemsHTML += `
@@ -133,7 +136,10 @@ const generateHTML = (priceList, options = {}) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
     // Usa thumbnail se disponibile, altrimenti fallback a photo_url
-    const photoUrl = item.products?.photo_thumb_url || item.products?.photo_url || '';
+    // photo_thumb_url potrebbe non esistere ancora per prodotti vecchi
+    const photoUrl = (item.products?.photo_thumb_url && item.products.photo_thumb_url.trim() !== '') 
+      ? item.products.photo_thumb_url 
+      : (item.products?.photo_url || '');
       
       return `
         <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
@@ -513,157 +519,34 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         timeout: 10000 // Ridotto per velocità
       });
     
-      // Ottimizzazione: i thumbnail sono già leggeri, quindi compressione più semplice
-      // Aumentiamo timeout e miglioriamo gestione errori per evitare che si fermi a metà
+      // I thumbnail sono già ottimizzati (200x200px, qualità 0.7), quindi non serve compressione aggiuntiva
+      // Semplifichiamo: aspettiamo solo che tutte le immagini siano caricate e applichiamo CSS
       await page.evaluate(async () => {
         const images = Array.from(document.querySelectorAll('img.product-image'));
         
-        // Imposta crossOrigin su tutte le immagini per permettere compressione
+        // Applica dimensioni CSS a tutte le immagini immediatamente
         images.forEach(img => {
-          if (!img.crossOrigin) {
-            img.crossOrigin = 'anonymous';
-          }
+          img.style.maxWidth = '48px';
+          img.style.maxHeight = '48px';
+          img.style.width = 'auto';
+          img.style.height = 'auto';
+          img.style.objectFit = 'contain';
         });
         
-        // Attendi che tutte le immagini siano caricate (con timeout aumentato)
-        // I thumbnail sono più leggeri quindi dovrebbero caricarsi più velocemente
-        await Promise.all(images.map(img => {
-          return new Promise((resolve) => {
-            if (img.complete && img.naturalWidth > 0) {
-              resolve();
-              return;
-            }
-            
-            // Timeout aumentato a 5 secondi per thumbnail (più leggeri)
-            const timeout = setTimeout(() => {
-              console.warn('Image load timeout, continuing anyway');
-              resolve();
-            }, 5000);
-            
-            img.onload = () => {
-              clearTimeout(timeout);
-              resolve();
-            };
-            img.onerror = () => {
-              clearTimeout(timeout);
-              console.warn('Image load error, continuing anyway');
-              resolve(); // Continua anche se errore
-            };
-          });
-        }));
-        
-        // I thumbnail sono già ottimizzati, quindi compressione più leggera
-        // Processa tutte le immagini in parallelo con migliore gestione errori
-        await Promise.allSettled(images.map(async (img) => {
-          try {
-            // Se l'immagine è caricata, comprimila leggermente (i thumbnail sono già piccoli)
-            if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              // I thumbnail sono già 200x200px max, quindi possiamo ridurre ancora un po'
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              
-              // Riduci dimensioni a 48px per il PDF
-              const maxSize = 48;
-              let width = img.naturalWidth;
-              let height = img.naturalHeight;
-              
-              // Calcola dimensioni mantenendo aspect ratio
-              if (width > height) {
-                if (width > maxSize) {
-                  height = Math.round((height * maxSize) / width);
-                  width = maxSize;
-                }
-              } else {
-                if (height > maxSize) {
-                  width = Math.round((width * maxSize) / height);
-                  height = maxSize;
-                }
-              }
-              
-              canvas.width = width;
-              canvas.height = height;
-              
-              // Disegna immagine ridimensionata sul canvas
-              ctx.drawImage(img, 0, 0, width, height);
-              
-              // Converti in JPEG con qualità media (0.4) - i thumbnail sono già leggeri
-              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
-              
-              // Assegna direttamente il data URL e attendi che sia caricato
-              await new Promise((resolve) => {
-                const originalSrc = img.src;
-                let resolved = false;
-                
-                const cleanup = () => {
-                  if (!resolved) {
-                    resolved = true;
-                    img.onload = null;
-                    img.onerror = null;
-                  }
-                };
-                
-                img.onload = () => {
-                  cleanup();
-                  img.style.maxWidth = '48px';
-                  img.style.maxHeight = '48px';
-                  img.style.width = 'auto';
-                  img.style.height = 'auto';
-                  img.style.objectFit = 'contain';
-                  resolve();
-                };
-                img.onerror = () => {
-                  cleanup();
-                  // Se fallisce, ripristina originale
-                  img.src = originalSrc;
-                  img.style.maxWidth = '48px';
-                  img.style.maxHeight = '48px';
-                  img.style.width = 'auto';
-                  img.style.height = 'auto';
-                  img.style.objectFit = 'contain';
-                  resolve();
-                };
-                // Assegna il nuovo src
-                img.src = compressedDataUrl;
-                
-                // Timeout di sicurezza aumentato a 3 secondi
-                setTimeout(() => {
-                  if (!resolved) {
-                    cleanup();
-                    resolve();
-                  }
-                }, 3000);
-              });
-            } else {
-              // Applica dimensioni CSS anche se immagine non caricata
-              img.style.maxWidth = '48px';
-              img.style.maxHeight = '48px';
-              img.style.width = 'auto';
-              img.style.height = 'auto';
-              img.style.objectFit = 'contain';
-            }
-          } catch (error) {
-            // Se fallisce, mantieni immagine originale con CSS
-            console.warn('Error processing image:', error);
-            img.style.maxWidth = '48px';
-            img.style.maxHeight = '48px';
-            img.style.width = 'auto';
-            img.style.height = 'auto';
-            img.style.objectFit = 'contain';
-          }
-        }));
-        
-        // Attendi che tutte le immagini compresse siano completamente caricate
+        // Attendi che tutte le immagini siano caricate (con timeout generoso)
         await Promise.allSettled(images.map(img => {
           return new Promise((resolve) => {
+            // Se già caricata, risolvi immediatamente
             if (img.complete && img.naturalWidth > 0) {
               resolve();
               return;
             }
             
+            // Timeout aumentato a 8 secondi per garantire caricamento
             const timeout = setTimeout(() => {
-              console.warn('Compressed image load timeout, continuing');
-              resolve();
-            }, 3000); // Max 3 secondi per immagine compressa
+              console.warn(`Image load timeout for: ${img.src.substring(0, 50)}...`);
+              resolve(); // Continua anche se timeout
+            }, 8000);
             
             img.onload = () => {
               clearTimeout(timeout);
@@ -671,17 +554,16 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
             };
             img.onerror = () => {
               clearTimeout(timeout);
-              console.warn('Compressed image load error, continuing');
+              console.warn(`Image load error for: ${img.src.substring(0, 50)}...`);
               resolve(); // Continua anche se errore
             };
           });
         }));
       });
       
-      // Attendi che tutte le immagini siano completamente renderizzate nel DOM
+      // Verifica finale che tutte le immagini siano renderizzate
       await page.evaluate(() => {
         return new Promise((resolve) => {
-          // Verifica che tutte le immagini siano caricate
           const images = Array.from(document.querySelectorAll('img.product-image'));
           const totalImages = images.length;
           
@@ -690,48 +572,41 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
             return;
           }
           
-          let loadedCount = 0;
-          let errorCount = 0;
-          
-          const checkComplete = () => {
-            const complete = images.filter(img => img.complete && img.naturalWidth > 0).length;
-            const errors = images.filter(img => img.complete === false && img.naturalWidth === 0).length;
+          // Conta quante immagini sono effettivamente caricate
+          const checkImages = () => {
+            const loaded = images.filter(img => img.complete && img.naturalWidth > 0).length;
+            const errors = images.filter(img => img.complete && img.naturalWidth === 0).length;
             
-            // Risolvi se tutte le immagini sono caricate o hanno dato errore
-            if (complete + errorCount >= totalImages) {
-              console.log(`Images loaded: ${complete}/${totalImages}, errors: ${errorCount}`);
+            console.log(`Final check: ${loaded}/${totalImages} loaded, ${errors} errors`);
+            
+            // Risolvi quando tutte le immagini hanno completato il caricamento (successo o errore)
+            if (loaded + errors >= totalImages) {
               resolve();
             }
           };
           
-          images.forEach(img => {
-            if (img.complete && img.naturalWidth > 0) {
-              loadedCount++;
-              checkComplete();
-            } else {
-              img.addEventListener('load', () => {
-                loadedCount++;
-                checkComplete();
-              }, { once: true });
-              img.addEventListener('error', () => {
-                errorCount++;
-                checkComplete();
-              }, { once: true });
-            }
-          });
+          // Verifica immediata
+          checkImages();
           
-          // Timeout di sicurezza aumentato a 10 secondi per tutte le immagini
+          // Timeout di sicurezza: 15 secondi per garantire che tutto sia caricato
           setTimeout(() => {
-            console.log(`Timeout reached. Loaded: ${loadedCount}/${totalImages}, Errors: ${errorCount}`);
+            console.log('Final timeout reached, proceeding with PDF generation');
             resolve();
-          }, 10000);
+          }, 15000);
           
-          checkComplete();
+          // Verifica periodica ogni 500ms
+          const interval = setInterval(() => {
+            checkImages();
+            if (images.every(img => img.complete)) {
+              clearInterval(interval);
+              resolve();
+            }
+          }, 500);
         });
       });
       
-      // Attendi un momento aggiuntivo per il rendering completo
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Attendi un momento aggiuntivo per il rendering completo del PDF
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Rimuovi solo i canvas temporanei di compressione (non le immagini convertite)
       await page.evaluate(() => {

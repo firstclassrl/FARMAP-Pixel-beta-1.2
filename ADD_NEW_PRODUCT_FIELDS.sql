@@ -9,7 +9,8 @@ ADD COLUMN IF NOT EXISTS strati INTEGER,
 ADD COLUMN IF NOT EXISTS scadenza TEXT,
 ADD COLUMN IF NOT EXISTS iva DECIMAL(5,2) DEFAULT 22.00,
 ADD COLUMN IF NOT EXISTS ean TEXT,
-ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ADD COLUMN IF NOT EXISTS photo_url TEXT,
+ADD COLUMN IF NOT EXISTS photo_thumb_url TEXT;
 
 -- Rendere il campo peso opzionale (rimuovere NOT NULL se presente)
 ALTER TABLE public.products 
@@ -23,6 +24,7 @@ COMMENT ON COLUMN public.products.scadenza IS 'Durata di scadenza del prodotto (
 COMMENT ON COLUMN public.products.iva IS 'Percentuale IVA (default 22%)';
 COMMENT ON COLUMN public.products.ean IS 'Codice EAN del prodotto';
 COMMENT ON COLUMN public.products.photo_url IS 'URL della foto del prodotto (base64 data URL)';
+COMMENT ON COLUMN public.products.photo_thumb_url IS 'URL pubblico della miniatura della foto prodotto (thumbnail 200x200px)';
 COMMENT ON COLUMN public.products.weight IS 'Peso del prodotto (ora opzionale)';
 
 -- Verificare la struttura aggiornata
