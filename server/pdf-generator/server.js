@@ -78,9 +78,9 @@ const generateHTML = (priceList, options = {}) => {
         itemsHTML += `
           <tr style="background-color: ${rowBgColor};">
             <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-              <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+              <div style="width: 48px; min-height: 48px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
                 ${photoUrl ? 
-                  `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+                  `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" crossOrigin="anonymous" style="max-height: 48px; max-width: 48px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
                   `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                     <span style="font-size: 10px; color: #9ca3af;">N/A</span>
                   </div>`
@@ -135,16 +135,16 @@ const generateHTML = (priceList, options = {}) => {
       
       return `
         <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
-          <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-            <div style="width: 64px; min-height: 64px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-              ${photoUrl ? 
-                `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" style="max-height: 64px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
-                `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                  <span style="font-size: 10px; color: #9ca3af;">N/A</span>
-                </div>`
-              }
-            </div>
-          </td>
+        <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
+          <div style="width: 48px; min-height: 48px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+            ${photoUrl ? 
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" crossOrigin="anonymous" style="max-height: 48px; max-width: 48px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+              `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 10px; color: #9ca3af;">N/A</span>
+              </div>`
+            }
+          </div>
+        </td>
           <td style="border: 1px solid #e5e7eb; padding: 8px; font-family: monospace; font-size: 11px; vertical-align: top;">
             ${item.products?.code || ''}
           </td>
@@ -399,7 +399,7 @@ const generateHTML = (priceList, options = {}) => {
     <table class="print-table">
       <thead>
         <tr>
-          <th style="text-align: center; width: 80px;">Foto</th>
+          <th style="text-align: center; width: 60px;">Foto</th>
           <th style="text-align: left; width: 80px;">Codice</th>
           <th style="text-align: left; width: 160px;">Prodotto</th>
           <th style="text-align: center; width: 64px;">MOQ</th>
@@ -511,86 +511,89 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         timeout: 10000 // Ridotto per velocità
       });
     
-      // Ottimizzazione velocità: comprimi immagini in parallelo senza attendere
-      // Processa immagini in parallelo senza attendere il caricamento completo
+      // Ottimizzazione: comprimi immagini in parallelo con qualità molto bassa per ridurre peso
       await page.evaluate(async () => {
         const images = Array.from(document.querySelectorAll('img.product-image'));
+        
+        // Imposta crossOrigin su tutte le immagini per permettere compressione
+        images.forEach(img => {
+          if (!img.crossOrigin) {
+            img.crossOrigin = 'anonymous';
+          }
+        });
+        
+        // Attendi che tutte le immagini siano caricate (con timeout)
+        await Promise.all(images.map(img => {
+          return new Promise((resolve) => {
+            if (img.complete && img.naturalWidth > 0) {
+              resolve();
+              return;
+            }
+            
+            const timeout = setTimeout(() => resolve(), 3000); // Max 3 secondi per immagine
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve();
+            };
+            img.onerror = () => {
+              clearTimeout(timeout);
+              resolve(); // Continua anche se errore
+            };
+          });
+        }));
         
         // Processa tutte le immagini in parallelo
         await Promise.all(images.map(async (img) => {
           try {
-            // Non aspettare il caricamento completo - procedi immediatamente se possibile
+            // Se l'immagine è caricata, comprimila
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              // Immagine già caricata, comprimi subito
-              await compressImage(img);
-            } else {
-              // Immagine non ancora caricata - aspetta max 500ms poi procedi comunque
-              await Promise.race([
-                new Promise(resolve => {
-                  img.onload = () => resolve(true);
-                  img.onerror = () => resolve(false);
-                }),
-                new Promise(resolve => setTimeout(() => resolve(false), 500))
-              ]);
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
               
-              // Prova a comprimere anche se non completamente caricata
-              if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                await compressImage(img);
+              // Riduci dimensioni a 48px per compromesso peso/dimensione
+              const maxSize = 48;
+              let width = img.naturalWidth;
+              let height = img.naturalHeight;
+              
+              // Calcola dimensioni mantenendo aspect ratio
+              if (width > height) {
+                if (width > maxSize) {
+                  height = Math.round((height * maxSize) / width);
+                  width = maxSize;
+                }
+              } else {
+                if (height > maxSize) {
+                  width = Math.round((width * maxSize) / height);
+                  height = maxSize;
+                }
               }
+              
+              canvas.width = width;
+              canvas.height = height;
+              
+              // Disegna immagine ridimensionata sul canvas
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              // Converti in JPEG con qualità molto bassa (0.15) per ridurre drasticamente il peso
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.15);
+              img.src = compressedDataUrl;
             }
             
-            // Applica dimensioni CSS finali (64px come originale)
-            img.style.maxWidth = '64px';
-            img.style.maxHeight = '64px';
+            // Applica dimensioni CSS finali
+            img.style.maxWidth = '48px';
+            img.style.maxHeight = '48px';
             img.style.width = 'auto';
             img.style.height = 'auto';
             img.style.objectFit = 'contain';
           } catch (error) {
-            // Se fallisce, applica solo CSS
-            img.style.maxWidth = '64px';
-            img.style.maxHeight = '64px';
+            // Se fallisce, mantieni immagine originale con CSS
+            img.style.maxWidth = '48px';
+            img.style.maxHeight = '48px';
             img.style.width = 'auto';
             img.style.height = 'auto';
             img.style.objectFit = 'contain';
           }
         }));
-        
-        // Funzione helper per comprimere una singola immagine
-        async function compressImage(img) {
-          try {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Mantieni dimensioni originali (64px) ma riduci qualità JPEG
-            const maxSize = 64;
-            let width = img.naturalWidth;
-            let height = img.naturalHeight;
-            
-            // Se l'immagine è più grande di 64px, ridimensiona mantenendo aspect ratio
-            if (width > maxSize || height > maxSize) {
-              if (width > height) {
-                height = (height * maxSize) / width;
-                width = maxSize;
-              } else {
-                width = (width * maxSize) / height;
-                height = maxSize;
-              }
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            
-            // Disegna immagine sul canvas
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Converti in JPEG con qualità molto bassa (0.3) per ridurre peso mantenendo dimensione
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.3);
-            img.src = compressedDataUrl;
-          } catch (corsError) {
-            // CORS error - mantieni immagine originale con CSS
-            console.warn('CORS error, keeping original image');
-          }
-        }
       });
       
       // Rimuovi solo i canvas temporanei di compressione (non le immagini convertite)
