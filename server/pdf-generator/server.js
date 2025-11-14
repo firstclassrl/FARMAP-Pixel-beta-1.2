@@ -522,7 +522,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           }
         });
         
-        // Attendi che tutte le immagini siano caricate (con timeout)
+        // Attendi che tutte le immagini originali siano caricate (con timeout)
         await Promise.all(images.map(img => {
           return new Promise((resolve) => {
             if (img.complete && img.naturalWidth > 0) {
@@ -576,15 +576,50 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
               
               // Converti in JPEG con qualità molto bassa (0.15) per ridurre drasticamente il peso
               const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.15);
-              img.src = compressedDataUrl;
+              
+              // Assegna direttamente il data URL e attendi che sia caricato
+              await new Promise((resolve) => {
+                const originalSrc = img.src;
+                img.onload = () => {
+                  img.onload = null; // Rimuovi listener
+                  img.style.maxWidth = '48px';
+                  img.style.maxHeight = '48px';
+                  img.style.width = 'auto';
+                  img.style.height = 'auto';
+                  img.style.objectFit = 'contain';
+                  resolve();
+                };
+                img.onerror = () => {
+                  img.onerror = null; // Rimuovi listener
+                  // Se fallisce, ripristina originale
+                  img.src = originalSrc;
+                  img.style.maxWidth = '48px';
+                  img.style.maxHeight = '48px';
+                  img.style.width = 'auto';
+                  img.style.height = 'auto';
+                  img.style.objectFit = 'contain';
+                  resolve();
+                };
+                // Assegna il nuovo src
+                img.src = compressedDataUrl;
+                
+                // Timeout di sicurezza
+                setTimeout(() => {
+                  if (img.onload || img.onerror) {
+                    img.onload = null;
+                    img.onerror = null;
+                    resolve();
+                  }
+                }, 2000);
+              });
+            } else {
+              // Applica dimensioni CSS anche se immagine non caricata
+              img.style.maxWidth = '48px';
+              img.style.maxHeight = '48px';
+              img.style.width = 'auto';
+              img.style.height = 'auto';
+              img.style.objectFit = 'contain';
             }
-            
-            // Applica dimensioni CSS finali
-            img.style.maxWidth = '48px';
-            img.style.maxHeight = '48px';
-            img.style.width = 'auto';
-            img.style.height = 'auto';
-            img.style.objectFit = 'contain';
           } catch (error) {
             // Se fallisce, mantieni immagine originale con CSS
             img.style.maxWidth = '48px';
@@ -594,7 +629,65 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
             img.style.objectFit = 'contain';
           }
         }));
+        
+        // Attendi che tutte le immagini compresse siano completamente caricate
+        await Promise.all(images.map(img => {
+          return new Promise((resolve) => {
+            if (img.complete && img.naturalWidth > 0) {
+              resolve();
+              return;
+            }
+            
+            const timeout = setTimeout(() => resolve(), 2000); // Max 2 secondi per immagine compressa
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve();
+            };
+            img.onerror = () => {
+              clearTimeout(timeout);
+              resolve(); // Continua anche se errore
+            };
+          });
+        }));
       });
+      
+      // Attendi che tutte le immagini siano completamente renderizzate nel DOM
+      await page.evaluate(() => {
+        return new Promise((resolve) => {
+          // Verifica che tutte le immagini siano caricate
+          const images = Array.from(document.querySelectorAll('img.product-image'));
+          let loadedCount = 0;
+          const totalImages = images.length;
+          
+          if (totalImages === 0) {
+            resolve();
+            return;
+          }
+          
+          const checkComplete = () => {
+            loadedCount = images.filter(img => img.complete && img.naturalWidth > 0).length;
+            if (loadedCount === totalImages) {
+              resolve();
+            }
+          };
+          
+          images.forEach(img => {
+            if (img.complete && img.naturalWidth > 0) {
+              checkComplete();
+            } else {
+              img.addEventListener('load', checkComplete, { once: true });
+              img.addEventListener('error', checkComplete, { once: true });
+            }
+          });
+          
+          // Timeout di sicurezza
+          setTimeout(() => resolve(), 5000);
+          checkComplete();
+        });
+      });
+      
+      // Attendi un momento aggiuntivo per il rendering completo
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Rimuovi solo i canvas temporanei di compressione (non le immagini convertite)
       await page.evaluate(() => {
