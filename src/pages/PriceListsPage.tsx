@@ -114,13 +114,14 @@ export const PriceListsPage = () => {
       // Fetch creator profiles - try to get all profiles, fallback to individual queries if RLS blocks
       const creatorIds = [...new Set(priceListsData.map((pl: any) => pl.created_by).filter(Boolean))];
       console.log('Creator IDs to fetch:', creatorIds);
-      let profilesData: Array<{ id: string; full_name: string | null; email?: string | null }> = [];
+      let profilesData: Array<{ id: string; full_names: string | null; email?: string | null }> = [];
       if (creatorIds.length > 0) {
         try {
           // Try to fetch all creator profiles at once
+          // Note: using full_names (plural) as per database schema
           const { data, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, full_name, email')
+            .select('id, full_names, email')
             .in('id', creatorIds);
 
           if (profilesError) {
@@ -131,12 +132,12 @@ export const PriceListsPage = () => {
               try {
                 const { data: singleProfile, error: singleError } = await supabase
                   .from('profiles')
-                  .select('id, full_name, email')
+                  .select('id, full_names, email')
                   .eq('id', creatorId)
                   .single();
                 if (singleProfile) {
-                  profilesData.push(singleProfile as { id: string; full_name: string | null; email?: string | null });
-                  console.log(`Retrieved profile for ${creatorId}:`, { full_name: (singleProfile as any).full_name, email: (singleProfile as any).email });
+                  profilesData.push(singleProfile as { id: string; full_names: string | null; email?: string | null });
+                  console.log(`Retrieved profile for ${creatorId}:`, { full_names: (singleProfile as any).full_names, email: (singleProfile as any).email });
                 } else if (singleError) {
                   console.warn(`Cannot access profile ${creatorId}:`, singleError);
                 }
@@ -147,7 +148,7 @@ export const PriceListsPage = () => {
             }
           } else {
             profilesData = data || [];
-            console.log('Retrieved profiles (batch):', profilesData.map(p => ({ id: p.id, full_name: p.full_name, email: p.email })));
+            console.log('Retrieved profiles (batch):', profilesData.map(p => ({ id: p.id, full_names: p.full_names, email: p.email })));
           }
         } catch (error) {
           console.warn('Error fetching creator profiles:', error);
@@ -171,9 +172,19 @@ export const PriceListsPage = () => {
           status = 'expired';
         }
 
-        // Prefer full_name, but use email as fallback if full_name is not available
-        // This ensures we always show something meaningful
-        const creatorDisplayName = creator?.full_name || creator?.email || null;
+        // Prefer full_names from profiles table, but use email as fallback if full_names is not available
+        // Extract a more readable name from email if full_names is missing
+        let creatorDisplayName: string | null = null;
+        if (creator?.full_names) {
+          creatorDisplayName = creator.full_names;
+        } else if (creator?.email) {
+          // Extract name from email: "antonio.pasetti@farmapindustry.it" -> "Antonio Pasetti"
+          const emailParts = creator.email.split('@')[0];
+          const nameParts = emailParts.split(/[._-]/);
+          creatorDisplayName = nameParts
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join(' ');
+        }
         
         // Debug log to see what we're getting
         if (priceList.created_by) {
@@ -183,7 +194,7 @@ export const PriceListsPage = () => {
             console.log(`Matched creator for ${priceList.name}:`, { 
               created_by: priceList.created_by, 
               creator_id: creator.id, 
-              full_name: creator.full_name, 
+              full_names: creator.full_names, 
               email: creator.email,
               display_name: creatorDisplayName 
             });
@@ -328,6 +339,13 @@ export const PriceListsPage = () => {
     // Check for exact match or if name contains the keyword
     if (nameLower === 'gigi' || nameLower.startsWith('gigi ')) {
       return '#3B82F6'; // blue
+    }
+    
+    // Antonio gets green (distinct from blue)
+    if (nameLower.includes('antonio') || 
+        nameLower.includes('antonio pasetti') ||
+        (nameLower.includes('@') && nameLower.includes('antonio'))) {
+      return '#10B981'; // green
     }
     
     // Contabilita gets yellow - check both in name and email

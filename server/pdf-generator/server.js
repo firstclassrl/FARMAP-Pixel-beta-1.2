@@ -106,7 +106,7 @@ const generateHTML = (priceList) => {
 
   const conditionsHTML = (priceList.payment_conditions || priceList.shipping_conditions || 
     priceList.delivery_conditions || priceList.brand_conditions) ? `
-    <div style="margin-top: 8px; padding: 8px; background-color: #fff7ed; border: 1px solid #fbbf24; border-radius: 4px;">
+    <div class="conditions-section" style="margin-top: 8px; padding: 8px; background-color: #fff7ed; border: 1px solid #fbbf24; border-radius: 4px;">
       <h3 style="font-size: 10px; font-weight: bold; color: #9a3412; margin-bottom: 4px;">CONDIZIONI DI VENDITA</h3>
       <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 8px; font-size: 11px;">
         ${priceList.payment_conditions ? `
@@ -175,7 +175,7 @@ const generateHTML = (priceList) => {
       padding: 24px;
       margin: 0;
       page-break-after: auto;
-      page-break-inside: avoid;
+      page-break-inside: auto; /* Permetti paginazione del contenuto */
     }
     .print-header {
       text-align: center;
@@ -214,6 +214,10 @@ const generateHTML = (priceList) => {
       border-collapse: collapse;
       margin-top: 20px;
     }
+    /* Ripeti header su ogni pagina */
+    .print-table thead {
+      display: table-header-group;
+    }
     .print-table th {
       background-color: #dc2626;
       color: white;
@@ -226,10 +230,17 @@ const generateHTML = (priceList) => {
       border: 1px solid #e5e7eb;
       padding: 8px;
     }
+    /* Elementi che devono apparire solo nell'ultima pagina */
+    .conditions-section,
+    .acceptance-box,
+    .note-section,
+    .footer {
+      page-break-inside: avoid;
+      page-break-before: avoid;
+    }
     .note-section {
       margin-top: 16px;
       padding: 8px;
-      page-break-inside: avoid;
     }
     .note-text {
       font-size: 11px;
@@ -245,16 +256,20 @@ const generateHTML = (priceList) => {
       color: #6b7280;
       display: flex;
       justify-content: space-between;
-      page-break-inside: avoid;
     }
     
-    /* Evita che la tabella venga tagliata tra pagine */
+    /* Permetti paginazione della tabella mantenendo righe intere */
     .print-table {
       page-break-inside: auto;
     }
+    /* Ogni riga prodotto rimane intera su una singola pagina */
     .print-table tbody tr {
       page-break-inside: avoid;
       page-break-after: auto;
+    }
+    /* Header ripetuto su ogni pagina */
+    .print-table thead {
+      display: table-header-group;
     }
     .acceptance-box {
       margin-top: 8px;
@@ -540,32 +555,10 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
         });
       });
       
-      console.log('🔵 Generating PDF (forcing vector rendering)...');
+      console.log('🔵 Generating PDF (allowing multi-page)...');
       
-      // Genera PDF con opzioni minime - NO printBackground, NO scale
-      // Rimuovi altezza minima e forza contenuto in una sola pagina
-      await page.evaluate(() => {
-        const printPage = document.querySelector('.print-page');
-        if (printPage) {
-          printPage.style.minHeight = 'auto';
-          printPage.style.height = 'auto';
-          printPage.style.maxHeight = '190mm'; // 210mm - 20mm margini
-          printPage.style.pageBreakAfter = 'avoid';
-          printPage.style.overflow = 'hidden';
-        }
-        
-        // Rimuovi eventuali elementi che causano page-break
-        const allElements = document.querySelectorAll('*');
-        allElements.forEach(el => {
-          const style = window.getComputedStyle(el);
-          if (style.pageBreakAfter === 'always' || style.pageBreakAfter === 'page') {
-            el.style.pageBreakAfter = 'avoid';
-          }
-        });
-      });
-      
-      // Aspetta un attimo per assicurarsi che gli stili siano applicati
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Permetti paginazione naturale - rimossi limiti di altezza e page-break
+      // Il contenuto può ora espandersi su più pagine A4
       
       const pdf = await page.pdf({
         format: 'A4',
@@ -579,7 +572,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
           left: '10mm'
         },
         displayHeaderFooter: false,
-        pageRanges: '1', // Forza solo la prima pagina
+        // Rimossa limitazione pageRanges per permettere pagine multiple
         // NON usare: scale, tagged, outline, omitBackground, tagPages
       });
       
