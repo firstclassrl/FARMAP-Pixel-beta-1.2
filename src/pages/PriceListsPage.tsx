@@ -104,25 +104,43 @@ export const PriceListsPage = () => {
 
       if (customersError) throw customersError;
 
-      // Fetch creator profiles
+      // Fetch creator profiles - try to get all profiles, fallback to individual queries if RLS blocks
       const creatorIds = [...new Set((priceListsData || []).map(pl => pl.created_by).filter(Boolean))];
-      let profilesData: Array<{ id: string; full_name: string | null }> | null = null;
+      let profilesData: Array<{ id: string; full_name: string | null; email?: string | null }> | null = null;
       if (creatorIds.length > 0) {
         try {
+          // Try to fetch all creator profiles at once
           const { data, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, email')
             .in('id', creatorIds);
 
           if (profilesError) {
-            console.warn('Error fetching creator profiles:', profilesError);
-            // Don't throw, just continue without creator names
+            console.warn('Error fetching creator profiles (batch):', profilesError);
+            // If batch query fails due to RLS, try fetching individually
+            // This is a fallback - ideally RLS should allow reading profiles for list creators
+            profilesData = [];
+            for (const creatorId of creatorIds) {
+              try {
+                const { data: singleProfile } = await supabase
+                  .from('profiles')
+                  .select('id, full_name, email')
+                  .eq('id', creatorId)
+                  .single();
+                if (singleProfile) {
+                  profilesData.push(singleProfile);
+                }
+              } catch (err) {
+                // Skip profiles that can't be accessed
+                console.warn(`Cannot access profile ${creatorId}:`, err);
+              }
+            }
           } else {
             profilesData = data;
           }
         } catch (error) {
           console.warn('Error fetching creator profiles:', error);
-          // Continue without creator names
+          profilesData = [];
         }
       }
 
@@ -140,6 +158,9 @@ export const PriceListsPage = () => {
           status = 'expired';
         }
 
+        // Use full_name if available, otherwise use email, otherwise use created_by ID
+        const creatorDisplayName = creator?.full_name || creator?.email || priceList.created_by || null;
+
         return {
           ...priceList,
           customer: customer ? { 
@@ -148,7 +169,7 @@ export const PriceListsPage = () => {
           } as Customer : undefined,
           product_count: productCount,
           status,
-          creator_name: creator?.full_name || null
+          creator_name: creatorDisplayName
         };
       });
 

@@ -5,6 +5,7 @@
 [build.environment]
   VITE_ENABLE_PWA = "false"
   VITE_SOURCEMAP = "true"
+  # VITE_PDF_GENERATOR_URL = "https://your-pdf-service-url.com"  # Configurare con URL del servizio PDF deployato
 
 # CSP completamente rimosso per risolvere problema login bloccato
 # Netlify non deve applicare nessun CSP

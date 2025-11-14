@@ -705,7 +705,7 @@ export function PriceListDetailPage({
                   </p>
                 </div>
               ) : currentPriceList.price_list_items && currentPriceList.price_list_items.length > 0 ? (
-              <div className="space-y-1">
+              <div className="flex-1 overflow-y-auto space-y-1 pr-1">
                   {currentPriceList.price_list_items.map((item) => (
                     <div key={item.id} className="bg-white border border-green-200 rounded p-2">
                     <div className="flex items-center justify-between">
