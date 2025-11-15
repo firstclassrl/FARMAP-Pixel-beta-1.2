@@ -1,7 +1,7 @@
 {
   "name": "pixel-farmap",
   "private": true,
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Pixel - Farmap",
   "type": "module",
   "scripts": {
@@ -44,6 +44,7 @@
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.344.0",
+    "node-fetch": "^3.3.2",
     "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
     "react": "^18.3.1",

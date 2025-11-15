@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
 import sharp from 'sharp';
 import pLimit from 'p-limit';
+import nodeFetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -55,10 +56,10 @@ const IMAGE_PROCESS_LIMIT = 5;
 const IMAGE_FETCH_TIMEOUT_MS = 10000;
 
 const getFetchFn = () => {
-  if (typeof fetch === 'function') {
-    return fetch.bind(globalThis);
+  if (typeof globalThis.fetch === 'function') {
+    return globalThis.fetch.bind(globalThis);
   }
-  throw new Error('Global fetch API is not available in this runtime. Please use Node 18+.');
+  return nodeFetch;
 };
 
 const fetchWithTimeout = async (fetchFn, url) => {

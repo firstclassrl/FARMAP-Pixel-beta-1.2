@@ -41,6 +41,8 @@ interface PriceListWithItems extends PriceList {
   })[];
 }
 
+type PriceListItemWithProduct = PriceListWithItems['price_list_items'][number];
+
 interface PriceListDetailPageProps {
   isOpen: boolean;
   onClose: () => void;
@@ -87,6 +89,8 @@ export function PriceListDetailPage({
   const [sortField, setSortField] = useState<'code' | 'name'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [printByCategory, setPrintByCategory] = useState(false);
+  const [pendingMOQValues, setPendingMOQValues] = useState<Record<string, string>>({});
   const [printByCategory, setPrintByCategory] = useState(false);
 
   // Main form
@@ -511,6 +515,12 @@ export function PriceListDetailPage({
         );
         setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
       }
+
+      setPendingMOQValues(prev => {
+        if (!(itemId in prev)) return prev;
+        const { [itemId]: _removed, ...rest } = prev;
+        return rest;
+      });
     } catch (error) {
       console.error('Errore nell\'aggiornamento del MOQ:', error);
       addNotification('Errore nell\'aggiornamento del MOQ', 'error');
@@ -555,6 +565,125 @@ export function PriceListDetailPage({
       });
     }
   };
+
+  const renderProductCard = (item: PriceListItemWithProduct) => (
+    <div key={item.id} className="bg-white border border-green-200 rounded p-2">
+      <div className="flex items-center justify-between">
+        <div className="flex-1 grid grid-cols-2 gap-3 items-center">
+          <div className="flex items-center space-x-2">
+            {item.products.photo_url && (
+              <img 
+                src={item.products.photo_url} 
+                alt={item.products.name}
+                className="w-8 h-8 object-cover rounded border"
+              />
+            )}
+            <div>
+              <p className="font-medium text-gray-900 text-xs">{item.products.name}</p>
+              <p className="text-xs text-gray-500">{item.products.code}</p>
+            </div>
+          </div>
+          <div className="text-xs">
+            {item.discount_percentage > 0 && (
+              <div>
+                <span className="text-gray-600">Sconto:</span>
+                <div className="font-medium text-green-600">{item.discount_percentage}%</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Seconda riga con campi modificabili */}
+      <div className="grid grid-cols-2 gap-3 items-center mt-2">
+        <div className="flex items-center space-x-1">
+          <span className="text-xs text-gray-600">Prezzo:</span>
+          <div className="relative">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={item.price}
+              onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
+              className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="absolute right-1 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">€</span>
+          </div>
+        </div>
+        <div className="flex items-center space-x-1">
+          <span className="text-xs text-gray-600">MOQ:</span>
+          <Input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={pendingMOQValues[item.id] ?? (item.min_quantity?.toString() ?? '')}
+            onChange={(e) => {
+              const { value } = e.target;
+              if (/^\d*$/.test(value)) {
+                setPendingMOQValues(prev => ({
+                  ...prev,
+                  [item.id]: value
+                }));
+              }
+            }}
+            onBlur={() => {
+              const rawValue = pendingMOQValues[item.id] ?? (item.min_quantity?.toString() ?? '');
+              const parsedValue = parseInt(rawValue, 10);
+              const finalValue = !isNaN(parsedValue) && parsedValue > 0 ? parsedValue : item.min_quantity || 1;
+              if (finalValue !== item.min_quantity) {
+                handleMOQChange(item.id, finalValue);
+              } else if (pendingMOQValues[item.id] !== undefined) {
+                setPendingMOQValues(prev => {
+                  const { [item.id]: _removed, ...rest } = prev;
+                  return rest;
+                });
+              }
+            }}
+            className="h-5 text-xs w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span className="text-xs text-gray-500">{item.products.unit}</span>
+        </div>
+      </div>
+      
+      {/* Terza riga con Cartone, Pedana, Scadenza */}
+      <div className="grid grid-cols-3 gap-4 items-center mt-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-gray-600 min-w-[50px]">Cartone:</span>
+          <Input
+            value={item.products.cartone || ''}
+            onChange={(e) => handleProductFieldChange(item.id, 'cartone', e.target.value)}
+            className="h-5 text-xs flex-1"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-gray-600 min-w-[50px]">Pedana:</span>
+          <Input
+            value={item.products.pallet || ''}
+            onChange={(e) => handleProductFieldChange(item.id, 'pallet', e.target.value)}
+            className="h-5 text-xs flex-1"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-gray-600 min-w-[50px]">Scadenza:</span>
+          <Input
+            value={item.products.scadenza || ''}
+            onChange={(e) => handleProductFieldChange(item.id, 'scadenza', e.target.value)}
+            className="h-5 text-xs flex-1"
+          />
+        </div>
+      </div>
+      <div className="flex items-center space-x-1 ml-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleDeleteItem(item.id)}
+          className="h-5 text-xs px-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'block' : 'hidden'}`}>
@@ -789,13 +918,16 @@ export function PriceListDetailPage({
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto space-y-1 pr-1 min-h-0">
-                  {[...currentPriceList.price_list_items]
-                    .filter(item => {
-                      // Filtro per categoria
-                      if (selectedCategory === 'all') return true;
-                      return item.products.category === selectedCategory;
-                    })
-                    .sort((a, b) => {
+                {(() => {
+                  const filteredItems = currentPriceList.price_list_items
+                    ? [...currentPriceList.price_list_items].filter(item => {
+                        if (selectedCategory === 'all') return true;
+                        return item.products.category === selectedCategory;
+                      })
+                    : [];
+
+                  const sortItems = (items: PriceListItemWithProduct[]) => {
+                    return [...items].sort((a, b) => {
                       let comparison = 0;
                       if (sortField === 'code') {
                         comparison = (a.products.code || '').localeCompare(b.products.code || '');
@@ -803,103 +935,33 @@ export function PriceListDetailPage({
                         comparison = (a.products.name || '').localeCompare(b.products.name || '');
                       }
                       return sortDirection === 'asc' ? comparison : -comparison;
-                    })
-                    .map((item) => (
-                    <div key={item.id} className="bg-white border border-green-200 rounded p-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex-1 grid grid-cols-2 gap-3 items-center">
-                        <div className="flex items-center space-x-2">
-                          {item.products.photo_url && (
-                            <img 
-                              src={item.products.photo_url} 
-                              alt={item.products.name}
-                              className="w-8 h-8 object-cover rounded border"
-                            />
-                          )}
-                          <div>
-                            <p className="font-medium text-gray-900 text-xs">{item.products.name}</p>
-                            <p className="text-xs text-gray-500">{item.products.code}</p>
-                          </div>
+                    });
+                  };
+
+                  if (printByCategory) {
+                    const groupedByCategory = filteredItems.reduce<Record<string, PriceListItemWithProduct[]>>((acc, item) => {
+                      const category = item.products.category || 'Senza categoria';
+                      if (!acc[category]) {
+                        acc[category] = [];
+                      }
+                      acc[category].push(item);
+                      return acc;
+                    }, {});
+
+                    const sortedCategories = Object.keys(groupedByCategory).sort();
+
+                    return sortedCategories.map(category => (
+                      <div key={`category-${category}`} className="space-y-1">
+                        <div className="bg-blue-50 border border-blue-200 text-blue-900 text-xs font-semibold px-3 py-1 rounded">
+                          {category}
                         </div>
-                        <div className="text-xs">
-                          {item.discount_percentage > 0 && (
-                              <div>
-                                <span className="text-gray-600">Sconto:</span>
-                                <div className="font-medium text-green-600">{item.discount_percentage}%</div>
-                              </div>
-                          )}
-                        </div>
+                        {sortItems(groupedByCategory[category]).map(item => renderProductCard(item))}
                       </div>
-                      
-                      {/* Seconda riga con campi modificabili */}
-                      <div className="grid grid-cols-2 gap-3 items-center mt-2">
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-600">Prezzo:</span>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={item.price}
-                              onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
-                              className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <span className="absolute right-1 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">€</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-600">MOQ:</span>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.min_quantity}
-                            onChange={(e) => handleMOQChange(item.id, parseInt(e.target.value) || 1)}
-                            className="h-5 text-xs w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                          <span className="text-xs text-gray-500">{item.products.unit}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Terza riga con Cartone, Pedana, Scadenza */}
-                      <div className="grid grid-cols-3 gap-4 items-center mt-2">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-gray-600 min-w-[50px]">Cartone:</span>
-                          <Input
-                            value={item.products.cartone || ''}
-                            onChange={(e) => handleProductFieldChange(item.id, 'cartone', e.target.value)}
-                            className="h-5 text-xs flex-1"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-gray-600 min-w-[50px]">Pedana:</span>
-                          <Input
-                            value={item.products.pallet || ''}
-                            onChange={(e) => handleProductFieldChange(item.id, 'pallet', e.target.value)}
-                            className="h-5 text-xs flex-1"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-gray-600 min-w-[50px]">Scadenza:</span>
-                          <Input
-                            value={item.products.scadenza || ''}
-                            onChange={(e) => handleProductFieldChange(item.id, 'scadenza', e.target.value)}
-                            className="h-5 text-xs flex-1"
-                          />
-                        </div>
-                      </div>
-                        <div className="flex items-center space-x-1 ml-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="h-5 text-xs px-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                    </div>
-                  </div>
-                    ))}
+                    ));
+                  }
+
+                  return sortItems(filteredItems).map(item => renderProductCard(item));
+                })()}
               </div>
               </>
               ) : (
