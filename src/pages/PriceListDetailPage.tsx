@@ -248,7 +248,7 @@ export function PriceListDetailPage({
         return dateStr;
       };
 
-      const finalPriceListData = {
+      const sanitizedPriceListData = {
         ...priceListData,
         description: data.description || null,
         valid_from: convertDateToISO(data.valid_from),
@@ -257,14 +257,13 @@ export function PriceListDetailPage({
         shipping_conditions: data.shipping_conditions || null,
         delivery_conditions: data.delivery_conditions || null,
         brand_conditions: data.brand_conditions || null,
-        created_by: user.id,
       };
 
       if (currentPriceList) {
         // Update existing price list
         const { error } = await supabase
           .from('price_lists')
-          .update(finalPriceListData)
+          .update(sanitizedPriceListData)
           .eq('id', currentPriceList.id);
 
         if (error) throw error;
@@ -314,9 +313,14 @@ export function PriceListDetailPage({
         await fetchPriceListDetails(currentPriceList.id);
       } else {
         // Create new price list
+        const newPriceListPayload = {
+          ...sanitizedPriceListData,
+          created_by: user.id
+        };
+
         const { data: newPriceList, error } = await supabase
           .from('price_lists')
-          .insert([finalPriceListData])
+          .insert([newPriceListPayload])
           .select()
           .single();
 

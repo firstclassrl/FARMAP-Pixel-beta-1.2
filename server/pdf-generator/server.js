@@ -4,6 +4,8 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
+import sharp from 'sharp';
+import pLimit from 'p-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,12 +49,142 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('it-IT');
 };
 
+const IMAGE_TARGET_SIZE = 120;
+const IMAGE_JPEG_QUALITY = 60;
+const IMAGE_PROCESS_LIMIT = 5;
+const IMAGE_FETCH_TIMEOUT_MS = 10000;
+
+const getFetchFn = () => {
+  if (typeof fetch === 'function') {
+    return fetch.bind(globalThis);
+  }
+  throw new Error('Global fetch API is not available in this runtime. Please use Node 18+.');
+};
+
+const fetchWithTimeout = async (fetchFn, url) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetchFn(url, { signal: controller.signal, cache: 'force-cache' });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const bufferFromSource = async (fetchFn, src) => {
+  if (!src) return null;
+  if (src.startsWith('data:')) {
+    const base64Data = src.split(',')[1];
+    return Buffer.from(base64Data, 'base64');
+  }
+  const response = await fetchWithTimeout(fetchFn, src);
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+};
+
+const processImageSource = async (fetchFn, src) => {
+  const buffer = await bufferFromSource(fetchFn, src);
+  if (!buffer) return null;
+  return sharp(buffer)
+    .rotate()
+    .resize(IMAGE_TARGET_SIZE, IMAGE_TARGET_SIZE, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: IMAGE_JPEG_QUALITY, mozjpeg: true })
+    .toBuffer();
+};
+
+const prepareProductImages = async (priceList) => {
+  const imageMap = {};
+  if (!priceList?.price_list_items?.length) {
+    return imageMap;
+  }
+
+  const fetchFn = getFetchFn();
+  const uniqueProducts = new Map();
+
+  priceList.price_list_items.forEach((item) => {
+    if (item?.products?.id && !uniqueProducts.has(item.products.id)) {
+      uniqueProducts.set(item.products.id, item.products);
+    }
+  });
+
+  const limit = pLimit(IMAGE_PROCESS_LIMIT);
+  const sourceCache = new Map();
+
+  const processProduct = async (productId, product) => {
+    const sources = [];
+    if (product.photo_thumb_url && product.photo_thumb_url.trim() !== '') {
+      sources.push(product.photo_thumb_url.trim());
+    }
+    if (
+      product.photo_url &&
+      product.photo_url.trim() !== '' &&
+      !sources.includes(product.photo_url.trim())
+    ) {
+      sources.push(product.photo_url.trim());
+    }
+
+    for (const src of sources) {
+      if (!src) continue;
+      try {
+        if (!sourceCache.has(src)) {
+          const processedBuffer = await processImageSource(fetchFn, src);
+          sourceCache.set(src, processedBuffer ? processedBuffer.toString('base64') : null);
+        }
+        const base64 = sourceCache.get(src);
+        if (base64) {
+          imageMap[productId] = `data:image/jpeg;base64,${base64}`;
+          return;
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Impossibile processare immagine per il prodotto ${product.code || productId}:`,
+          error.message
+        );
+      }
+    }
+
+    imageMap[productId] = '';
+  };
+
+  await Promise.all(
+    Array.from(uniqueProducts.entries()).map(([id, product]) =>
+      limit(() => processProduct(id, product))
+    )
+  );
+
+  return imageMap;
+};
+
 // Generate HTML template from price list data
 const generateHTML = (priceList, options = {}) => {
-  const { printByCategory = false, groupedByCategory = null, categoryOrder = [] } = options;
+  const {
+    printByCategory = false,
+    groupedByCategory = null,
+    categoryOrder = [],
+    imageMap = {}
+  } = options;
   
   let itemsHTML = '';
   let globalIndex = 0;
+  const IMAGE_DISPLAY_SIZE = 72;
+
+  const getProductImageSrc = (product) => {
+    if (!product) return '';
+    if (product.id && imageMap[product.id]) {
+      return imageMap[product.id];
+    }
+    if (product.photo_thumb_url && product.photo_thumb_url.trim() !== '') {
+      return product.photo_thumb_url.trim();
+    }
+    if (product.photo_url && product.photo_url.trim() !== '') {
+      return product.photo_url.trim();
+    }
+    return '';
+  };
   
   if (printByCategory && groupedByCategory && categoryOrder.length > 0) {
     // Genera HTML raggruppato per categoria
@@ -72,19 +204,15 @@ const generateHTML = (priceList, options = {}) => {
       categoryItems.forEach((item) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-    // Usa thumbnail se disponibile, altrimenti fallback a photo_url
-    // photo_thumb_url potrebbe non esistere ancora per prodotti vecchi
-    const photoUrl = (item.products?.photo_thumb_url && item.products.photo_thumb_url.trim() !== '') 
-      ? item.products.photo_thumb_url 
-      : (item.products?.photo_url || '');
+    const photoUrl = getProductImageSrc(item.products);
         const rowBgColor = globalIndex % 2 === 0 ? '#f9fafb' : '#ffffff';
         
         itemsHTML += `
           <tr style="background-color: ${rowBgColor};">
             <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-              <div style="width: 48px; min-height: 48px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+              <div style="width: ${IMAGE_DISPLAY_SIZE}px; min-height: ${IMAGE_DISPLAY_SIZE}px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
                 ${photoUrl ? 
-                  `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" crossOrigin="anonymous" style="max-height: 48px; max-width: 48px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+                  `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
                   `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                     <span style="font-size: 10px; color: #9ca3af;">N/A</span>
                   </div>`
@@ -135,18 +263,14 @@ const generateHTML = (priceList, options = {}) => {
     itemsHTML = items.map((item, index) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-    // Usa thumbnail se disponibile, altrimenti fallback a photo_url
-    // photo_thumb_url potrebbe non esistere ancora per prodotti vecchi
-    const photoUrl = (item.products?.photo_thumb_url && item.products.photo_thumb_url.trim() !== '') 
-      ? item.products.photo_thumb_url 
-      : (item.products?.photo_url || '');
+    const photoUrl = getProductImageSrc(item.products);
       
       return `
         <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
-          <div style="width: 48px; min-height: 48px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+          <div style="width: ${IMAGE_DISPLAY_SIZE}px; min-height: ${IMAGE_DISPLAY_SIZE}px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" data-original-src="${photoUrl}" crossOrigin="anonymous" style="max-height: 48px; max-width: 48px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
@@ -407,7 +531,7 @@ const generateHTML = (priceList, options = {}) => {
     <table class="print-table">
       <thead>
         <tr>
-          <th style="text-align: center; width: 60px;">Foto</th>
+          <th style="text-align: center; width: 90px;">Foto</th>
           <th style="text-align: left; width: 80px;">Codice</th>
           <th style="text-align: left; width: 160px;">Prodotto</th>
           <th style="text-align: center; width: 64px;">MOQ</th>
@@ -487,12 +611,23 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     }
     
     let browser;
+    let imageMap = {};
     try {
+      try {
+        console.log('🔵 Preparazione immagini per il PDF...');
+        imageMap = await prepareProductImages(priceListData);
+        console.log('🔵 Immagini elaborate:', Object.keys(imageMap).length);
+      } catch (imageError) {
+        console.error('⚠️ Impossibile preparare tutte le immagini:', imageError.message);
+        imageMap = {};
+      }
+
       // Generate HTML con opzioni per raggruppamento categorie
       const html = generateHTML(priceListData, {
         printByCategory: printByCategory || false,
         groupedByCategory: groupedByCategory || null,
-        categoryOrder: categoryOrder || []
+        categoryOrder: categoryOrder || [],
+        imageMap
       });
 
       // Launch Puppeteer
@@ -513,116 +648,14 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
 
       const page = await browser.newPage();
       
-      // Set content - carica HTML (ottimizzato: non aspettare tutte le immagini)
+      // Set content - immagini embeddate inline per evitare problemi di caricamento
       await page.setContent(html, { 
-        waitUntil: 'domcontentloaded', // Più veloce: non aspetta tutte le immagini
-        timeout: 10000 // Ridotto per velocità
+        waitUntil: 'networkidle0',
+        timeout: 15000
       });
     
-      // I thumbnail sono già ottimizzati (200x200px, qualità 0.7), quindi non serve compressione aggiuntiva
-      // Semplifichiamo: aspettiamo solo che tutte le immagini siano caricate e applichiamo CSS
-      await page.evaluate(async () => {
-        const images = Array.from(document.querySelectorAll('img.product-image'));
-        
-        // Applica dimensioni CSS a tutte le immagini immediatamente
-        images.forEach(img => {
-          img.style.maxWidth = '48px';
-          img.style.maxHeight = '48px';
-          img.style.width = 'auto';
-          img.style.height = 'auto';
-          img.style.objectFit = 'contain';
-        });
-        
-        // Attendi che tutte le immagini siano caricate (con timeout generoso)
-        await Promise.allSettled(images.map(img => {
-          return new Promise((resolve) => {
-            // Se già caricata, risolvi immediatamente
-            if (img.complete && img.naturalWidth > 0) {
-              resolve();
-              return;
-            }
-            
-            // Timeout aumentato a 8 secondi per garantire caricamento
-            const timeout = setTimeout(() => {
-              console.warn(`Image load timeout for: ${img.src.substring(0, 50)}...`);
-              resolve(); // Continua anche se timeout
-            }, 8000);
-            
-            img.onload = () => {
-              clearTimeout(timeout);
-              resolve();
-            };
-            img.onerror = () => {
-              clearTimeout(timeout);
-              console.warn(`Image load error for: ${img.src.substring(0, 50)}...`);
-              resolve(); // Continua anche se errore
-            };
-          });
-        }));
-      });
-      
-      // Verifica finale che tutte le immagini siano renderizzate
-      await page.evaluate(() => {
-        return new Promise((resolve) => {
-          const images = Array.from(document.querySelectorAll('img.product-image'));
-          const totalImages = images.length;
-          
-          if (totalImages === 0) {
-            resolve();
-            return;
-          }
-          
-          // Conta quante immagini sono effettivamente caricate
-          const checkImages = () => {
-            const loaded = images.filter(img => img.complete && img.naturalWidth > 0).length;
-            const errors = images.filter(img => img.complete && img.naturalWidth === 0).length;
-            
-            console.log(`Final check: ${loaded}/${totalImages} loaded, ${errors} errors`);
-            
-            // Risolvi quando tutte le immagini hanno completato il caricamento (successo o errore)
-            if (loaded + errors >= totalImages) {
-              resolve();
-            }
-          };
-          
-          // Verifica immediata
-          checkImages();
-          
-          // Timeout di sicurezza: 15 secondi per garantire che tutto sia caricato
-          setTimeout(() => {
-            console.log('Final timeout reached, proceeding with PDF generation');
-            resolve();
-          }, 15000);
-          
-          // Verifica periodica ogni 500ms
-          const interval = setInterval(() => {
-            checkImages();
-            if (images.every(img => img.complete)) {
-              clearInterval(interval);
-              resolve();
-            }
-          }, 500);
-        });
-      });
-      
-      // Attendi un momento aggiuntivo per il rendering completo del PDF
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Rimuovi solo i canvas temporanei di compressione (non le immagini convertite)
-      await page.evaluate(() => {
-        // Rimuovi canvas temporanei lasciati in giro (non le immagini già convertite)
-        const canvases = document.querySelectorAll('canvas');
-        canvases.forEach(canvas => {
-          // Rimuovi solo se non è parte di un'immagine già processata
-          if (!canvas.closest('td')) {
-            canvas.remove();
-          }
-        });
-        
-        // Forza stili semplici per ottimizzazione rendering
-        document.body.style.transform = 'none';
-        document.body.style.willChange = 'auto';
-      });
+      // Breve attesa per garantire il rendering completo della pagina prima della stampa
+      await page.waitForTimeout(500);
       
       // Permetti paginazione naturale - rimossi limiti di altezza e page-break
       // Il contenuto può ora espandersi su più pagine A4
