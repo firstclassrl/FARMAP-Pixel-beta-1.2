@@ -578,20 +578,20 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
               resolve({ success: false, src: null, reason: 'empty-src' });
               return;
             }
+
+            let timer;
             const cleanup = (success, detail = {}) => {
-              clearTimeout(timeout);
+              if (timer) {
+                clearTimeout(timer);
+              }
               img.removeEventListener('load', onLoad);
               img.removeEventListener('error', onError);
               resolve({ success, src, ...detail });
             };
 
-            const onLoad = () => {
-              cleanup(true);
-            };
+            const onLoad = () => cleanup(true);
 
-            const onError = () => {
-              cleanup(false, { reason: 'error' });
-            };
+            const onError = () => cleanup(false, { reason: 'error' });
 
             img.addEventListener('load', onLoad, { once: true });
             img.addEventListener('error', onError, { once: true });
@@ -608,7 +608,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
               return;
             }
 
-            const timeout = setTimeout(() => {
+            timer = setTimeout(() => {
               cleanup(img.complete && img.naturalWidth > 0, { reason: 'timeout' });
             }, timeoutPerImage);
           });
