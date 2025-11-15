@@ -125,21 +125,34 @@ export function PriceListPrintView({
   };
 
   const resolveBackendUrl = () => {
-    const envUrl = import.meta.env.VITE_PDF_GENERATOR_URL;
-    if (envUrl && envUrl.trim() !== '') {
+    const normalizeUrl = (url?: string | null) => {
+      if (!url) return '';
+      const trimmed = url.trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return trimmed;
+      }
+      return `https://${trimmed}`;
+    };
+
+    const isLocalHost =
+      typeof window !== 'undefined' &&
+      !!window.location &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.') ||
+        window.location.hostname.endsWith('.local'));
+
+    const envUrl = normalizeUrl(import.meta.env.VITE_PDF_GENERATOR_URL);
+
+    if (envUrl) {
       return envUrl;
     }
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      if (
-        host === 'localhost' ||
-        host === '127.0.0.1' ||
-        host.startsWith('192.168.') ||
-        host.endsWith('.local')
-      ) {
-        return 'http://localhost:3001';
-      }
+
+    if (isLocalHost) {
+      return 'http://localhost:3001';
     }
+
     return 'https://pdf-generator-farmap-production.up.railway.app';
   };
 
