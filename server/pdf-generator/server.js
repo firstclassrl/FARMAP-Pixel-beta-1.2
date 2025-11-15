@@ -84,6 +84,9 @@ const generateHTML = (priceList, options = {}) => {
     const sources = [];
     if (product.id && storageBaseUrl) {
       sources.push(`${storageBaseUrl}/${product.id}/thumb.webp`);
+      sources.push(`${storageBaseUrl}/${product.id}/main.webp`);
+      sources.push(`${storageBaseUrl}/${product.id}/thumb.jpg`);
+      sources.push(`${storageBaseUrl}/${product.id}/main.jpg`);
     }
     if (product.photo_thumb_url && product.photo_thumb_url.trim() !== '') {
       sources.push(product.photo_thumb_url.trim());
@@ -113,10 +116,11 @@ const generateHTML = (priceList, options = {}) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
     const imageSources = getProductImageSources(item.products);
+    const sourcesAttr =
+      imageSources.length > 0
+        ? JSON.stringify(imageSources).replace(/"/g, '&quot;')
+        : '';
     const primarySrc = imageSources[0] || '';
-    const fallbackAttr = imageSources.length > 1
-      ? JSON.stringify(imageSources.slice(1)).replace(/"/g, '&quot;')
-      : '';
         const rowBgColor = globalIndex % 2 === 0 ? '#f9fafb' : '#ffffff';
         
         itemsHTML += `
@@ -124,7 +128,7 @@ const generateHTML = (priceList, options = {}) => {
             <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
               <div style="width: ${IMAGE_DISPLAY_SIZE}px; min-height: ${IMAGE_DISPLAY_SIZE}px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
                 ${primarySrc ? 
-                  `<img src="${primarySrc}" alt="${item.products?.name || ''}" class="product-image" data-fallback-list="${fallbackAttr}" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+                  `<img src="${primarySrc}" alt="${item.products?.name || ''}" class="product-image" data-image-sources="${sourcesAttr}" data-product-id="${item.products?.id || ''}" data-product-code="${item.products?.code || ''}" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" />` :
                   `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                     <span style="font-size: 10px; color: #9ca3af;">N/A</span>
                   </div>`
@@ -176,17 +180,18 @@ const generateHTML = (priceList, options = {}) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
     const imageSources = getProductImageSources(item.products);
+    const sourcesAttr =
+      imageSources.length > 0
+        ? JSON.stringify(imageSources).replace(/"/g, '&quot;')
+        : '';
     const primarySrc = imageSources[0] || '';
-    const fallbackAttr = imageSources.length > 1
-      ? JSON.stringify(imageSources.slice(1)).replace(/"/g, '&quot;')
-      : '';
       
       return `
         <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
           <div style="width: ${IMAGE_DISPLAY_SIZE}px; min-height: ${IMAGE_DISPLAY_SIZE}px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             ${primarySrc ? 
-              `<img src="${primarySrc}" alt="${item.products?.name || ''}" class="product-image" data-fallback-list="${fallbackAttr}" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+              `<img src="${primarySrc}" alt="${item.products?.name || ''}" class="product-image" data-image-sources="${sourcesAttr}" data-product-id="${item.products?.id || ''}" data-product-code="${item.products?.code || ''}" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
@@ -561,76 +566,142 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       });
 
       // Assicurati che tutte le immagini siano caricate o abbiano provato i fallback
-      await page.evaluate(async () => {
+      const imageLoadResults = await page.evaluate(async () => {
         const timeoutPerImage = 8000;
-        const loadImageWithFallback = (img) => {
-          return new Promise((resolve) => {
-            let fallbacks = [];
-            const data = img.getAttribute('data-fallback-list');
-            if (data) {
-              try {
-                fallbacks = JSON.parse(data);
-              } catch (error) {
-                fallbacks = [];
-              }
-            }
-            let fallbackIndex = 0;
+        const maxTotalTime = 30000;
+        const startTime = Date.now();
+        const summary = [];
 
-            const cleanup = () => {
+        const loadSource = (img, src) => {
+          return new Promise((resolve) => {
+            if (!src) {
+              resolve({ success: false, src: null, reason: 'empty-src' });
+              return;
+            }
+            const cleanup = (success, detail = {}) => {
+              clearTimeout(timeout);
               img.removeEventListener('load', onLoad);
               img.removeEventListener('error', onError);
+              resolve({ success, src, ...detail });
             };
 
             const onLoad = () => {
-              cleanup();
-              resolve(true);
-            };
-
-            const tryNextFallback = () => {
-              if (fallbackIndex >= fallbacks.length) {
-                cleanup();
-                resolve(false);
-                return;
-              }
-              const nextSrc = fallbacks[fallbackIndex++];
-              if (!nextSrc || nextSrc === img.src) {
-                tryNextFallback();
-                return;
-              }
-              img.src = nextSrc;
+              cleanup(true);
             };
 
             const onError = () => {
-              tryNextFallback();
+              cleanup(false, { reason: 'error' });
             };
 
             img.addEventListener('load', onLoad, { once: true });
             img.addEventListener('error', onError, { once: true });
 
-            if (img.complete) {
-              if (img.naturalWidth > 0) {
-                cleanup();
-                resolve(true);
-                return;
-              }
-              if (fallbacks.length > 0) {
-                tryNextFallback();
-              } else {
-                cleanup();
-                resolve(false);
-              }
+            if (img.src !== src) {
+              img.src = src;
+            } else if (img.complete) {
+              cleanup(img.naturalWidth > 0);
+              return;
             }
 
-            setTimeout(() => {
-              cleanup();
-              resolve(img.complete && img.naturalWidth > 0);
+            if (img.complete) {
+              cleanup(img.naturalWidth > 0);
+              return;
+            }
+
+            const timeout = setTimeout(() => {
+              cleanup(img.complete && img.naturalWidth > 0, { reason: 'timeout' });
             }, timeoutPerImage);
           });
         };
 
+        const loadImageWithFallback = async (img) => {
+          const data = img.getAttribute('data-image-sources');
+          let sources = [];
+          if (data) {
+            try {
+              sources = JSON.parse(data);
+            } catch (error) {
+              sources = [];
+            }
+          }
+          if (!Array.isArray(sources) || sources.length === 0) {
+            if (img.src) {
+              sources = [img.src];
+            } else {
+              return {
+                productId: img.getAttribute('data-product-id'),
+                productCode: img.getAttribute('data-product-code'),
+                success: false,
+                attempts: [],
+                reason: 'no-sources'
+              };
+            }
+          } else if (!img.src && sources.length > 0) {
+            img.src = sources[0];
+          }
+
+          const attempts = [];
+          for (let index = 0; index < sources.length; index++) {
+            if (Date.now() - startTime > maxTotalTime) {
+              return {
+                productId: img.getAttribute('data-product-id'),
+                productCode: img.getAttribute('data-product-code'),
+                success: false,
+                attempts,
+                reason: 'global-timeout'
+              };
+            }
+            const result = await loadSource(img, sources[index]);
+            attempts.push(result);
+            if (result.success) {
+              return {
+                productId: img.getAttribute('data-product-id'),
+                productCode: img.getAttribute('data-product-code'),
+                success: true,
+                attempts
+              };
+            }
+          }
+
+          return {
+            productId: img.getAttribute('data-product-id'),
+            productCode: img.getAttribute('data-product-code'),
+            success: false,
+            attempts,
+            reason: 'all-failed'
+          };
+        };
+
         const images = Array.from(document.querySelectorAll('img.product-image'));
-        await Promise.all(images.map(loadImageWithFallback));
+        for (const img of images) {
+          const result = await loadImageWithFallback(img);
+          summary.push(result);
+          if (Date.now() - startTime > maxTotalTime) {
+            summary.push({
+              productId: 'GLOBAL',
+              productCode: 'GLOBAL',
+              success: false,
+              reason: 'global-timeout'
+            });
+            break;
+          }
+        }
+
+        return summary;
       });
+
+      const failedImages = imageLoadResults.filter((result) => !result.success);
+      if (failedImages.length > 0) {
+        console.warn(
+          '⚠️ Some images failed to load:',
+          failedImages.slice(0, 10).map((entry) => ({
+            productId: entry.productId,
+            productCode: entry.productCode,
+            attempts: entry.attempts,
+            reason: entry.reason
+          }))
+        );
+      }
     
       // Breve attesa per garantire il rendering completo della pagina prima della stampa
       await new Promise((resolve) => setTimeout(resolve, 500));
