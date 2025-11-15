@@ -4,9 +4,6 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
-import sharp from 'sharp';
-import pLimit from 'p-limit';
-import nodeFetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -50,115 +47,24 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('it-IT');
 };
 
-const IMAGE_TARGET_SIZE = 120;
-const IMAGE_JPEG_QUALITY = 60;
-const IMAGE_PROCESS_LIMIT = 5;
-const IMAGE_FETCH_TIMEOUT_MS = 10000;
-
-const getFetchFn = () => {
-  if (typeof globalThis.fetch === 'function') {
-    return globalThis.fetch.bind(globalThis);
-  }
-  return nodeFetch;
-};
-
-const fetchWithTimeout = async (fetchFn, url) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetchFn(url, { signal: controller.signal, cache: 'force-cache' });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    return response;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
-const bufferFromSource = async (fetchFn, src) => {
-  if (!src) return null;
-  if (src.startsWith('data:')) {
-    const base64Data = src.split(',')[1];
-    return Buffer.from(base64Data, 'base64');
-  }
-  const response = await fetchWithTimeout(fetchFn, src);
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
-};
-
-const processImageSource = async (fetchFn, src) => {
-  const buffer = await bufferFromSource(fetchFn, src);
-  if (!buffer) return null;
-  return sharp(buffer)
-    .rotate()
-    .resize(IMAGE_TARGET_SIZE, IMAGE_TARGET_SIZE, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: IMAGE_JPEG_QUALITY, mozjpeg: true })
-    .toBuffer();
-};
-
-const prepareProductImages = async (priceList) => {
-  const imageMap = {};
-  if (!priceList?.price_list_items?.length) {
-    return imageMap;
+const DEFAULT_SUPABASE_URL = 'https://pfpvsahrmwbhkgvjidnr.supabase.co';
+const resolveStorageBaseUrl = () => {
+  const explicit = process.env.SUPABASE_STORAGE_BASE_URL;
+  if (explicit && explicit.trim() !== '') {
+    return explicit.replace(/\/$/, '');
   }
 
-  const fetchFn = getFetchFn();
-  const uniqueProducts = new Map();
+  const baseUrl =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    DEFAULT_SUPABASE_URL;
 
-  priceList.price_list_items.forEach((item) => {
-    if (item?.products?.id && !uniqueProducts.has(item.products.id)) {
-      uniqueProducts.set(item.products.id, item.products);
-    }
-  });
-
-  const limit = pLimit(IMAGE_PROCESS_LIMIT);
-  const sourceCache = new Map();
-
-  const processProduct = async (productId, product) => {
-    const sources = [];
-    if (product.photo_thumb_url && product.photo_thumb_url.trim() !== '') {
-      sources.push(product.photo_thumb_url.trim());
-    }
-    if (
-      product.photo_url &&
-      product.photo_url.trim() !== '' &&
-      !sources.includes(product.photo_url.trim())
-    ) {
-      sources.push(product.photo_url.trim());
-    }
-
-    for (const src of sources) {
-      if (!src) continue;
-      try {
-        if (!sourceCache.has(src)) {
-          const processedBuffer = await processImageSource(fetchFn, src);
-          sourceCache.set(src, processedBuffer ? processedBuffer.toString('base64') : null);
-        }
-        const base64 = sourceCache.get(src);
-        if (base64) {
-          imageMap[productId] = `data:image/jpeg;base64,${base64}`;
-          return;
-        }
-      } catch (error) {
-        console.warn(
-          `⚠️ Impossibile processare immagine per il prodotto ${product.code || productId}:`,
-          error.message
-        );
-      }
-    }
-
-    imageMap[productId] = '';
-  };
-
-  await Promise.all(
-    Array.from(uniqueProducts.entries()).map(([id, product]) =>
-      limit(() => processProduct(id, product))
-    )
-  );
-
-  return imageMap;
+  const normalizedBase = baseUrl.replace(/\/$/, '');
+  return `${normalizedBase}/storage/v1/object/public/product-photos`;
 };
+
+const STORAGE_BASE_URL = resolveStorageBaseUrl();
+console.log('🔵 Storage base URL:', STORAGE_BASE_URL);
 
 // Generate HTML template from price list data
 const generateHTML = (priceList, options = {}) => {
@@ -166,7 +72,7 @@ const generateHTML = (priceList, options = {}) => {
     printByCategory = false,
     groupedByCategory = null,
     categoryOrder = [],
-    imageMap = {}
+    storageBaseUrl = STORAGE_BASE_URL
   } = options;
   
   let itemsHTML = '';
@@ -175,8 +81,13 @@ const generateHTML = (priceList, options = {}) => {
 
   const getProductImageSrc = (product) => {
     if (!product) return '';
-    if (product.id && imageMap[product.id]) {
-      return imageMap[product.id];
+    const productId = product.id;
+    const bucketThumb =
+      productId && storageBaseUrl
+        ? `${storageBaseUrl}/${productId}/thumb.webp`
+        : '';
+    if (bucketThumb) {
+      return bucketThumb;
     }
     if (product.photo_thumb_url && product.photo_thumb_url.trim() !== '') {
       return product.photo_thumb_url.trim();
@@ -612,23 +523,13 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
     }
     
     let browser;
-    let imageMap = {};
     try {
-      try {
-        console.log('🔵 Preparazione immagini per il PDF...');
-        imageMap = await prepareProductImages(priceListData);
-        console.log('🔵 Immagini elaborate:', Object.keys(imageMap).length);
-      } catch (imageError) {
-        console.error('⚠️ Impossibile preparare tutte le immagini:', imageError.message);
-        imageMap = {};
-      }
-
       // Generate HTML con opzioni per raggruppamento categorie
       const html = generateHTML(priceListData, {
         printByCategory: printByCategory || false,
         groupedByCategory: groupedByCategory || null,
         categoryOrder: categoryOrder || [],
-        imageMap
+        storageBaseUrl: STORAGE_BASE_URL
       });
 
       // Launch Puppeteer
