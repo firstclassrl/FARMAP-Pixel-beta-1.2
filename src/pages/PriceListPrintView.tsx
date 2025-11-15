@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mail, Download, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Label } from '../components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -125,6 +124,25 @@ export function PriceListPrintView({
     }
   };
 
+  const resolveBackendUrl = () => {
+    const envUrl = import.meta.env.VITE_PDF_GENERATOR_URL;
+    if (envUrl && envUrl.trim() !== '') {
+      return envUrl;
+    }
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host.startsWith('192.168.') ||
+        host.endsWith('.local')
+      ) {
+        return 'http://localhost:3001';
+      }
+    }
+    return 'https://pdf-generator-farmap-production.up.railway.app';
+  };
+
   const handleSendEmail = async () => {
     if (!priceList || !priceList.customer?.email) {
       addNotification({
@@ -142,8 +160,8 @@ export function PriceListPrintView({
         message: 'Sto creando il PDF...'
       } as any);
 
-      // Get backend URL from environment variable or use default
-      let backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
+      // Get backend URL from environment variable, localhost fallback or production default
+      let backendUrl = resolveBackendUrl();
       
       // Assicurati che l'URL abbia il protocollo
       if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
@@ -325,7 +343,7 @@ Team FARMAP`;
     try {
 
       // Get backend URL from environment variable or use default
-      let backendUrl = import.meta.env.VITE_PDF_GENERATOR_URL || 'https://pdf-generator-farmap-production.up.railway.app';
+      let backendUrl = resolveBackendUrl();
       
       // Assicurati che l'URL abbia il protocollo
       if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {

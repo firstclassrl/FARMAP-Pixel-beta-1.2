@@ -567,35 +567,28 @@ export function PriceListDetailPage({
 
   const renderProductCard = (item: PriceListItemWithProduct) => (
     <div key={item.id} className="bg-white border border-green-200 rounded p-2">
-      <div className="flex items-center justify-between">
-        <div className="flex-1 grid grid-cols-2 gap-3 items-center">
-          <div className="flex items-center space-x-2">
-            {item.products.photo_url && (
-              <img 
-                src={item.products.photo_url} 
-                alt={item.products.name}
-                className="w-8 h-8 object-cover rounded border"
-              />
-            )}
-            <div>
-              <p className="font-medium text-gray-900 text-xs">{item.products.name}</p>
-              <p className="text-xs text-gray-500">{item.products.code}</p>
-            </div>
-          </div>
-          <div className="text-xs">
-            {item.discount_percentage > 0 && (
-              <div>
-                <span className="text-gray-600">Sconto:</span>
-                <div className="font-medium text-green-600">{item.discount_percentage}%</div>
-              </div>
-            )}
+      <div className="flex items-center gap-3 flex-wrap xl:flex-nowrap">
+        <div className="flex items-center gap-2 min-w-[220px] flex-1">
+          {item.products.photo_url && (
+            <img
+              src={item.products.photo_url}
+              alt={item.products.name}
+              className="w-8 h-8 object-cover rounded border"
+            />
+          )}
+          <div>
+            <p className="font-medium text-gray-900 text-xs">{item.products.name}</p>
+            <p className="text-xs text-gray-500">{item.products.code}</p>
           </div>
         </div>
-      </div>
-      
-      {/* Seconda riga con campi modificabili */}
-      <div className="grid grid-cols-2 gap-3 items-center mt-2">
-        <div className="flex items-center space-x-1">
+
+        {item.discount_percentage > 0 && (
+          <div className="text-xs text-green-700 font-semibold min-w-[70px]">
+            Sconto {item.discount_percentage}%
+          </div>
+        )}
+
+        <div className="flex items-center gap-1 min-w-[110px]">
           <span className="text-xs text-gray-600">Prezzo:</span>
           <div className="relative">
             <Input
@@ -606,10 +599,11 @@ export function PriceListDetailPage({
               onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
               className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <span className="absolute right-1 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">€</span>
+            <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs text-gray-500">€</span>
           </div>
         </div>
-        <div className="flex items-center space-x-1">
+
+        <div className="flex items-center gap-1 min-w-[120px]">
           <span className="text-xs text-gray-600">MOQ:</span>
           <Input
             type="text"
@@ -638,40 +632,38 @@ export function PriceListDetailPage({
                 });
               }
             }}
-            className="h-5 text-xs w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="h-5 text-xs w-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <span className="text-xs text-gray-500">{item.products.unit}</span>
         </div>
-      </div>
-      
-      {/* Terza riga con Cartone, Pedana, Scadenza */}
-      <div className="grid grid-cols-3 gap-4 items-center mt-2">
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-600 min-w-[50px]">Cartone:</span>
+
+        <div className="flex items-center gap-1 min-w-[140px]">
+          <span className="text-xs text-gray-600">Cartone:</span>
           <Input
             value={item.products.cartone || ''}
             onChange={(e) => handleProductFieldChange(item.id, 'cartone', e.target.value)}
-            className="h-5 text-xs flex-1"
+            className="h-5 text-xs w-24"
           />
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-600 min-w-[50px]">Pedana:</span>
+
+        <div className="flex items-center gap-1 min-w-[140px]">
+          <span className="text-xs text-gray-600">Pedana:</span>
           <Input
             value={item.products.pallet || ''}
             onChange={(e) => handleProductFieldChange(item.id, 'pallet', e.target.value)}
-            className="h-5 text-xs flex-1"
+            className="h-5 text-xs w-24"
           />
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-600 min-w-[50px]">Scadenza:</span>
+
+        <div className="flex items-center gap-1 min-w-[150px]">
+          <span className="text-xs text-gray-600">Scadenza:</span>
           <Input
             value={item.products.scadenza || ''}
             onChange={(e) => handleProductFieldChange(item.id, 'scadenza', e.target.value)}
-            className="h-5 text-xs flex-1"
+            className="h-5 text-xs w-28"
           />
         </div>
-      </div>
-      <div className="flex items-center space-x-1 ml-2">
+
         <Button
           variant="outline"
           size="sm"
