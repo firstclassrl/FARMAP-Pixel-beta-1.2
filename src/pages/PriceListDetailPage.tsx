@@ -91,7 +91,6 @@ export function PriceListDetailPage({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [printByCategory, setPrintByCategory] = useState(false);
   const [pendingMOQValues, setPendingMOQValues] = useState<Record<string, string>>({});
-  const [printByCategory, setPrintByCategory] = useState(false);
 
   // Main form
   const {
