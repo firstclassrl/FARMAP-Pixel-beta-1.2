@@ -79,23 +79,19 @@ const generateHTML = (priceList, options = {}) => {
   let globalIndex = 0;
   const IMAGE_DISPLAY_SIZE = 72;
 
-  const getProductImageSrc = (product) => {
-    if (!product) return '';
-    const productId = product.id;
-    const bucketThumb =
-      productId && storageBaseUrl
-        ? `${storageBaseUrl}/${productId}/thumb.webp`
-        : '';
-    if (bucketThumb) {
-      return bucketThumb;
+  const getProductImageSources = (product) => {
+    if (!product) return [];
+    const sources = [];
+    if (product.id && storageBaseUrl) {
+      sources.push(`${storageBaseUrl}/${product.id}/thumb.webp`);
     }
     if (product.photo_thumb_url && product.photo_thumb_url.trim() !== '') {
-      return product.photo_thumb_url.trim();
+      sources.push(product.photo_thumb_url.trim());
     }
     if (product.photo_url && product.photo_url.trim() !== '') {
-      return product.photo_url.trim();
+      sources.push(product.photo_url.trim());
     }
-    return '';
+    return Array.from(new Set(sources));
   };
   
   if (printByCategory && groupedByCategory && categoryOrder.length > 0) {
@@ -116,15 +112,19 @@ const generateHTML = (priceList, options = {}) => {
       categoryItems.forEach((item) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-    const photoUrl = getProductImageSrc(item.products);
+    const imageSources = getProductImageSources(item.products);
+    const primarySrc = imageSources[0] || '';
+    const fallbackAttr = imageSources.length > 1
+      ? JSON.stringify(imageSources.slice(1)).replace(/"/g, '&quot;')
+      : '';
         const rowBgColor = globalIndex % 2 === 0 ? '#f9fafb' : '#ffffff';
         
         itemsHTML += `
           <tr style="background-color: ${rowBgColor};">
             <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
               <div style="width: ${IMAGE_DISPLAY_SIZE}px; min-height: ${IMAGE_DISPLAY_SIZE}px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                ${photoUrl ? 
-                  `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+                ${primarySrc ? 
+                  `<img src="${primarySrc}" alt="${item.products?.name || ''}" class="product-image" data-fallback-list="${fallbackAttr}" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
                   `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                     <span style="font-size: 10px; color: #9ca3af;">N/A</span>
                   </div>`
@@ -175,14 +175,18 @@ const generateHTML = (priceList, options = {}) => {
     itemsHTML = items.map((item, index) => {
     const finalPrice = calculateFinalPrice(item.price, item.discount_percentage);
     const vatRate = item.products?.category === 'Farmaci' ? 10 : 22;
-    const photoUrl = getProductImageSrc(item.products);
+    const imageSources = getProductImageSources(item.products);
+    const primarySrc = imageSources[0] || '';
+    const fallbackAttr = imageSources.length > 1
+      ? JSON.stringify(imageSources.slice(1)).replace(/"/g, '&quot;')
+      : '';
       
       return `
         <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : '#ffffff'};">
         <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center; vertical-align: top;">
           <div style="width: ${IMAGE_DISPLAY_SIZE}px; min-height: ${IMAGE_DISPLAY_SIZE}px; background-color: #e5e7eb; overflow: hidden; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-            ${photoUrl ? 
-              `<img src="${photoUrl}" alt="${item.products?.name || ''}" class="product-image" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
+            ${primarySrc ? 
+              `<img src="${primarySrc}" alt="${item.products?.name || ''}" class="product-image" data-fallback-list="${fallbackAttr}" style="max-height: ${IMAGE_DISPLAY_SIZE}px; max-width: ${IMAGE_DISPLAY_SIZE}px; width: auto; height: auto; object-fit: contain; display: block; image-rendering: auto;" loading="lazy" />` :
               `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
                 <span style="font-size: 10px; color: #9ca3af;">N/A</span>
               </div>`
@@ -554,6 +558,78 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       await page.setContent(html, { 
         waitUntil: 'networkidle0',
         timeout: 15000
+      });
+
+      // Assicurati che tutte le immagini siano caricate o abbiano provato i fallback
+      await page.evaluate(async () => {
+        const timeoutPerImage = 8000;
+        const loadImageWithFallback = (img) => {
+          return new Promise((resolve) => {
+            let fallbacks = [];
+            const data = img.getAttribute('data-fallback-list');
+            if (data) {
+              try {
+                fallbacks = JSON.parse(data);
+              } catch (error) {
+                fallbacks = [];
+              }
+            }
+            let fallbackIndex = 0;
+
+            const cleanup = () => {
+              img.removeEventListener('load', onLoad);
+              img.removeEventListener('error', onError);
+            };
+
+            const onLoad = () => {
+              cleanup();
+              resolve(true);
+            };
+
+            const tryNextFallback = () => {
+              if (fallbackIndex >= fallbacks.length) {
+                cleanup();
+                resolve(false);
+                return;
+              }
+              const nextSrc = fallbacks[fallbackIndex++];
+              if (!nextSrc || nextSrc === img.src) {
+                tryNextFallback();
+                return;
+              }
+              img.src = nextSrc;
+            };
+
+            const onError = () => {
+              tryNextFallback();
+            };
+
+            img.addEventListener('load', onLoad, { once: true });
+            img.addEventListener('error', onError, { once: true });
+
+            if (img.complete) {
+              if (img.naturalWidth > 0) {
+                cleanup();
+                resolve(true);
+                return;
+              }
+              if (fallbacks.length > 0) {
+                tryNextFallback();
+              } else {
+                cleanup();
+                resolve(false);
+              }
+            }
+
+            setTimeout(() => {
+              cleanup();
+              resolve(img.complete && img.naturalWidth > 0);
+            }, timeoutPerImage);
+          });
+        };
+
+        const images = Array.from(document.querySelectorAll('img.product-image'));
+        await Promise.all(images.map(loadImageWithFallback));
       });
     
       // Breve attesa per garantire il rendering completo della pagina prima della stampa
