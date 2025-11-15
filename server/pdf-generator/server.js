@@ -656,7 +656,7 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       });
     
       // Breve attesa per garantire il rendering completo della pagina prima della stampa
-      await page.waitForTimeout(500);
+      await new Promise((resolve) => setTimeout(resolve, 500));
       
       // Permetti paginazione naturale - rimossi limiti di altezza e page-break
       // Il contenuto può ora espandersi su più pagine A4
