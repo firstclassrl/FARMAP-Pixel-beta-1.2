@@ -261,6 +261,7 @@ export interface Database {
           valid_until: string | null
           currency: string
           is_active: boolean
+          print_conditions: boolean
           payment_conditions: string | null
           shipping_conditions: string | null
           delivery_conditions: string | null
@@ -278,6 +279,7 @@ export interface Database {
           valid_until?: string | null
           currency?: string
           is_active?: boolean
+          print_conditions?: boolean
           payment_conditions?: string | null
           shipping_conditions?: string | null
           delivery_conditions?: string | null
@@ -295,6 +297,7 @@ export interface Database {
           valid_until?: string | null
           currency?: string
           is_active?: boolean
+          print_conditions?: boolean
           payment_conditions?: string | null
           shipping_conditions?: string | null
           delivery_conditions?: string | null

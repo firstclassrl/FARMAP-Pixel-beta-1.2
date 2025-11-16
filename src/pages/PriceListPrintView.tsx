@@ -615,7 +615,7 @@ Team FARMAP`;
           .print-table th,
           .print-table td {
             border: 1px solid #e5e7eb;
-            padding: 12px 16px;
+            padding: 6px 8px; /* righe più sottili in stampa */
             text-align: left;
             font-size: 12px;
             vertical-align: top;
@@ -735,7 +735,7 @@ Team FARMAP`;
                           return [
                             // Intestazione categoria
                             <tr key={`category-${category}`} className="bg-blue-100">
-                              <td colSpan={10} className="border border-gray-300 px-4 py-2 font-bold text-sm text-blue-900">
+                              <td colSpan={10} className="border border-gray-300 px-3 py-1 font-bold text-sm text-blue-900">
                                 {category}
                               </td>
                             </tr>,

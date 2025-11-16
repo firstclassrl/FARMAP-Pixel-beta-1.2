@@ -58,6 +58,7 @@ const priceListSchema = z.object({
   valid_until: z.string().optional(),
   currency: z.string().default('EUR'),
   is_default: z.boolean().default(false),
+  print_conditions: z.boolean().default(true),
   payment_conditions: z.string().optional(),
   shipping_conditions: z.string().optional(),
   delivery_conditions: z.string().optional(),
@@ -105,6 +106,7 @@ export function PriceListDetailPage({
     defaultValues: {
       currency: 'EUR',
       is_default: false,
+      print_conditions: true,
     },
   });
 
@@ -185,6 +187,7 @@ export function PriceListDetailPage({
         valid_until: convertDateToItalian(data.valid_until),
         currency: data.currency,
         is_default: data.is_default,
+        print_conditions: (data as any).print_conditions ?? true,
         customer_id: customerData?.id || '',
         payment_conditions: data.payment_conditions || '',
         shipping_conditions: data.shipping_conditions || '',
@@ -256,6 +259,7 @@ export function PriceListDetailPage({
         description: data.description || null,
         valid_from: convertDateToISO(data.valid_from),
         valid_until: convertDateToISO(data.valid_until),
+        print_conditions: data.print_conditions ?? true,
         payment_conditions: data.payment_conditions || null,
         shipping_conditions: data.shipping_conditions || null,
         delivery_conditions: data.delivery_conditions || null,
@@ -1023,6 +1027,19 @@ export function PriceListDetailPage({
                     placeholder="es. Marchio cliente, White label"
                   />
                 </div>
+              </div>
+              
+              {/* Flag stampa condizioni */}
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="print_conditions"
+                  {...register('print_conditions')}
+                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                />
+                <Label htmlFor="print_conditions" className="text-xs text-gray-700 cursor-pointer">
+                  Stampa condizioni
+                </Label>
               </div>
             </div>
             </div>

@@ -5,6 +5,22 @@ Questo script carica foto da una cartella locale nel bucket Supabase `product-ph
 ## Requisiti
 - Node 18+
 - Dipendenze già in `package.json`: `@supabase/supabase-js`, `sharp`, `fast-glob`, `p-limit`
+## Rigenerare tutte le thumbnail
+
+Se hai già caricato molte foto nel bucket `product-photos` e vuoi ricreare tutte le `thumb.webp` con le impostazioni standard (200px max, qualità 0.7), usa lo script:
+
+```bash
+# Assicurati di avere SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nel tuo .env
+node scripts/regenerate-thumbs.mjs
+```
+
+Lo script:
+1. Legge la tabella `products` e recupera `id`, `code`, `photo_url`.
+2. Scarica la foto principale (`product-photos/<id>/main.webp` o fallback a `photo_url`).
+3. Genera la thumbnail con `sharp`.
+4. Sovrascrive `product-photos/<id>/thumb.webp` e aggiorna `photo_thumb_url` nel database.
+
+Il log finale riporta quante thumbnail sono state rigenerate e quali prodotti eventualmente sono falliti (ad esempio perché non avevano una foto sorgente).
 - Variabili ambiente:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY` (consigliato) oppure `VITE_SUPABASE_ANON_KEY`

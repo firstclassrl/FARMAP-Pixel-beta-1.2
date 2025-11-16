@@ -105,7 +105,7 @@ const generateHTML = (priceList, options = {}) => {
       // Intestazione categoria
       itemsHTML += `
         <tr style="background-color: #dbeafe; page-break-inside: avoid;">
-          <td colspan="10" style="border: 1px solid #93c5fd; padding: 12px 16px; font-weight: bold; font-size: 13px; color: #1e40af;">
+          <td colspan="10" style="border: 1px solid #93c5fd; padding: 6px 12px; font-weight: bold; font-size: 13px; color: #1e40af;">
             ${category}
           </td>
         </tr>
@@ -235,7 +235,7 @@ const generateHTML = (priceList, options = {}) => {
     }).join('');
   }
 
-  const conditionsHTML = (priceList.payment_conditions || priceList.shipping_conditions || 
+  const conditionsHTML = (priceList.print_conditions !== false) && (priceList.payment_conditions || priceList.shipping_conditions || 
     priceList.delivery_conditions || priceList.brand_conditions) ? `
     <div class="conditions-section" style="margin-top: 8px; padding: 8px; background-color: #fff7ed; border: 1px solid #fbbf24; border-radius: 4px;">
       <h3 style="font-size: 10px; font-weight: bold; color: #9a3412; margin-bottom: 4px;">CONDIZIONI DI VENDITA</h3>
@@ -354,7 +354,7 @@ const generateHTML = (priceList, options = {}) => {
       color: white;
       font-weight: 600;
       font-size: 12px;
-      padding: 12px 8px;
+      padding: 6px 6px; /* thinner header row */
       border: 1px solid #e5e7eb;
     }
     .print-table td {

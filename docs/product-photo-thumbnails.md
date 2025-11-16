@@ -51,3 +51,4 @@ quality ≈70 %, sized to keep twelve images per A4 price list page lightweigh
 This automation keeps listino PDFs lightweight without changing existing upload
 workflows.***
 
+
