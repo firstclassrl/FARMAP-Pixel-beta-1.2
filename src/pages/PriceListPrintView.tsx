@@ -720,6 +720,16 @@ Team FARMAP`;
 
                         // Genera le righe raggruppate per categoria
                         let globalIndex = 0;
+                        const palette = [
+                          { bg: 'bg-blue-100', text: 'text-blue-900', border: 'border-blue-200' },
+                          { bg: 'bg-green-100', text: 'text-green-900', border: 'border-green-200' },
+                          { bg: 'bg-yellow-100', text: 'text-yellow-900', border: 'border-yellow-200' },
+                          { bg: 'bg-purple-100', text: 'text-purple-900', border: 'border-purple-200' },
+                          { bg: 'bg-pink-100', text: 'text-pink-900', border: 'border-pink-200' },
+                          { bg: 'bg-indigo-100', text: 'text-indigo-900', border: 'border-indigo-200' },
+                          { bg: 'bg-teal-100', text: 'text-teal-900', border: 'border-teal-200' },
+                          { bg: 'bg-orange-100', text: 'text-orange-900', border: 'border-orange-200' },
+                        ];
                         return sortedCategories.flatMap(category => {
                           const categoryItems = groupedByCategory[category]
                             .sort((a, b) => {
@@ -732,10 +742,11 @@ Team FARMAP`;
                               return sortDirection === 'asc' ? comparison : -comparison;
                             });
 
+                          const color = palette[sortedCategories.indexOf(category) % palette.length];
                           return [
                             // Intestazione categoria
-                            <tr key={`category-${category}`} className="bg-blue-100">
-                              <td colSpan={10} className="border border-gray-300 px-3 py-1 font-bold text-sm text-blue-900">
+                            <tr key={`category-${category}`} className={`${color.bg}`}>
+                              <td colSpan={10} className={`border ${color.border} px-2 py-0.5 font-semibold text-xs ${color.text}`}>
                                 {category}
                               </td>
                             </tr>,
@@ -895,7 +906,7 @@ Team FARMAP`;
                 </table>
 
                 {/* Condizioni di Vendita */}
-                {(priceList.payment_conditions || priceList.shipping_conditions || 
+                {(priceList.print_conditions !== false) && (priceList.payment_conditions || priceList.shipping_conditions || 
                   priceList.delivery_conditions || priceList.brand_conditions) && (
                   <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
                     <h3 className="text-xs font-bold text-orange-800 mb-1">CONDIZIONI DI VENDITA</h3>

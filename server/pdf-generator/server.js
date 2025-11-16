@@ -99,13 +99,24 @@ const generateHTML = (priceList, options = {}) => {
   
   if (printByCategory && groupedByCategory && categoryOrder.length > 0) {
     // Genera HTML raggruppato per categoria
-    categoryOrder.forEach((category) => {
+    const palette = [
+      { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' }, // blue
+      { bg: '#dcfce7', text: '#14532d', border: '#86efac' }, // green
+      { bg: '#fef9c3', text: '#713f12', border: '#fde68a' }, // yellow
+      { bg: '#ede9fe', text: '#4c1d95', border: '#c4b5fd' }, // purple
+      { bg: '#ffe4e6', text: '#9f1239', border: '#fecdd3' }, // pink
+      { bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe' }, // indigo
+      { bg: '#ccfbf1', text: '#115e59', border: '#99f6e4' }, // teal
+      { bg: '#ffedd5', text: '#9a3412', border: '#fed7aa' }, // orange
+    ];
+    categoryOrder.forEach((category, idx) => {
       const categoryItems = groupedByCategory[category] || [];
+      const color = palette[idx % palette.length];
       
       // Intestazione categoria
       itemsHTML += `
-        <tr style="background-color: #dbeafe; page-break-inside: avoid;">
-          <td colspan="10" style="border: 1px solid #93c5fd; padding: 6px 12px; font-weight: bold; font-size: 13px; color: #1e40af;">
+        <tr style="background-color: ${color.bg}; page-break-inside: avoid;">
+          <td colspan="10" style="border: 1px solid ${color.border}; padding: 2px 8px; font-weight: 600; font-size: 11px; color: ${color.text};">
             ${category}
           </td>
         </tr>
