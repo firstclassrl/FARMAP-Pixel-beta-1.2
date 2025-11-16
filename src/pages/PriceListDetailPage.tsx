@@ -92,6 +92,38 @@ export function PriceListDetailPage({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [printByCategory, setPrintByCategory] = useState(false);
   const [pendingMOQValues, setPendingMOQValues] = useState<Record<string, string>>({});
+  const conditionsSaveTimerRef = useRef<number | null>(null);
+
+  const scheduleSaveConditions = (immediate = false) => {
+    if (!currentPriceList) return;
+    if (conditionsSaveTimerRef.current) {
+      window.clearTimeout(conditionsSaveTimerRef.current);
+      conditionsSaveTimerRef.current = null;
+    }
+    const run = async () => {
+      try {
+        const values = getValues();
+        const { error } = await supabase
+          .from('price_lists')
+          .update({
+            payment_conditions: values.payment_conditions || null,
+            shipping_conditions: values.shipping_conditions || null,
+            delivery_conditions: values.delivery_conditions || null,
+            brand_conditions: values.brand_conditions || null,
+            print_conditions: values.print_conditions ?? true,
+          })
+          .eq('id', currentPriceList.id);
+        if (error) throw error;
+      } catch (e) {
+        console.error('Errore salvataggio condizioni:', e);
+      }
+    };
+    if (immediate) {
+      void run();
+    } else {
+      conditionsSaveTimerRef.current = window.setTimeout(run, 600);
+    }
+  };
 
   // Main form
   const {
@@ -986,9 +1018,10 @@ export function PriceListDetailPage({
                   </Label>
                   <Input
                     id="payment_conditions"
-                    {...register('payment_conditions')}
+                    {...register('payment_conditions', { onChange: () => scheduleSaveConditions(false) })}
                     className="h-6 text-xs"
                     placeholder="es. 30 giorni, Bonifico anticipato"
+                    onBlur={() => scheduleSaveConditions(true)}
                   />
                 </div>
                 
@@ -998,9 +1031,10 @@ export function PriceListDetailPage({
                   </Label>
                   <Input
                     id="shipping_conditions"
-                    {...register('shipping_conditions')}
+                    {...register('shipping_conditions', { onChange: () => scheduleSaveConditions(false) })}
                     className="h-6 text-xs"
                     placeholder="es. Franco fabbrica, FOB"
+                    onBlur={() => scheduleSaveConditions(true)}
                   />
                 </div>
                 
@@ -1010,9 +1044,10 @@ export function PriceListDetailPage({
                   </Label>
                   <Input
                     id="delivery_conditions"
-                    {...register('delivery_conditions')}
+                    {...register('delivery_conditions', { onChange: () => scheduleSaveConditions(false) })}
                     className="h-6 text-xs"
                     placeholder="es. 15 giorni, Su richiesta"
+                    onBlur={() => scheduleSaveConditions(true)}
                   />
                 </div>
                 
@@ -1022,9 +1057,10 @@ export function PriceListDetailPage({
                   </Label>
                   <Input
                     id="brand_conditions"
-                    {...register('brand_conditions')}
+                    {...register('brand_conditions', { onChange: () => scheduleSaveConditions(false) })}
                     className="h-6 text-xs"
                     placeholder="es. Marchio cliente, White label"
+                    onBlur={() => scheduleSaveConditions(true)}
                   />
                 </div>
               </div>
@@ -1034,7 +1070,7 @@ export function PriceListDetailPage({
                 <input
                   type="checkbox"
                   id="print_conditions"
-                  {...register('print_conditions')}
+                  {...register('print_conditions', { onChange: () => scheduleSaveConditions(true) })}
                   className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                 />
                 <Label htmlFor="print_conditions" className="text-xs text-gray-700 cursor-pointer">
