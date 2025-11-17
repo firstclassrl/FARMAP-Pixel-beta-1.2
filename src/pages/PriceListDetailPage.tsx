@@ -113,7 +113,26 @@ export function PriceListDetailPage({
             print_conditions: values.print_conditions ?? true,
           })
           .eq('id', currentPriceList.id);
-        if (error) throw error;
+        if (error) {
+          // Fallback: se la colonna non esiste ancora, riprova senza print_conditions
+          if (
+            (error as any)?.code === 'PGRST204' ||
+            String((error as any)?.message || '').includes("Could not find the 'print_conditions' column")
+          ) {
+            const { error: retryError } = await supabase
+              .from('price_lists')
+              .update({
+                payment_conditions: values.payment_conditions || null,
+                shipping_conditions: values.shipping_conditions || null,
+                delivery_conditions: values.delivery_conditions || null,
+                brand_conditions: values.brand_conditions || null,
+              })
+              .eq('id', currentPriceList.id);
+            if (retryError) throw retryError;
+          } else {
+            throw error;
+          }
+        }
       } catch (e) {
         console.error('Errore salvataggio condizioni:', e);
       }
@@ -305,7 +324,22 @@ export function PriceListDetailPage({
           .update(sanitizedPriceListData)
           .eq('id', currentPriceList.id);
 
-        if (error) throw error;
+        if (error) {
+          // Fallback se la colonna non esiste ancora: riprova senza print_conditions
+          if (
+            (error as any)?.code === 'PGRST204' ||
+            String((error as any)?.message || '').includes("Could not find the 'print_conditions' column")
+          ) {
+            const { print_conditions, ...fallbackData } = sanitizedPriceListData as any;
+            const { error: retryError } = await supabase
+              .from('price_lists')
+              .update(fallbackData)
+              .eq('id', currentPriceList.id);
+            if (retryError) throw retryError;
+          } else {
+            throw error;
+          }
+        }
 
         addNotification({
           type: 'success',
@@ -357,13 +391,31 @@ export function PriceListDetailPage({
           created_by: user.id
         };
 
-        const { data: newPriceList, error } = await supabase
+        let insertResult = await supabase
           .from('price_lists')
           .insert([newPriceListPayload])
           .select()
           .single();
 
-        if (error) throw error;
+        if (insertResult.error) {
+          // Fallback se la colonna non esiste: riprova senza print_conditions
+          const err = insertResult.error as any;
+          if (
+            err?.code === 'PGRST204' ||
+            String(err?.message || '').includes("Could not find the 'print_conditions' column")
+          ) {
+            const { print_conditions, ...fallbackPayload } = newPriceListPayload as any;
+            insertResult = await supabase
+              .from('price_lists')
+              .insert([fallbackPayload])
+              .select()
+              .single();
+            if (insertResult.error) throw insertResult.error;
+          } else {
+            throw insertResult.error;
+          }
+        }
+        const newPriceList = insertResult.data!;
 
         // Handle customer assignment for new price list
         if (customer_id) {

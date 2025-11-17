@@ -374,7 +374,6 @@ const generateHTML = (priceList, options = {}) => {
     }
     /* Elementi che devono apparire solo nell'ultima pagina */
     .conditions-section,
-    .acceptance-box,
     .note-section,
     .footer {
       page-break-inside: avoid;
@@ -412,23 +411,6 @@ const generateHTML = (priceList, options = {}) => {
     /* Header ripetuto su ogni pagina */
     .print-table thead {
       display: table-header-group;
-    }
-    .acceptance-box {
-      margin-top: 8px;
-      display: flex;
-      justify-content: flex-end;
-    }
-    .acceptance-box-inner {
-      border: 2px solid black;
-      padding: 8px;
-      width: 128px;
-      height: 64px;
-    }
-    .acceptance-title {
-      font-size: 11px;
-      font-weight: bold;
-      text-align: center;
-      margin-bottom: 4px;
     }
   </style>
 </head>
@@ -482,19 +464,6 @@ const generateHTML = (priceList, options = {}) => {
 
     <!-- Conditions -->
     ${conditionsHTML}
-
-    <!-- Acceptance Box -->
-    <div class="acceptance-box">
-      <div class="acceptance-box-inner">
-        <div class="acceptance-title">ACCETTAZIONE ORDINE</div>
-        <div style="margin-top: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px;">Data:</span>
-            <div style="border-bottom: 1px solid black; width: 64px;"></div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Note -->
     <div class="note-section">

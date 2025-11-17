@@ -939,22 +939,6 @@ Team FARMAP`;
                   </div>
                 )}
 
-                {/* Campo Accettazione Ordine */}
-                <div className="mt-2 flex justify-end">
-                  <div className="border-2 border-black p-2 w-32 h-16">
-                    <div className="text-xs font-bold text-center mb-1">ACCETTAZIONE ORDINE</div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs">Data:</span>
-                        <div className="border-b border-black w-16"></div>
-                      </div>
-                      <div className="mt-2">
-                        {/* Spazio bianco per firma e timbro */}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Nota Codici */}
                 <div className="mt-4 p-2">
                   <p className="text-xs font-medium text-red-600 text-center">
