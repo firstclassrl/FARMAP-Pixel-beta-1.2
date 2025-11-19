@@ -33,7 +33,6 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   const pad = (value: number) => value.toString().padStart(2, '0');
 
   const formatDateForInput = (date: Date) => {
-    const pad = (value: number) => value.toString().padStart(2, '0');
     const year = date.getFullYear();
     const month = pad(date.getMonth() + 1);
     const day = pad(date.getDate());
@@ -53,6 +52,8 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     return new Date(year, (month || 1) - 1, day || 1, hour, minute);
   };
 
+  const isValidTimeString = (value: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+
   const [formData, setFormData] = useState<AppointmentFormData>({
     title: '',
     description: '',
@@ -68,6 +69,10 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [timeInputs, setTimeInputs] = useState({
+    start: formatTimeForInput(formData.startDate),
+    end: formatTimeForInput(formData.endDate)
+  });
 
   useEffect(() => {
     if (appointment) {
@@ -84,8 +89,20 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
         notes: appointment.notes || '',
         reminderMinutes: appointment.reminderMinutes || 30
       });
+    } else {
+      setTimeInputs({
+        start: formatTimeForInput(new Date()),
+        end: formatTimeForInput(new Date(Date.now() + 60 * 60 * 1000))
+      });
     }
   }, [appointment]);
+
+  useEffect(() => {
+    setTimeInputs({
+      start: formatTimeForInput(formData.startDate),
+      end: formatTimeForInput(formData.endDate)
+    });
+  }, [formData.startDate, formData.endDate]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -147,6 +164,18 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   };
 
   const getTypeLabel = (type: string) => {
+  const handleTimeInputChange = (field: 'start' | 'end', value: string) => {
+    setTimeInputs(prev => ({
+      ...prev,
+      [field]: value
+    }));
+
+    if (isValidTimeString(value)) {
+      const dateField = field === 'start' ? 'startDate' : 'endDate';
+      const dateValue = formatDateForInput(formData[dateField]);
+      handleInputChange(dateField, mergeDateAndTime(dateValue, value));
+    }
+  };
     switch (type) {
       case 'appointment': return 'Appuntamento';
       case 'call': return 'Chiamata';
@@ -240,7 +269,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                   value={formatDateForInput(formData.startDate)}
                   onChange={(e) => handleInputChange(
                     'startDate',
-                    mergeDateAndTime(e.target.value, formatTimeForInput(formData.startDate))
+                    mergeDateAndTime(e.target.value, timeInputs.start)
                   )}
                   className={errors.startDate ? 'border-red-500' : ''}
                 />
@@ -249,14 +278,17 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 <Label htmlFor="startTime">Ora Inizio *</Label>
                 <Input
                   id="startTime"
-                  type="time"
-                  step={300}
-                  lang="it-IT"
-                  value={formatTimeForInput(formData.startDate)}
-                  onChange={(e) => handleInputChange(
-                    'startDate',
-                    mergeDateAndTime(formatDateForInput(formData.startDate), e.target.value)
-                  )}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="^([01]\d|2[0-3]):([0-5]\d)$"
+                  placeholder="HH:MM"
+                  value={timeInputs.start}
+                  onChange={(e) => handleTimeInputChange('start', e.target.value)}
+                  onBlur={(e) => {
+                    if (!isValidTimeString(e.target.value)) {
+                      setTimeInputs(prev => ({ ...prev, start: formatTimeForInput(formData.startDate) }));
+                    }
+                  }}
                   className={errors.startDate ? 'border-red-500' : ''}
                 />
                 {errors.startDate && (
@@ -275,7 +307,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                   value={formatDateForInput(formData.endDate)}
                   onChange={(e) => handleInputChange(
                     'endDate',
-                    mergeDateAndTime(e.target.value, formatTimeForInput(formData.endDate))
+                    mergeDateAndTime(e.target.value, timeInputs.end)
                   )}
                   className={errors.endDate ? 'border-red-500' : ''}
                 />
@@ -284,14 +316,17 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 <Label htmlFor="endTime">Ora Fine *</Label>
                 <Input
                   id="endTime"
-                  type="time"
-                  step={300}
-                  lang="it-IT"
-                  value={formatTimeForInput(formData.endDate)}
-                  onChange={(e) => handleInputChange(
-                    'endDate',
-                    mergeDateAndTime(formatDateForInput(formData.endDate), e.target.value)
-                  )}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="^([01]\d|2[0-3]):([0-5]\d)$"
+                  placeholder="HH:MM"
+                  value={timeInputs.end}
+                  onChange={(e) => handleTimeInputChange('end', e.target.value)}
+                  onBlur={(e) => {
+                    if (!isValidTimeString(e.target.value)) {
+                      setTimeInputs(prev => ({ ...prev, end: formatTimeForInput(formData.endDate) }));
+                    }
+                  }}
                   className={errors.endDate ? 'border-red-500' : ''}
                 />
                 {errors.endDate && (
@@ -302,33 +337,17 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
           </div>
 
           {/* Customer */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customerName">Cliente (nome)</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="customerName"
-                  value={formData.customerName}
-                  onChange={(e) => handleInputChange('customerName', e.target.value)}
-                  placeholder="Nome cliente o azienda"
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="customerId">ID cliente (opzionale)</Label>
+          <div className="space-y-2">
+            <Label htmlFor="customerName">Cliente (nome)</Label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                id="customerId"
-                value={formData.customerId}
-                onChange={(e) => handleInputChange('customerId', e.target.value.trim())}
-                placeholder="UUID cliente (se presente)"
-                className="font-mono text-xs"
+                id="customerName"
+                value={formData.customerName}
+                onChange={(e) => handleInputChange('customerName', e.target.value)}
+                placeholder="Nome cliente o azienda"
+                className="pl-10"
               />
-              <p className="text-xs text-gray-500">
-                Lascia vuoto se non hai l'ID. Usa solo valori UUID validi.
-              </p>
             </div>
           </div>
 
