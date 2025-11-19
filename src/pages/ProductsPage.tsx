@@ -127,13 +127,36 @@ export const ProductsPage = () => {
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setProducts(data || []);
+      const pageSize = 1000;
+      let accumulatedProducts: Product[] = [];
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        accumulatedProducts = accumulatedProducts.concat(data);
+
+        if (data.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
+      }
+
+      setProducts(accumulatedProducts);
     } catch (error) {
       console.error('Error loading products:', error);
       addNotification({
