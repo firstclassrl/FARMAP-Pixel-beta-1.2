@@ -52,8 +52,6 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     return new Date(year, (month || 1) - 1, day || 1, hour, minute);
   };
 
-  const isValidTimeString = (value: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
-
   const [formData, setFormData] = useState<AppointmentFormData>({
     title: '',
     description: '',
@@ -163,19 +161,26 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     }
   };
 
-  const getTypeLabel = (type: string) => {
-  const handleTimeInputChange = (field: 'start' | 'end', value: string) => {
-    setTimeInputs(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const hoursOptions = Array.from({ length: 24 }, (_, i) => pad(i));
+  const minutesOptions = Array.from({ length: 60 }, (_, i) => pad(i));
 
-    if (isValidTimeString(value)) {
+  const handleTimeSelectChange = (field: 'start' | 'end', part: 'hour' | 'minute', value: string) => {
+    setTimeInputs(prev => {
+      const [currentHour = '00', currentMinute = '00'] = (prev[field] || '00:00').split(':');
+      const nextHour = part === 'hour' ? value : currentHour;
+      const nextMinute = part === 'minute' ? value : currentMinute;
+      const nextTime = `${nextHour}:${nextMinute}`;
       const dateField = field === 'start' ? 'startDate' : 'endDate';
       const dateValue = formatDateForInput(formData[dateField]);
-      handleInputChange(dateField, mergeDateAndTime(dateValue, value));
-    }
+      handleInputChange(dateField, mergeDateAndTime(dateValue, nextTime));
+      return {
+        ...prev,
+        [field]: nextTime
+      };
+    });
   };
+
+  const getTypeLabel = (type: string) => {
     switch (type) {
       case 'appointment': return 'Appuntamento';
       case 'call': return 'Chiamata';
@@ -276,21 +281,38 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startTime">Ora Inizio *</Label>
-                <Input
-                  id="startTime"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="^([01]\d|2[0-3]):([0-5]\d)$"
-                  placeholder="HH:MM"
-                  value={timeInputs.start}
-                  onChange={(e) => handleTimeInputChange('start', e.target.value)}
-                  onBlur={(e) => {
-                    if (!isValidTimeString(e.target.value)) {
-                      setTimeInputs(prev => ({ ...prev, start: formatTimeForInput(formData.startDate) }));
-                    }
-                  }}
-                  className={errors.startDate ? 'border-red-500' : ''}
-                />
+                <div className={`grid grid-cols-2 gap-2 ${errors.startDate ? 'text-red-500' : ''}`}>
+                  <Select
+                    value={(timeInputs.start || '00:00').split(':')[0]}
+                    onValueChange={(value) => handleTimeSelectChange('start', 'hour', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hoursOptions.map(hour => (
+                        <SelectItem key={`start-hour-${hour}`} value={hour}>
+                          {hour}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={(timeInputs.start || '00:00').split(':')[1]}
+                    onValueChange={(value) => handleTimeSelectChange('start', 'minute', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {minutesOptions.map(minute => (
+                        <SelectItem key={`start-minute-${minute}`} value={minute}>
+                          {minute}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {errors.startDate && (
                   <p className="text-sm text-red-500">{errors.startDate}</p>
                 )}
@@ -314,21 +336,38 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endTime">Ora Fine *</Label>
-                <Input
-                  id="endTime"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="^([01]\d|2[0-3]):([0-5]\d)$"
-                  placeholder="HH:MM"
-                  value={timeInputs.end}
-                  onChange={(e) => handleTimeInputChange('end', e.target.value)}
-                  onBlur={(e) => {
-                    if (!isValidTimeString(e.target.value)) {
-                      setTimeInputs(prev => ({ ...prev, end: formatTimeForInput(formData.endDate) }));
-                    }
-                  }}
-                  className={errors.endDate ? 'border-red-500' : ''}
-                />
+                <div className={`grid grid-cols-2 gap-2 ${errors.endDate ? 'text-red-500' : ''}`}>
+                  <Select
+                    value={(timeInputs.end || '00:00').split(':')[0]}
+                    onValueChange={(value) => handleTimeSelectChange('end', 'hour', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hoursOptions.map(hour => (
+                        <SelectItem key={`end-hour-${hour}`} value={hour}>
+                          {hour}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={(timeInputs.end || '00:00').split(':')[1]}
+                    onValueChange={(value) => handleTimeSelectChange('end', 'minute', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {minutesOptions.map(minute => (
+                        <SelectItem key={`end-minute-${minute}`} value={minute}>
+                          {minute}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {errors.endDate && (
                   <p className="text-sm text-red-500">{errors.endDate}</p>
                 )}
