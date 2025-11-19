@@ -18,8 +18,6 @@ import {
   SelectValue,
 } from './ui/select';
 import { Appointment, AppointmentFormData } from '../types/calendar.types';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
 
 interface AppointmentModalProps {
   appointment?: Appointment | null;
@@ -32,6 +30,24 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   onSave,
   onClose
 }) => {
+  const formatDateForInput = (date: Date) => {
+    const pad = (value: number) => value.toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const parseLocalDateTime = (value: string) => {
+    if (!value || !value.includes('T')) return new Date();
+    const [datePart, timePart] = value.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+    return new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0);
+  };
+
   const [formData, setFormData] = useState<AppointmentFormData>({
     title: '',
     description: '',
@@ -214,8 +230,9 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               <Input
                 id="startDate"
                 type="datetime-local"
-                value={format(formData.startDate, "yyyy-MM-dd'T'HH:mm")}
-                onChange={(e) => handleInputChange('startDate', new Date(e.target.value))}
+                lang="it-IT"
+                value={formatDateForInput(formData.startDate)}
+                onChange={(e) => handleInputChange('startDate', parseLocalDateTime(e.target.value))}
                 className={errors.startDate ? 'border-red-500' : ''}
               />
               {errors.startDate && (
@@ -228,8 +245,9 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               <Input
                 id="endDate"
                 type="datetime-local"
-                value={format(formData.endDate, "yyyy-MM-dd'T'HH:mm")}
-                onChange={(e) => handleInputChange('endDate', new Date(e.target.value))}
+                lang="it-IT"
+                value={formatDateForInput(formData.endDate)}
+                onChange={(e) => handleInputChange('endDate', parseLocalDateTime(e.target.value))}
                 className={errors.endDate ? 'border-red-500' : ''}
               />
               {errors.endDate && (
@@ -239,17 +257,33 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
           </div>
 
           {/* Customer */}
-          <div className="space-y-2">
-            <Label htmlFor="customerId">Cliente</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="customerName">Cliente (nome)</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="customerName"
+                  value={formData.customerName}
+                  onChange={(e) => handleInputChange('customerName', e.target.value)}
+                  placeholder="Nome cliente o azienda"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customerId">ID cliente (opzionale)</Label>
               <Input
                 id="customerId"
                 value={formData.customerId}
-                onChange={(e) => handleInputChange('customerId', e.target.value)}
-                placeholder="ID Cliente o Nome Azienda"
-                className="pl-10"
+                onChange={(e) => handleInputChange('customerId', e.target.value.trim())}
+                placeholder="UUID cliente (se presente)"
+                className="font-mono text-xs"
               />
+              <p className="text-xs text-gray-500">
+                Lascia vuoto se non hai l'ID. Usa solo valori UUID validi.
+              </p>
             </div>
           </div>
 

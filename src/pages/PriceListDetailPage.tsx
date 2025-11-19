@@ -94,8 +94,9 @@ export function PriceListDetailPage({
   const [pendingMOQValues, setPendingMOQValues] = useState<Record<string, string>>({});
   const conditionsSaveTimerRef = useRef<number | null>(null);
 
-  const scheduleSaveConditions = (immediate = false) => {
-    if (!currentPriceList) return;
+  const scheduleSaveConditions = (immediate = false, targetPriceListId?: string) => {
+    const priceListId = targetPriceListId || currentPriceList?.id;
+    if (!priceListId) return;
     if (conditionsSaveTimerRef.current) {
       window.clearTimeout(conditionsSaveTimerRef.current);
       conditionsSaveTimerRef.current = null;
@@ -112,7 +113,7 @@ export function PriceListDetailPage({
             brand_conditions: values.brand_conditions || null,
             print_conditions: values.print_conditions ?? true,
           })
-          .eq('id', currentPriceList.id);
+          .eq('id', priceListId);
         if (error) {
           // Fallback: se la colonna non esiste ancora, riprova senza print_conditions
           if (
@@ -127,7 +128,7 @@ export function PriceListDetailPage({
                 delivery_conditions: values.delivery_conditions || null,
                 brand_conditions: values.brand_conditions || null,
               })
-              .eq('id', currentPriceList.id);
+              .eq('id', priceListId);
             if (retryError) throw retryError;
           } else {
             throw error;
@@ -141,6 +142,19 @@ export function PriceListDetailPage({
       void run();
     } else {
       conditionsSaveTimerRef.current = window.setTimeout(run, 600);
+    }
+  };
+
+  const applyCustomerPaymentTerms = (
+    customer: Customer | null | undefined,
+    persistImmediately = true,
+    targetPriceListId?: string
+  ) => {
+    if (!customer) return;
+    const paymentTerms = customer.payment_terms || '';
+    setValue('payment_conditions', paymentTerms);
+    if (persistImmediately) {
+      scheduleSaveConditions(true, targetPriceListId);
     }
   };
 
@@ -169,7 +183,7 @@ export function PriceListDetailPage({
       // Load customers
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
-        .select('id, company_name, contact_person')
+        .select('id, company_name, contact_person, payment_terms, email')
         .eq('is_active', true)
         .order('company_name');
 
@@ -248,6 +262,11 @@ export function PriceListDetailPage({
 
       setSelectedCustomerId(customerData?.id || '');
       setSelectedCustomer(customerData || null);
+
+      if ((!data.payment_conditions || data.payment_conditions.trim() === '') && customerData?.payment_terms) {
+        setValue('payment_conditions', customerData.payment_terms);
+        scheduleSaveConditions(true, data.id);
+      }
     } catch (error) {
       console.error('Error fetching price list details:', error);
       addNotification({
@@ -542,17 +561,22 @@ export function PriceListDetailPage({
   };
 
 
-  const handleCustomerChange = (customerId: string) => {
+  const handleCustomerChange = (customerId: string, customerOverride?: Customer | null) => {
     setValue('customer_id', customerId);
     setSelectedCustomerId(customerId);
     
     // Find and set the selected customer object
-    const customer = customers.find(c => c.id === customerId);
-    setSelectedCustomer(customer || null);
+    const customer = customerOverride || customers.find(c => c.id === customerId) || null;
+    setSelectedCustomer(customer);
+
+    if (customer) {
+      applyCustomerPaymentTerms(customer, true);
+    }
   };
 
   const handleCustomerSelect = (customer: Customer) => {
-    handleCustomerChange(customer.id);
+    setSelectedCustomer(customer);
+    handleCustomerChange(customer.id, customer);
     setShowCustomerModal(false);
   };
 

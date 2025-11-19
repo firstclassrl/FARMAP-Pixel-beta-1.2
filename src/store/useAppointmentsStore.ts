@@ -23,6 +23,15 @@ interface AppointmentsState {
 }
 
 // Helper function to convert database row to Appointment
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const sanitizeCustomerId = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+  return UUID_REGEX.test(value) ? value : null;
+};
+
 const rowToAppointment = (row: AppointmentRow): Appointment => ({
   id: row.id,
   title: row.title,
@@ -49,10 +58,10 @@ const appointmentToInsert = (
   description: appointment.description || null,
   start_date: appointment.startDate.toISOString(),
   end_date: appointment.endDate.toISOString(),
-  customer_id: appointment.customerId || null,
+  customer_id: sanitizeCustomerId(appointment.customerId),
   customer_name: appointment.customerName || null,
   type: appointment.type,
-  status: 'scheduled',
+  status: appointment.status ?? 'scheduled',
   location: appointment.location || null,
   notes: appointment.notes || null,
   reminder_minutes: appointment.reminderMinutes || 30,
@@ -128,7 +137,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
       if (appointmentData.description !== undefined) updateData.description = appointmentData.description;
       if (appointmentData.startDate !== undefined) updateData.start_date = appointmentData.startDate.toISOString();
       if (appointmentData.endDate !== undefined) updateData.end_date = appointmentData.endDate.toISOString();
-      if (appointmentData.customerId !== undefined) updateData.customer_id = appointmentData.customerId;
+      if (appointmentData.customerId !== undefined) updateData.customer_id = sanitizeCustomerId(appointmentData.customerId);
       if (appointmentData.customerName !== undefined) updateData.customer_name = appointmentData.customerName;
       if (appointmentData.type !== undefined) updateData.type = appointmentData.type;
       if (appointmentData.status !== undefined) updateData.status = appointmentData.status;
