@@ -30,22 +30,27 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   onSave,
   onClose
 }) => {
+  const pad = (value: number) => value.toString().padStart(2, '0');
+
   const formatDateForInput = (date: Date) => {
     const pad = (value: number) => value.toString().padStart(2, '0');
     const year = date.getFullYear();
     const month = pad(date.getMonth() + 1);
     const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    return `${year}-${month}-${day}`;
   };
 
-  const parseLocalDateTime = (value: string) => {
-    if (!value || !value.includes('T')) return new Date();
-    const [datePart, timePart] = value.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute] = timePart.split(':').map(Number);
-    return new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0);
+  const formatTimeForInput = (date: Date) => {
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return `${hours}:${minutes}`;
+  };
+
+  const mergeDateAndTime = (dateValue: string, timeValue: string) => {
+    if (!dateValue) return new Date();
+    const [year, month, day] = dateValue.split('-').map(Number);
+    const [hour = 0, minute = 0] = (timeValue || '00:00').split(':').map(Number);
+    return new Date(year, (month || 1) - 1, day || 1, hour, minute);
   };
 
   const [formData, setFormData] = useState<AppointmentFormData>({
@@ -224,35 +229,75 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
           </div>
 
           {/* Date and Time */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Data e Ora Inizio *</Label>
-              <Input
-                id="startDate"
-                type="datetime-local"
-                lang="it-IT"
-                value={formatDateForInput(formData.startDate)}
-                onChange={(e) => handleInputChange('startDate', parseLocalDateTime(e.target.value))}
-                className={errors.startDate ? 'border-red-500' : ''}
-              />
-              {errors.startDate && (
-                <p className="text-sm text-red-500">{errors.startDate}</p>
-              )}
+          <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Data Inizio *</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  lang="it-IT"
+                  value={formatDateForInput(formData.startDate)}
+                  onChange={(e) => handleInputChange(
+                    'startDate',
+                    mergeDateAndTime(e.target.value, formatTimeForInput(formData.startDate))
+                  )}
+                  className={errors.startDate ? 'border-red-500' : ''}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Ora Inizio *</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  step={300}
+                  lang="it-IT"
+                  value={formatTimeForInput(formData.startDate)}
+                  onChange={(e) => handleInputChange(
+                    'startDate',
+                    mergeDateAndTime(formatDateForInput(formData.startDate), e.target.value)
+                  )}
+                  className={errors.startDate ? 'border-red-500' : ''}
+                />
+                {errors.startDate && (
+                  <p className="text-sm text-red-500">{errors.startDate}</p>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="endDate">Data e Ora Fine *</Label>
-              <Input
-                id="endDate"
-                type="datetime-local"
-                lang="it-IT"
-                value={formatDateForInput(formData.endDate)}
-                onChange={(e) => handleInputChange('endDate', parseLocalDateTime(e.target.value))}
-                className={errors.endDate ? 'border-red-500' : ''}
-              />
-              {errors.endDate && (
-                <p className="text-sm text-red-500">{errors.endDate}</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="endDate">Data Fine *</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  lang="it-IT"
+                  value={formatDateForInput(formData.endDate)}
+                  onChange={(e) => handleInputChange(
+                    'endDate',
+                    mergeDateAndTime(e.target.value, formatTimeForInput(formData.endDate))
+                  )}
+                  className={errors.endDate ? 'border-red-500' : ''}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTime">Ora Fine *</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  step={300}
+                  lang="it-IT"
+                  value={formatTimeForInput(formData.endDate)}
+                  onChange={(e) => handleInputChange(
+                    'endDate',
+                    mergeDateAndTime(formatDateForInput(formData.endDate), e.target.value)
+                  )}
+                  className={errors.endDate ? 'border-red-500' : ''}
+                />
+                {errors.endDate && (
+                  <p className="text-sm text-red-500">{errors.endDate}</p>
+                )}
+              </div>
             </div>
           </div>
 
