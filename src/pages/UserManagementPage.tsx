@@ -48,7 +48,7 @@ const createUserSchema = z.object({
   email: z.string().email('Email non valida').min(1, 'Email richiesta'),
   password: z.string().min(6, 'Password deve essere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'sales', 'lettore', 'production', 'customer_user'], {
+  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user'], {
     required_error: 'Ruolo richiesto'
   })
 });
@@ -57,7 +57,7 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 
 const roleLabels = {
   admin: 'Amministratore',
-  sales: 'Vendite',
+  commerciale: 'Commerciale (Vendite)',
   lettore: 'Lettore',
   production: 'Produzione',
   customer_user: 'Utente Cliente'
@@ -65,7 +65,7 @@ const roleLabels = {
 
 const roleDescriptions = {
   admin: 'Accesso completo a tutte le funzionalità',
-  sales: 'Gestione vendite e clienti',
+  commerciale: 'Gestione vendite e clienti (tutte le funzioni tranne gestione utenti)',
   lettore: 'Solo visualizzazione dati',
   production: 'Gestione produzione e magazzino',
   customer_user: 'Accesso limitato per clienti'
@@ -74,7 +74,7 @@ const roleDescriptions = {
 const getRoleBadge = (role: string) => {
   const styles = {
     admin: 'bg-red-100 text-red-800 border-red-200',
-    sales: 'bg-blue-100 text-blue-800 border-blue-200',
+    commerciale: 'bg-blue-100 text-blue-800 border-blue-200',
     lettore: 'bg-gray-100 text-gray-800 border-gray-200',
     production: 'bg-orange-100 text-orange-800 border-orange-200',
     customer_user: 'bg-yellow-100 text-yellow-800 border-yellow-200'
@@ -113,7 +113,7 @@ export const UserManagementPage = () => {
 
 const editUserSchema = z.object({
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'sales', 'lettore', 'production', 'customer_user'], {
+  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user'], {
     required_error: 'Ruolo richiesto'
   })
 });
@@ -554,9 +554,9 @@ const editUserSchema = z.object({
                         <span className="text-xs text-gray-500">Accesso completo</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="sales">
+                    <SelectItem value="commerciale">
                       <div className="flex flex-col">
-                        <span className="font-medium">Vendite</span>
+                        <span className="font-medium">Commerciale</span>
                         <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
                       </div>
                     </SelectItem>
@@ -733,9 +733,9 @@ const editUserSchema = z.object({
                       <span className="text-xs text-gray-500">Accesso completo</span>
                     </div>
                   </SelectItem>
-                  <SelectItem value="sales">
+                  <SelectItem value="commerciale">
                     <div className="flex flex-col">
-                      <span className="font-medium">Vendite</span>
+                      <span className="font-medium">Commerciale</span>
                       <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
                     </div>
                   </SelectItem>

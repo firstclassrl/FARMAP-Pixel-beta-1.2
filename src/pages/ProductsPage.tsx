@@ -66,10 +66,15 @@ type ProductWithCustomer = Product & {
   customers?: {
     id: string;
     company_name: string;
+    code_prefix?: string | null;
   } | null;
 };
 
 const PAGE_SIZE = 60;
+const normalizePrefix = (value?: string | null) => {
+  if (!value) return '';
+  return value.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 2);
+};
 
 // Database categories will be loaded dynamically
 
@@ -123,6 +128,21 @@ export const ProductsPage = () => {
       return acc;
     }, {});
   }, [customers]);
+  const selectedCustomer = useMemo(() => {
+    if (filterCustomer === 'all') return null;
+    return customers.find(customer => customer.id === filterCustomer) || null;
+  }, [customers, filterCustomer]);
+  const manualCodePrefix = useMemo(() => normalizePrefix(codePrefix), [codePrefix]);
+  const customerCodePrefix = useMemo(
+    () => normalizePrefix(selectedCustomer?.code_prefix || ''),
+    [selectedCustomer?.code_prefix]
+  );
+  const effectiveCodePrefix = manualCodePrefix || customerCodePrefix;
+  const prefixSource: 'manual' | 'customer' | null = manualCodePrefix
+    ? 'manual'
+    : customerCodePrefix
+    ? 'customer'
+    : null;
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (codePrefix) count++;
@@ -241,7 +261,9 @@ export const ProductsPage = () => {
 
       const from = pageIndex * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const prefix = codePrefix.replace(/[^a-zA-Z]/g, '').toUpperCase();
+      const manualPrefix = normalizePrefix(codePrefix);
+      const customerPrefix = normalizePrefix(selectedCustomer?.code_prefix || '');
+      const prefix = manualPrefix || customerPrefix;
       const activeSearch = debouncedSearch.trim();
       let query = supabase
         .from('products')
@@ -263,7 +285,7 @@ export const ProductsPage = () => {
         query = query.eq('category', filterCategory);
       }
 
-      if (filterCustomer !== 'all') {
+      if (filterCustomer !== 'all' && !customerPrefix) {
         query = query.eq('customer_id', filterCustomer);
       }
 
@@ -314,13 +336,13 @@ export const ProductsPage = () => {
         setLoading(false);
       }
     }
-  }, [addNotification, codePrefix, debouncedSearch, filterCategory, filterCustomer, filterPhoto]);
+  }, [addNotification, codePrefix, debouncedSearch, filterCategory, filterCustomer, filterPhoto, selectedCustomer?.code_prefix]);
 
   const loadCustomers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, company_name')
+        .select('id, company_name, code_prefix')
         .eq('is_active', true)
         .order('company_name');
 
@@ -887,6 +909,12 @@ export const ProductsPage = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="text-sm text-gray-500">
               Filtri attivi: {activeFiltersCount} / 5
+              {prefixSource === 'customer' && effectiveCodePrefix && (
+                <span className="ml-2 inline-flex items-center gap-1 text-emerald-600">
+                  Prefisso automatico: {effectiveCodePrefix}
+                  {selectedCustomer?.company_name ? ` (${selectedCustomer.company_name})` : ''}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 justify-end">
               <span className="text-sm text-gray-500 hidden md:inline">Visualizzazione:</span>

@@ -1,7 +1,7 @@
 {
   "name": "pixel-farmap",
   "private": true,
-  "version": "1.5.23",
+  "version": "1.5.24",
   "description": "Pixel - Farmap",
   "type": "module",
   "scripts": {

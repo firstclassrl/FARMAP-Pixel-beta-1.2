@@ -22,21 +22,21 @@ import { useAuth } from '../../hooks/useAuth';
 
 // Definiamo la lista completa di tutte le possibili voci del menu con i colori specifici
 const allNavigationItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'lettore'], color: 'neutral' },
-  { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales'], color: 'blue' },
-  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'lettore'], color: 'green' },
-  { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales'], color: 'purple' },
-  { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales'], color: 'orange' },
-  { name: 'Calendario', href: '/calendar', icon: Calendar, roles: ['admin', 'sales'], color: 'yellow' },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'commerciale', 'lettore'], color: 'neutral' },
+  { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales', 'commerciale'], color: 'blue' },
+  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'commerciale', 'lettore'], color: 'green' },
+  { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales', 'commerciale'], color: 'purple' },
+  { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales', 'commerciale'], color: 'orange' },
+  { name: 'Calendario', href: '/calendar', icon: Calendar, roles: ['admin', 'sales', 'commerciale'], color: 'yellow' },
   { 
     name: 'Garden',
     href: '/garden',
     icon: Sprout,
-    roles: ['admin', 'sales', 'production'],
+    roles: ['admin', 'sales', 'commerciale', 'production'],
     color: 'emerald'
   },
-  { name: 'Campionatura', href: '/sample-requests', icon: Building2, roles: ['admin', 'sales'], color: 'red' },
-  { name: 'Report', href: '/reports', icon: BarChart3, roles: ['admin', 'sales', 'lettore'], color: 'blue' },
+  { name: 'Campionatura', href: '/sample-requests', icon: Building2, roles: ['admin', 'sales', 'commerciale'], color: 'red' },
+  { name: 'Report', href: '/reports', icon: BarChart3, roles: ['admin', 'sales', 'commerciale', 'lettore'], color: 'blue' },
   { name: 'Gestione Utenti', href: '/user-management', icon: UserCog, roles: ['admin'], color: 'neutral' }
 ] as const;
 

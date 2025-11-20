@@ -71,6 +71,7 @@ export interface Database {
         Row: {
           id: string
           company_name: string
+          code_prefix: string | null
           contact_person: string | null
           email: string | null
           phone: string | null
@@ -94,6 +95,7 @@ export interface Database {
         Insert: {
           id?: string
           company_name: string
+          code_prefix?: string | null
           contact_person?: string | null
           email?: string | null
           phone?: string | null
@@ -117,6 +119,7 @@ export interface Database {
         Update: {
           id?: string
           company_name?: string
+          code_prefix?: string | null
           contact_person?: string | null
           email?: string | null
           phone?: string | null
