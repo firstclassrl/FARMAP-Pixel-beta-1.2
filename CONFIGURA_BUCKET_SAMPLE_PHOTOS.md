@@ -19,7 +19,9 @@ Configurare il bucket `sample-photos` in Supabase Storage per l'upload delle fot
 
 ### **STEP 2: Configurare Policy RLS**
 
-Dopo aver creato il bucket, configurare le policy per permettere l'upload:
+Dopo aver creato il bucket, esegui lo script SQL `CONFIGURA_RLS_SAMPLE_PHOTOS.sql` nel database Supabase per configurare automaticamente le policy RLS.
+
+**Oppure** esegui manualmente queste query:
 
 ```sql
 -- Policy per permettere upload delle foto
@@ -47,6 +49,8 @@ FOR DELETE USING (
   AND auth.role() = 'authenticated'
 );
 ```
+
+**NOTA**: Lo script SQL `CONFIGURA_RLS_SAMPLE_PHOTOS.sql` è stato creato e può essere eseguito direttamente nel SQL Editor di Supabase.
 
 ### **STEP 3: Verificare Configurazione**
 

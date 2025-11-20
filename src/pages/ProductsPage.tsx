@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Package, 
   Loader2, 
@@ -8,7 +8,6 @@ import {
   Trash2,
   Box,
   Plus,
-  Upload,
   FileSpreadsheet,
   FileText,
   Settings,
@@ -19,7 +18,9 @@ import {
   Tag,
   X,
   Sprout,
-  RefreshCw
+  RefreshCw,
+  LayoutGrid,
+  List as ListIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -53,7 +54,6 @@ import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import type { Database } from '../types/database.types';
 import { exportToExcel, exportToCSV, formatDate, formatBoolean, formatCurrency, type ExportColumn } from '../lib/exportUtils';
-import { parseCSV, validateRequired, transformToNumber, transformToBoolean, type ImportColumn } from '../lib/importUtils';
 import { ProductFormModal } from '../components/ProductFormModal';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -62,7 +62,14 @@ import { z } from 'zod';
 type Product = Database['public']['Tables']['products']['Row'];
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
-type ProductInsert = Database['public']['Tables']['products']['Insert'];
+type ProductWithCustomer = Product & {
+  customers?: {
+    id: string;
+    company_name: string;
+  } | null;
+};
+
+const PAGE_SIZE = 60;
 
 // Database categories will be loaded dynamically
 
@@ -73,11 +80,13 @@ const categorySchema = z.object({
 type CategoryForm = z.infer<typeof categorySchema>;
 
 export const ProductsPage = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductWithCustomer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [codePrefix, setCodePrefix] = useState('');
   const [showProductFormModal, setShowProductFormModal] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
@@ -85,6 +94,10 @@ export const ProductsPage = () => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
   const [filterPhoto, setFilterPhoto] = useState<'all' | 'with' | 'without'>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [isDeletingCategory, setIsDeletingCategory] = useState(false);
   const [isClearingAllCategories, setIsClearingAllCategories] = useState(false);
@@ -104,6 +117,65 @@ export const ProductsPage = () => {
 
   // Get category names from database
   const allCategories = categories.filter(cat => cat.is_active).map(cat => cat.name);
+  const customerNameMap = useMemo(() => {
+    return customers.reduce<Record<string, string>>((acc, customer) => {
+      acc[customer.id] = customer.company_name;
+      return acc;
+    }, {});
+  }, [customers]);
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (codePrefix) count++;
+    if (debouncedSearch) count++;
+    if (filterCategory !== 'all') count++;
+    if (filterCustomer !== 'all') count++;
+    if (filterPhoto !== 'all') count++;
+    return count;
+  }, [codePrefix, debouncedSearch, filterCategory, filterCustomer, filterPhoto]);
+  const showingCountText = useMemo(() => {
+    if (totalProducts === 0) {
+      return 'Nessun prodotto disponibile';
+    }
+    const visible = products.length;
+    return `Mostrati ${visible} di ${totalProducts}`;
+  }, [products.length, totalProducts]);
+  const getCustomerName = useCallback((product: ProductWithCustomer) => {
+    if (product.customers?.company_name) return product.customers.company_name;
+    if (product.customer_id) return customerNameMap[product.customer_id] || '';
+    return '';
+  }, [customerNameMap]);
+  const renderProductActions = useCallback((product: Product) => (
+    <div className="flex space-x-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handleEdit(product)}
+        disabled={!user?.id}
+        aria-label={`Modifica ${product.name}`}
+      >
+        <Edit className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handleDelete(product)}
+        disabled={!user?.id}
+        aria-label={`Elimina ${product.name}`}
+        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+      <Link to="/garden">
+        <Button 
+          size="sm" 
+          className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-lg hover:shadow-emerald-500/25 transition-all duration-200"
+        >
+          <Sprout className="w-4 h-4 mr-1" />
+          Garden
+        </Button>
+      </Link>
+    </div>
+  ), [handleDelete, handleEdit, user?.id]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -124,39 +196,82 @@ export const ProductsPage = () => {
     }
   }, [addNotification]);
 
-  const loadProducts = useCallback(async () => {
+  type LoadProductsOptions = {
+    append?: boolean;
+    pageIndex?: number;
+  };
+
+  const loadProducts = useCallback(async (options: LoadProductsOptions = {}) => {
+    const { append = false, pageIndex = 0 } = options;
     try {
-      setLoading(true);
-
-      const pageSize = 1000;
-      let accumulatedProducts: Product[] = [];
-      let from = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .range(from, from + pageSize - 1);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        accumulatedProducts = accumulatedProducts.concat(data);
-
-        if (data.length < pageSize) {
-          hasMore = false;
-        } else {
-          from += pageSize;
-        }
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setLoading(true);
+        setHasMore(true);
       }
 
-      setProducts(accumulatedProducts);
+      const from = pageIndex * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const prefix = codePrefix.replace(/[^a-zA-Z]/g, '').toUpperCase();
+      const activeSearch = debouncedSearch.trim();
+      let query = supabase
+        .from('products')
+        .select(`
+          *,
+          customers:customer_id (
+            id,
+            company_name
+          )
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (prefix) {
+        query = query.ilike('code', `${prefix}%`);
+      }
+
+      if (filterCategory !== 'all') {
+        query = query.eq('category', filterCategory);
+      }
+
+      if (filterCustomer !== 'all') {
+        query = query.eq('customer_id', filterCustomer);
+      }
+
+      if (filterPhoto === 'with') {
+        query = query.not('photo_url', 'is', null).neq('photo_url', '');
+      } else if (filterPhoto === 'without') {
+        query = query.or('photo_url.is.null,photo_url.eq.');
+      }
+
+      if (activeSearch) {
+        const searchValue = `%${activeSearch}%`;
+        const orFilters = [
+          `code.ilike.${searchValue}`,
+          `name.ilike.${searchValue}`,
+          `description.ilike.${searchValue}`,
+          `category.ilike.${searchValue}`,
+          `brand_name.ilike.${searchValue}`,
+          `client_product_code.ilike.${searchValue}`,
+          `supplier_product_code.ilike.${searchValue}`,
+          `customers.company_name.ilike.${searchValue}`
+        ].join(',');
+        query = query.or(orFilters);
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      const normalizedData = (data || []) as ProductWithCustomer[];
+      setTotalProducts(count ?? normalizedData.length);
+      setHasMore(
+        normalizedData.length === PAGE_SIZE &&
+        (count ? from + normalizedData.length < count : true)
+      );
+      setPage(pageIndex);
+      setProducts(prev => append ? [...prev, ...normalizedData] : normalizedData);
     } catch (error) {
       console.error('Error loading products:', error);
       addNotification({
@@ -165,9 +280,13 @@ export const ProductsPage = () => {
         message: 'Impossibile caricare i prodotti'
       });
     } finally {
-      setLoading(false);
+      if (append) {
+        setIsLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
-  }, [addNotification]);
+  }, [addNotification, codePrefix, debouncedSearch, filterCategory, filterCustomer, filterPhoto]);
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -186,11 +305,19 @@ export const ProductsPage = () => {
 
   useEffect(() => {
     loadCategories();
-    loadProducts();
     loadCustomers();
-  }, [loadCategories, loadProducts, loadCustomers]);
+  }, [loadCategories, loadCustomers]);
 
-  const handleEdit = (product: Product) => {
+  useEffect(() => {
+    loadProducts({ append: false, pageIndex: 0 });
+  }, [loadProducts]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(searchTerm), 350);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  const handleEdit = useCallback((product: Product) => {
     if (!user?.id) {
       addNotification({
         type: 'error',
@@ -202,9 +329,9 @@ export const ProductsPage = () => {
     
     setProductToEdit(product);
     setShowProductFormModal(true);
-  };
+  }, [addNotification, user?.id]);
 
-  const handleDelete = (product: Product) => {
+  const handleDelete = useCallback((product: Product) => {
     if (!user?.id) {
       addNotification({
         type: 'error',
@@ -215,7 +342,7 @@ export const ProductsPage = () => {
     }
     
     setProductToDelete(product);
-  };
+  }, [addNotification, user?.id]);
 
   const confirmProductDelete = async () => {
     if (!productToDelete) return;
@@ -234,7 +361,7 @@ export const ProductsPage = () => {
         message: `${productToDelete.name} è stato eliminato`
       });
 
-      await loadProducts();
+      await loadProducts({ append: false, pageIndex: 0 });
     } catch (error: any) {
       console.error('Error deleting product:', error);
       addNotification({
@@ -267,7 +394,7 @@ export const ProductsPage = () => {
   };
 
   const handleProductSaveSuccess = () => {
-    loadProducts();
+    loadProducts({ append: false, pageIndex: 0 });
   };
 
   const onSubmitCategory = async (data: CategoryForm) => {
@@ -328,10 +455,25 @@ export const ProductsPage = () => {
       });
       return;
     }
-    
-    // Count products using this category
-    const productsWithCategory = products.filter(p => p.category === categoryName);
-    const productCount = productsWithCategory.length;
+
+    let productCount = 0;
+    try {
+      const { count, error: countError } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('category', categoryName);
+
+      if (countError) throw countError;
+      productCount = count ?? 0;
+    } catch (error) {
+      console.error('Error counting products for category:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile verificare i prodotti collegati alla categoria'
+      });
+      return;
+    }
     
     const confirmMessage = productCount > 0 
       ? `Sei sicuro di voler eliminare la categoria "${categoryName}"?\n\nQuesta azione rimuoverà la categoria da ${productCount} prodotto${productCount > 1 ? 'i' : ''} e non può essere annullata.`
@@ -371,7 +513,7 @@ export const ProductsPage = () => {
       
       // Reload data to reflect changes
       await loadCategories();
-      await loadProducts();
+      await loadProducts({ append: false, pageIndex: 0 });
       
     } catch (error: any) {
       console.error('Error deleting category:', error);
@@ -396,8 +538,25 @@ export const ProductsPage = () => {
     }
     
     const totalCategories = allCategories.length;
-    const productsWithCategories = products.filter(p => p.category !== null && p.category !== undefined);
-    const productCount = productsWithCategories.length;
+
+    let productCount = 0;
+    try {
+      const { count, error: countError } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .not('category', 'is', null);
+
+      if (countError) throw countError;
+      productCount = count ?? 0;
+    } catch (error) {
+      console.error('Error counting products with categories:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile verificare i prodotti con categoria'
+      });
+      return;
+    }
     
     if (totalCategories === 0) {
       addNotification({
@@ -446,8 +605,7 @@ export const ProductsPage = () => {
       
       // Reload data to reflect changes
       await loadCategories();
-      await loadProducts();
-      
+      await loadProducts({ append: false, pageIndex: 0 });
     } catch (error: any) {
       console.error('Error clearing all categories:', error);
       addNotification({
@@ -459,26 +617,6 @@ export const ProductsPage = () => {
       setIsClearingAllCategories(false);
     }
   };
-
-  // Filter products based on search term, code prefix and filters
-  const filteredProducts = products.filter(product => {
-    // Filtra per prefisso codice prodotto (solo lettere ammesse, max 2 caratteri)
-    const prefix = codePrefix.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 2);
-    const matchesPrefix = !prefix || product.code.toUpperCase().startsWith(prefix);
-    
-    // Filtra per ricerca generale (nome, codice, descrizione, categoria)
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
-    const matchesCustomer = filterCustomer === 'all' || product.customer_id === filterCustomer;
-    const hasPhoto = Boolean(product.photo_url && String(product.photo_url).trim() !== '');
-    const matchesPhoto = filterPhoto === 'all' || (filterPhoto === 'with' && hasPhoto) || (filterPhoto === 'without' && !hasPhoto);
-    
-    return matchesPrefix && matchesSearch && matchesCategory && matchesCustomer && matchesPhoto;
-  });
 
   const handleExportExcel = async () => {
     setIsExporting(true);
@@ -505,7 +643,7 @@ export const ProductsPage = () => {
         { key: 'photo_url', label: 'URL Foto' }
       ];
 
-      const success = exportToExcel(filteredProducts, columns, `prodotti_${new Date().toISOString().split('T')[0]}`);
+      const success = exportToExcel(products, columns, `prodotti_${new Date().toISOString().split('T')[0]}`);
       
       if (success) {
         addNotification({
@@ -552,7 +690,7 @@ export const ProductsPage = () => {
         { key: 'photo_url', label: 'URL Foto' }
       ];
 
-      const success = exportToCSV(filteredProducts, columns, `prodotti_${new Date().toISOString().split('T')[0]}`);
+      const success = exportToCSV(products, columns, `prodotti_${new Date().toISOString().split('T')[0]}`);
       
       if (success) {
         addNotification({
@@ -575,20 +713,50 @@ export const ProductsPage = () => {
   };
 
   const handleRefresh = async () => {
-    await loadProducts();
+    await loadProducts({ append: false, pageIndex: 0 });
+    setPage(0);
     addNotification({
       type: 'success',
       title: 'Prodotti aggiornati'
     });
   };
 
-  if (loading) {
+  const handleLoadMore = () => {
+    if (!hasMore || isLoadingMore) return;
+    loadProducts({ append: true, pageIndex: page + 1 });
+  };
+
+  if (loading && products.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Caricamento prodotti...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-3">
+            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-64 bg-gray-100 rounded animate-pulse" />
+          </div>
+          <div className="flex space-x-2">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="h-10 w-28 bg-gray-100 rounded animate-pulse" />
+            ))}
+          </div>
         </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="border rounded-xl p-6 space-y-4 animate-pulse">
+                  <div className="h-5 w-2/3 bg-gray-100 rounded" />
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-100 rounded" />
+                    <div className="h-4 w-3/4 bg-gray-100 rounded" />
+                    <div className="h-4 w-1/2 bg-gray-100 rounded" />
+                  </div>
+                  <div className="h-8 bg-gray-100 rounded" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -614,14 +782,14 @@ export const ProductsPage = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuItem 
                 onClick={handleExportExcel}
-                disabled={isExporting || filteredProducts.length === 0}
+                disabled={isExporting || products.length === 0}
               >
                 <FileSpreadsheet className="w-4 h-4 mr-2" />
                 Esporta Excel
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={handleExportCSV}
-                disabled={isExporting || filteredProducts.length === 0}
+                disabled={isExporting || products.length === 0}
               >
                 <FileText className="w-4 h-4 mr-2" />
                 Esporta CSV
@@ -652,7 +820,7 @@ export const ProductsPage = () => {
 
       {/* Search and Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Prefisso codice - campo piccolo */}
             <div className="w-20">
@@ -715,28 +883,61 @@ export const ProductsPage = () => {
               </Select>
             </div>
           </div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="text-sm text-gray-500">
+              Filtri attivi: {activeFiltersCount} / 5
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="text-sm text-gray-500 hidden md:inline">Visualizzazione:</span>
+              <Button
+                type="button"
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                aria-pressed={viewMode === 'grid'}
+              >
+                <LayoutGrid className="w-4 h-4 mr-1" />
+                Card
+              </Button>
+              <Button
+                type="button"
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                aria-pressed={viewMode === 'list'}
+              >
+                <ListIcon className="w-4 h-4 mr-1" />
+                Lista
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       {/* Products List */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Package className="w-5 h-5" />
-            <span>Prodotti ({filteredProducts.length})</span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Package className="w-5 h-5" />
+              <span>Prodotti ({totalProducts})</span>
+            </div>
+            <span className="text-sm text-gray-500">{showingCountText}</span>
           </CardTitle>
           <CardDescription>
             Catalogo completo dei prodotti con informazioni su stock e prezzi
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredProducts.length === 0 ? (
+          {products.length === 0 ? (
             <div className="text-center py-8">
               <Box className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">
-                {searchTerm ? 'Nessun prodotto trovato per la ricerca' : 'Nessun prodotto nel catalogo'}
+                {debouncedSearch || codePrefix || filterCategory !== 'all' || filterCustomer !== 'all' || filterPhoto !== 'all'
+                  ? 'Nessun prodotto corrisponde ai filtri selezionati'
+                  : 'Nessun prodotto nel catalogo'}
               </p>
-              {!searchTerm && (
+              {!debouncedSearch && filterCategory === 'all' && filterCustomer === 'all' && (
                 <Button className="mt-4" onClick={handleNewProduct}>
                   <Plus className="w-4 h-4 mr-2" />
                   Aggiungi il primo prodotto
@@ -744,87 +945,149 @@ export const ProductsPage = () => {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
-                <Card key={product.id} className="hover:shadow-lg transition-all duration-300 hover:shadow-emerald-500/20 hover:ring-2 hover:ring-emerald-400/30 hover:ring-opacity-50">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                          {product.name}
-                        </h3>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        product.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {product.is_active ? 'Attivo' : 'Inattivo'}
-                      </span>
-                    </div>
+            <>
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {products.map((product) => {
+                    const customerName = getCustomerName(product);
+                    const photoUrl = product.photo_thumb_url || product.photo_url;
+                    const price = Number(product.base_price ?? 0).toFixed(2);
+                    return (
+                      <Card
+                        key={product.id}
+                        className="hover:shadow-lg transition-all duration-300 hover:shadow-emerald-500/20 hover:ring-2 hover:ring-emerald-400/30 hover:ring-opacity-50"
+                      >
+                        <CardContent className="p-6 space-y-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg text-gray-900">{product.name}</h3>
+                              {customerName && (
+                                <p className="text-sm text-gray-500 mt-1">{customerName}</p>
+                              )}
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {product.is_active ? 'Attivo' : 'Inattivo'}
+                            </span>
+                          </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Codice:</span>
-                        <span className="font-mono text-sm">{product.code}</span>
-                      </div>
-                      {product.category && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Categoria:</span>
-                          <span className="text-sm">{product.category}</span>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">Codice:</span>
+                              <span className="font-mono text-sm">{product.code}</span>
+                            </div>
+                            {product.category && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Categoria:</span>
+                                <span className="text-sm">{product.category}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">Prezzo:</span>
+                              <span className="font-semibold">€{price}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            {photoUrl ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                <FileImage className="w-3 h-3 inline mr-1" />
+                                Con foto
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                <FileImage className="w-3 h-3 inline mr-1" />
+                                Senza foto
+                              </span>
+                            )}
+                            {renderProductActions(product)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="divide-y rounded-xl border">
+                  {products.map((product) => {
+                    const customerName = getCustomerName(product);
+                    const photoUrl = product.photo_thumb_url || product.photo_url;
+                    const price = Number(product.base_price ?? 0).toFixed(2);
+                    return (
+                      <div key={product.id} className="flex flex-col lg:flex-row lg:items-center justify-between p-4 gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="w-24 h-24 rounded-lg bg-gray-50 border flex items-center justify-center overflow-hidden">
+                            {photoUrl ? (
+                              <img
+                                src={photoUrl}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                                width={120}
+                                height={120}
+                                loading="lazy"
+                              />
+                            ) : (
+                              <FileImage className="w-8 h-8 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                {product.is_active ? 'Attivo' : 'Inattivo'}
+                              </span>
+                            </div>
+                            <p className="font-mono text-sm text-gray-600">{product.code}</p>
+                            {customerName && <p className="text-sm text-gray-500">{customerName}</p>}
+                            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                              {product.category && <span>Categoria: {product.category}</span>}
+                              <span>Prezzo: €{price}</span>
+                              <span>{photoUrl ? 'Con foto' : 'Senza foto'}</span>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Prezzo:</span>
-                        <span className="font-semibold">€{product.base_price.toFixed(2)}</span>
+                        <div className="flex items-center justify-between lg:justify-end w-full lg:w-auto gap-4">
+                          <div className="hidden lg:flex">
+                            {photoUrl ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                Foto disponibile
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                Nessuna foto
+                              </span>
+                            )}
+                          </div>
+                          {renderProductActions(product)}
+                        </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      {product.photo_url ? (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200 liquid-glass-badge">
-                          <FileImage className="w-3 h-3 inline mr-1" />
-                          Con foto
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                          <FileImage className="w-3 h-3 inline mr-1" />
-                          Senza foto
-                        </span>
-                      )}
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(product)}
-                          title="Modifica prodotto"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(product)}
-                          title="Elimina prodotto"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <Link to="/garden">
-                          <Button 
-                            size="sm" 
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-lg hover:shadow-emerald-500/25 transition-all duration-200"
-                          >
-                            <Sprout className="w-4 h-4 mr-1" />
-                            Garden
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+              {hasMore && (
+                <div className="mt-6 flex justify-center">
+                  <Button onClick={handleLoadMore} disabled={isLoadingMore}>
+                    {isLoadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Caricamento...
+                      </>
+                    ) : (
+                      <>Carica altri prodotti</>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -890,49 +1153,42 @@ export const ProductsPage = () => {
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {allCategories.map((category, index) => {
-                      const productsUsingCategory = products.filter(p => p.category === category).length;
-                      
-                      return (
-                        <React.Fragment key={index}>
-                          <div className="flex items-center justify-between p-3 hover:bg-gray-50">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
-                                <Tag className="w-4 h-4 text-primary-600" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{category}</p>
-                                <p className="text-xs text-gray-500">
-                                  Categoria salvata nel database
-                                  {productsUsingCategory > 0 && (
-                                    <span className="ml-2">• {productsUsingCategory} prodotto{productsUsingCategory > 1 ? 'i' : ''}</span>
-                                  )}
-                                </p>
-                              </div>
+                    {allCategories.map((category, index) => (
+                      <React.Fragment key={index}>
+                        <div className="flex items-center justify-between p-3 hover:bg-gray-50">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
+                              <Tag className="w-4 h-4 text-primary-600" />
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Database
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteCustomCategory(category)}
-                                disabled={isDeletingCategory || isClearingAllCategories}
-                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                title={`Elimina categoria "${category}"${productsUsingCategory > 0 ? ` (usata da ${productsUsingCategory} prodotto${productsUsingCategory > 1 ? 'i' : ''})` : ''}`}
-                              >
-                                {isDeletingCategory ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <X className="w-4 h-4" />
-                                )}
-                              </Button>
+                            <div>
+                              <p className="font-medium text-gray-900">{category}</p>
+                              <p className="text-xs text-gray-500">
+                                Categoria salvata nel database
+                              </p>
                             </div>
                           </div>
-                        </React.Fragment>
-                      );
-                    })}
+                          <div className="flex items-center space-x-2">
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Database
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteCustomCategory(category)}
+                              disabled={isDeletingCategory || isClearingAllCategories}
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title={`Elimina categoria "${category}"`}
+                            >
+                              {isDeletingCategory ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <X className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </React.Fragment>
+                    ))}
                   </div>
                 )}
               </div>
