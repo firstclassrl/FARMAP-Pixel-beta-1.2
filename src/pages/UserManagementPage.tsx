@@ -48,7 +48,7 @@ const createUserSchema = z.object({
   email: z.string().email('Email non valida').min(1, 'Email richiesta'),
   password: z.string().min(6, 'Password deve essere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'sales', 'backoffice', 'viewer', 'lettore', 'ProductManager', 'production', 'customer_user'], {
+  role: z.enum(['admin', 'sales', 'lettore', 'production', 'customer_user'], {
     required_error: 'Ruolo richiesto'
   })
 });
@@ -58,10 +58,7 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 const roleLabels = {
   admin: 'Amministratore',
   sales: 'Vendite',
-  backoffice: 'Back Office',
-  viewer: 'Visualizzatore',
   lettore: 'Lettore',
-  ProductManager: 'Product Manager',
   production: 'Produzione',
   customer_user: 'Utente Cliente'
 };
@@ -69,10 +66,7 @@ const roleLabels = {
 const roleDescriptions = {
   admin: 'Accesso completo a tutte le funzionalità',
   sales: 'Gestione vendite e clienti',
-  backoffice: 'Gestione amministrativa e contabile',
-  viewer: 'Solo visualizzazione dati',
   lettore: 'Solo visualizzazione dati',
-  ProductManager: 'Gestione prodotti e cataloghi',
   production: 'Gestione produzione e magazzino',
   customer_user: 'Accesso limitato per clienti'
 };
@@ -81,10 +75,7 @@ const getRoleBadge = (role: string) => {
   const styles = {
     admin: 'bg-red-100 text-red-800 border-red-200',
     sales: 'bg-blue-100 text-blue-800 border-blue-200',
-    backoffice: 'bg-purple-100 text-purple-800 border-purple-200',
-    viewer: 'bg-gray-100 text-gray-800 border-gray-200',
     lettore: 'bg-gray-100 text-gray-800 border-gray-200',
-    ProductManager: 'bg-green-100 text-green-800 border-green-200',
     production: 'bg-orange-100 text-orange-800 border-orange-200',
     customer_user: 'bg-yellow-100 text-yellow-800 border-yellow-200'
   };
@@ -120,12 +111,12 @@ export const UserManagementPage = () => {
 
   const selectedRole = watch('role');
 
-  const editUserSchema = z.object({
-    full_name: z.string().min(2, 'Nome completo richiesto'),
-    role: z.enum(['admin', 'sales', 'backoffice', 'viewer', 'lettore', 'ProductManager', 'production', 'customer_user'], {
-      required_error: 'Ruolo richiesto'
-    })
-  });
+const editUserSchema = z.object({
+  full_name: z.string().min(2, 'Nome completo richiesto'),
+  role: z.enum(['admin', 'sales', 'lettore', 'production', 'customer_user'], {
+    required_error: 'Ruolo richiesto'
+  })
+});
 
   type EditUserForm = z.infer<typeof editUserSchema>;
 
@@ -569,28 +560,10 @@ export const UserManagementPage = () => {
                         <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="backoffice">
-                      <div className="flex flex-col">
-                        <span className="font-medium">Back Office</span>
-                        <span className="text-xs text-gray-500">Gestione amministrativa</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="viewer">
-                      <div className="flex flex-col">
-                        <span className="font-medium">Visualizzatore</span>
-                        <span className="text-xs text-gray-500">Solo visualizzazione</span>
-                      </div>
-                    </SelectItem>
                     <SelectItem value="lettore">
                       <div className="flex flex-col">
                         <span className="font-medium">Lettore</span>
                         <span className="text-xs text-gray-500">Solo lettura</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="ProductManager">
-                      <div className="flex flex-col">
-                        <span className="font-medium">Product Manager</span>
-                        <span className="text-xs text-gray-500">Gestione prodotti</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="production">
@@ -766,28 +739,10 @@ export const UserManagementPage = () => {
                       <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
                     </div>
                   </SelectItem>
-                  <SelectItem value="backoffice">
-                    <div className="flex flex-col">
-                      <span className="font-medium">Back Office</span>
-                      <span className="text-xs text-gray-500">Gestione amministrativa</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="viewer">
-                    <div className="flex flex-col">
-                      <span className="font-medium">Visualizzatore</span>
-                      <span className="text-xs text-gray-500">Solo visualizzazione</span>
-                    </div>
-                  </SelectItem>
                   <SelectItem value="lettore">
                     <div className="flex flex-col">
                       <span className="font-medium">Lettore</span>
                       <span className="text-xs text-gray-500">Solo lettura</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="ProductManager">
-                    <div className="flex flex-col">
-                      <span className="font-medium">Product Manager</span>
-                      <span className="text-xs text-gray-500">Gestione prodotti</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="production">

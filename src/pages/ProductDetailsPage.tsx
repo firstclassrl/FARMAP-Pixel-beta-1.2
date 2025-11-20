@@ -15,7 +15,9 @@ import {
   Image as ImageIcon,
   Loader2,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Check,
+  X
 } from 'lucide-react';
 import { useNotifications } from '../store/useStore';
 import { FileUploadZone } from '../components/FileUploadZone';
@@ -29,6 +31,9 @@ export default function ProductDetailsPage() {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [stExists, setStExists] = useState(false);
+  const [sdsExists, setSdsExists] = useState(false);
+  const [checkingFiles, setCheckingFiles] = useState(true);
 
   console.log('🔍 ProductDetailsPage: Component loaded', { 
     id, 
@@ -70,6 +75,56 @@ export default function ProductDetailsPage() {
 
     fetchProduct();
   }, [id, addNotification]);
+
+  // Check if ST and SDS files exist
+  useEffect(() => {
+    const checkFilesExist = async () => {
+      if (!product?.id) return;
+
+      try {
+        setCheckingFiles(true);
+        
+        // Check if URLs exist in database (primary check)
+        const stUrlExists = product.st_url && product.st_url.trim() !== '';
+        const sdsUrlExists = product.sds_url && product.sds_url.trim() !== '';
+
+        // If URLs don't exist in database, check storage directly
+        if (!stUrlExists || !sdsUrlExists) {
+          const { data: files, error } = await supabase.storage
+            .from('technical-data-sheets')
+            .list(`${product.id}`);
+
+          if (!error && files) {
+            const fileNames = files.map(f => f.name);
+            const stFileExists = fileNames.includes('ST.pdf');
+            const sdsFileExists = fileNames.includes('SDS.pdf');
+
+            setStExists(stUrlExists || stFileExists);
+            setSdsExists(sdsUrlExists || sdsFileExists);
+          } else {
+            // If storage check fails, use database values
+            setStExists(stUrlExists);
+            setSdsExists(sdsUrlExists);
+          }
+        } else {
+          // If URLs exist in database, use those
+          setStExists(true);
+          setSdsExists(true);
+        }
+      } catch (error) {
+        console.error('Errore nel verificare i file:', error);
+        // If check fails, use database values as fallback
+        setStExists(!!(product?.st_url && product.st_url.trim() !== ''));
+        setSdsExists(!!(product?.sds_url && product.sds_url.trim() !== ''));
+      } finally {
+        setCheckingFiles(false);
+      }
+    };
+
+    if (product) {
+      checkFilesExist();
+    }
+  }, [product?.id, product?.st_url, product?.sds_url]);
 
   const handleImageUpload = async (file: File) => {
     if (!product || !profile) return;
@@ -156,13 +211,9 @@ export default function ProductDetailsPage() {
     try {
       setUploading(true);
       
-      // proceed to upload
-      
-      // Upload to Supabase storage (bucket is public, no need to check existence)
+      // Upload to Supabase storage
       const fileName = `${documentType}.pdf`;
       const filePath = `${product.id}/${fileName}`;
-
-      
 
       const { error: uploadError } = await supabase.storage
         .from('technical-data-sheets')
@@ -173,7 +224,32 @@ export default function ProductDetailsPage() {
         throw uploadError;
       }
 
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('technical-data-sheets')
+        .getPublicUrl(filePath);
+
+      // Update product with URL
+      const updateField = documentType === 'ST' ? 'st_url' : 'sds_url';
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ [updateField]: publicUrl })
+        .eq('id', product.id);
+
+      if (updateError) {
+        console.error('❌ Update error:', updateError);
+        // Don't throw, the file was uploaded successfully
+      }
+
+      // Update local state
+      setProduct(prev => ({ ...prev, [updateField]: publicUrl }));
       
+      // Update existence flags
+      if (documentType === 'ST') {
+        setStExists(true);
+      } else {
+        setSdsExists(true);
+      }
 
       addNotification({
         type: 'success',
@@ -527,21 +603,61 @@ export default function ProductDetailsPage() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="grid grid-cols-1 gap-2">
-                    <Button
-                      onClick={handleDownloadST}
-                      className="h-8 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-blue-500/25 transition-all duration-300 text-sm font-semibold"
-                    >
-                      <FileText className="w-3 h-3 mr-1" />
-                      Download ST
-                    </Button>
+                    <div className="space-y-1">
+                      <Button
+                        onClick={handleDownloadST}
+                        disabled={!stExists && !checkingFiles}
+                        className="h-8 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white border-0 shadow-lg hover:shadow-blue-500/25 transition-all duration-300 text-sm font-semibold w-full"
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        Download ST
+                      </Button>
+                      {!checkingFiles && (
+                        <div className={`text-xs text-center ${
+                          stExists ? 'text-green-300' : 'text-gray-400'
+                        }`}>
+                          {stExists ? (
+                            <span className="flex items-center justify-center space-x-1">
+                              <Check className="w-3 h-3" />
+                              <span>ST disponibile</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-center space-x-1">
+                              <X className="w-3 h-3" />
+                              <span>ST non disponibile</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     
-                    <Button
-                      onClick={handleDownloadSDS}
-                      className="h-8 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white border-0 shadow-lg hover:shadow-green-500/25 transition-all duration-300 text-sm font-semibold"
-                    >
-                      <FileText className="w-3 h-3 mr-1" />
-                      Download SDS
-                    </Button>
+                    <div className="space-y-1">
+                      <Button
+                        onClick={handleDownloadSDS}
+                        disabled={!sdsExists && !checkingFiles}
+                        className="h-8 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white border-0 shadow-lg hover:shadow-green-500/25 transition-all duration-300 text-sm font-semibold w-full"
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        Download SDS
+                      </Button>
+                      {!checkingFiles && (
+                        <div className={`text-xs text-center ${
+                          sdsExists ? 'text-green-300' : 'text-gray-400'
+                        }`}>
+                          {sdsExists ? (
+                            <span className="flex items-center justify-center space-x-1">
+                              <Check className="w-3 h-3" />
+                              <span>SDS disponibile</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-center space-x-1">
+                              <X className="w-3 h-3" />
+                              <span>SDS non disponibile</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -601,6 +717,24 @@ export default function ProductDetailsPage() {
                         <FileText className="w-4 h-4 text-blue-400" />
                         <span className="text-xs font-bold text-white">Carica ST</span>
                       </div>
+                      {/* Status indicator */}
+                      {!checkingFiles && (
+                        <div className={`flex items-center justify-center space-x-1 text-xs ${
+                          stExists ? 'text-green-300' : 'text-gray-300'
+                        }`}>
+                          {stExists ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              <span>ST caricata</span>
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-3 h-3" />
+                              <span>ST non caricata</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                       <input
                         type="file"
                         accept=".pdf"
@@ -644,6 +778,24 @@ export default function ProductDetailsPage() {
                         <FileText className="w-4 h-4 text-green-400" />
                         <span className="text-xs font-bold text-white">Carica SDS</span>
                       </div>
+                      {/* Status indicator */}
+                      {!checkingFiles && (
+                        <div className={`flex items-center justify-center space-x-1 text-xs ${
+                          sdsExists ? 'text-green-300' : 'text-gray-300'
+                        }`}>
+                          {sdsExists ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              <span>SDS caricata</span>
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-3 h-3" />
+                              <span>SDS non caricata</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                       <input
                         type="file"
                         accept=".pdf"

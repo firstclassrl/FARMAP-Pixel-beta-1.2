@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Eye, Package, Calendar, User, FileText, AlertTriangle, Printer } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, Package, Calendar, User, FileText, AlertTriangle, Printer, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
@@ -17,6 +17,7 @@ interface SampleRequest {
   request_date: string;
   status: 'pending' | 'sent' | 'delivered' | 'cancelled';
   notes?: string;
+  photo_url?: string;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -78,6 +79,9 @@ export function SampleRequestsPage() {
   const [requestToDelete, setRequestToDelete] = useState<SampleRequest | null>(null);
   const [isCustomerSelectionOpen, setIsCustomerSelectionOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const { user } = useAuth();
   const { addNotification } = useNotifications();
@@ -120,6 +124,34 @@ export function SampleRequestsPage() {
     setSampleProducts(newProducts);
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Il file selezionato non è un\'immagine'
+      });
+      return;
+    }
+
+    setSelectedPhoto(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePhotoDelete = () => {
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+  };
+
   const resetForm = () => {
     setFormData({
       customer_id: '',
@@ -129,6 +161,8 @@ export function SampleRequestsPage() {
     });
     setSelectedCustomer(null);
     setSampleProducts(Array(10).fill({ product_name: '', quantity: 1 }));
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
   };
 
   const loadData = async () => {
@@ -198,6 +232,8 @@ export function SampleRequestsPage() {
     if (!formData.customer_id) return;
 
     try {
+      setUploadingPhoto(true);
+
       // Create sample request
       const { data: requestData, error: requestError } = await supabase
         .from('sample_requests')
@@ -206,7 +242,8 @@ export function SampleRequestsPage() {
           request_date: formData.request_date,
           status: formData.status,
           notes: formData.notes,
-          created_by: user.id
+          created_by: user.id,
+          photo_url: null
         })
         .select()
         .single();
@@ -231,11 +268,73 @@ export function SampleRequestsPage() {
         if (itemsError) throw itemsError;
       }
 
+      // Upload photo if selected
+      if (selectedPhoto && requestData.id) {
+        try {
+          const { compressImage, generateThumbnail, blobToFile } = await import('../lib/imageUtils');
+          const compressedBlob = await compressImage(selectedPhoto, 600, 0.35);
+          const compressedFile = blobToFile(compressedBlob, `sample_photo.jpg`);
+
+          // Generate thumbnail
+          const thumbnailBlob = await generateThumbnail(selectedPhoto, 200, 0.7);
+          const thumbnailFile = blobToFile(thumbnailBlob, `thumb.jpg`);
+
+          const filePath = `${requestData.id}/main.jpg`;
+          const thumbPath = `${requestData.id}/thumb.jpg`;
+
+          // Upload main photo
+          const { error: uploadErr } = await supabase.storage
+            .from('sample-photos')
+            .upload(filePath, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+          if (uploadErr) throw uploadErr;
+
+          // Upload thumbnail
+          const { error: thumbUploadErr } = await supabase.storage
+            .from('sample-photos')
+            .upload(thumbPath, thumbnailFile, { upsert: true, contentType: 'image/jpeg' });
+
+          const { data: pub } = supabase.storage
+            .from('sample-photos')
+            .getPublicUrl(filePath);
+
+          if (pub?.publicUrl) {
+            await supabase
+              .from('sample_requests')
+              .update({ photo_url: pub.publicUrl })
+              .eq('id', requestData.id);
+          }
+
+          if (thumbUploadErr) {
+            console.error('Thumbnail upload error:', thumbUploadErr);
+          }
+        } catch (photoError) {
+          console.error('Error uploading photo:', photoError);
+          addNotification({
+            type: 'warning',
+            title: 'Avviso',
+            message: 'Richiesta creata ma foto non caricata. Puoi aggiungerla dopo modificando la richiesta.'
+          });
+        }
+      }
+
       setIsCreateDialogOpen(false);
       resetForm();
       loadData();
+
+      addNotification({
+        type: 'success',
+        title: 'Successo',
+        message: 'Richiesta campioni creata con successo'
+      });
     } catch (error) {
       console.error('Error creating sample request:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile creare la richiesta di campioni'
+      });
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -360,6 +459,13 @@ export function SampleRequestsPage() {
             <div class="notes">
               <h3>Note:</h3>
               <p>${request.notes}</p>
+            </div>
+          ` : ''}
+
+          ${request.photo_url ? `
+            <div class="photo" style="margin-top: 20px;">
+              <h3>Foto Campioni Inviati:</h3>
+              <img src="${request.photo_url}" alt="Foto campioni" style="max-width: 100%; margin-top: 10px; border: 1px solid #ddd; border-radius: 4px;" />
             </div>
           ` : ''}
 
@@ -535,6 +641,58 @@ export function SampleRequestsPage() {
                   placeholder="Note aggiuntive..."
                 />
               </div>
+
+              {/* Photo Upload */}
+              <div>
+                <Label htmlFor="photo">Foto Campioni Inviati</Label>
+                <div className="mt-2 space-y-2">
+                  {!photoPreview ? (
+                    <div className="flex items-center justify-center w-full">
+                      <label
+                        htmlFor="photo-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                          <p className="mb-2 text-sm text-gray-500">
+                            <span className="font-semibold">Clicca per caricare</span> o trascina qui
+                          </p>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF fino a 5MB</p>
+                        </div>
+                        <input
+                          id="photo-upload"
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handlePhotoSelect}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="relative w-full h-48 border-2 border-gray-300 rounded-lg overflow-hidden">
+                        <img
+                          src={photoPreview}
+                          alt="Preview campioni"
+                          className="w-full h-full object-contain"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2"
+                          onClick={handlePhotoDelete}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Foto selezionata. Verrà caricata insieme alla richiesta.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
               
               {/* Sample Products */}
               <div>
@@ -568,8 +726,8 @@ export function SampleRequestsPage() {
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Annulla
                 </Button>
-                <Button onClick={handleCreateRequest}>
-                  Crea Richiesta
+                <Button onClick={handleCreateRequest} disabled={uploadingPhoto}>
+                  {uploadingPhoto ? 'Creazione in corso...' : 'Crea Richiesta'}
                 </Button>
               </div>
             </div>
@@ -655,6 +813,23 @@ export function SampleRequestsPage() {
                     <div className="mt-3 flex items-start">
                       <FileText className="w-4 h-4 mr-2 mt-0.5 text-gray-400" />
                       <p className="text-sm text-gray-600">{request.notes}</p>
+                    </div>
+                  )}
+
+                  {request.photo_url && (
+                    <div className="mt-3">
+                      <div className="flex items-center mb-2">
+                        <ImageIcon className="w-4 h-4 mr-2 text-gray-400" />
+                        <span className="text-sm font-medium text-gray-900">Foto campioni inviati:</span>
+                      </div>
+                      <div className="relative w-full max-w-md h-48 border-2 border-gray-300 rounded-lg overflow-hidden">
+                        <img
+                          src={request.photo_url}
+                          alt="Foto campioni inviati"
+                          className="w-full h-full object-contain cursor-pointer"
+                          onClick={() => window.open(request.photo_url, '_blank')}
+                        />
+                      </div>
                     </div>
                   )}
 
