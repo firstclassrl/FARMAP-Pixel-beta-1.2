@@ -144,6 +144,34 @@ export const ProductsPage = () => {
     if (product.customer_id) return customerNameMap[product.customer_id] || '';
     return '';
   }, [customerNameMap]);
+
+  const handleEdit = useCallback((product: Product) => {
+    if (!user?.id) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Devi essere autenticato per modificare prodotti'
+      });
+      return;
+    }
+    
+    setProductToEdit(product);
+    setShowProductFormModal(true);
+  }, [addNotification, user?.id]);
+
+  const handleDelete = useCallback((product: Product) => {
+    if (!user?.id) {
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Devi essere autenticato per eliminare prodotti'
+      });
+      return;
+    }
+    
+    setProductToDelete(product);
+  }, [addNotification, user?.id]);
+
   const renderProductActions = useCallback((product: Product) => (
     <div className="flex space-x-2">
       <Button
@@ -316,33 +344,6 @@ export const ProductsPage = () => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 350);
     return () => clearTimeout(handler);
   }, [searchTerm]);
-
-  const handleEdit = useCallback((product: Product) => {
-    if (!user?.id) {
-      addNotification({
-        type: 'error',
-        title: 'Errore',
-        message: 'Devi essere autenticato per modificare prodotti'
-      });
-      return;
-    }
-    
-    setProductToEdit(product);
-    setShowProductFormModal(true);
-  }, [addNotification, user?.id]);
-
-  const handleDelete = useCallback((product: Product) => {
-    if (!user?.id) {
-      addNotification({
-        type: 'error',
-        title: 'Errore',
-        message: 'Devi essere autenticato per eliminare prodotti'
-      });
-      return;
-    }
-    
-    setProductToDelete(product);
-  }, [addNotification, user?.id]);
 
   const confirmProductDelete = async () => {
     if (!productToDelete) return;
