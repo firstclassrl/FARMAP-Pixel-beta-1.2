@@ -35,6 +35,10 @@ interface ProductSelectionModalProps {
   onProductsAdded?: () => void; // Callback per ricaricare i dati
 }
 
+const PRODUCTS_PAGE_SIZE = 60;
+const NO_CATEGORY_VALUE = '__NO_CATEGORY__' as const;
+type CategoryFilterValue = 'all' | typeof NO_CATEGORY_VALUE | string;
+
 const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   isOpen,
   onClose,
@@ -45,12 +49,27 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilterValue>('all');
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [existingProductIds, setExistingProductIds] = useState<Set<string>>(new Set());
   const [isAdding, setIsAdding] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  const [productPage, setProductPage] = useState(0);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const [totalAvailableProducts, setTotalAvailableProducts] = useState(0);
   const { addNotification } = useNotifications();
+
+  // Gestisce il debounce della ricerca per evitare troppe chiamate a Supabase
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   // Carica dati quando la modale viene aperta
   useEffect(() => {
@@ -58,13 +77,19 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       // Reset dello stato quando si apre la modale
       setSelectedProducts([]);
       setSearchTerm('');
+      setDebouncedSearchTerm('');
       setSelectedCategory('all');
+      setProducts([]);
+      setProductPage(0);
+      setHasMoreProducts(true);
+      setTotalAvailableProducts(0);
+      setInitialDataLoaded(false);
       // Ricarica sempre i dati quando si apre la modale per avere dati aggiornati
-      loadData();
+      loadInitialData();
     }
-  }, [isOpen, currentCustomer, priceListId]);
+  }, [isOpen, priceListId]);
 
-  const loadData = async () => {
+  const loadInitialData = async () => {
     if (!priceListId) return;
     
     setIsLoading(true);
@@ -85,16 +110,21 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       console.log(`Prodotti già presenti nel listino: ${existingIds.size}`);
       setExistingProductIds(existingIds);
 
-      // Carica prodotti
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('id, code, name, description, category, unit, base_price, is_active, customer_id')
+      // Carica categorie attive per il filtro
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('name')
         .eq('is_active', true)
         .order('name');
 
-      if (productsError) throw productsError;
-      setProducts(productsData || []);
+      if (categoriesError) {
+        console.error('Errore nel caricamento categorie:', categoriesError);
+        throw categoriesError;
+      }
 
+      setCategories((categoriesData || []).map(cat => cat.name).filter((name): name is string => Boolean(name)));
+
+      setInitialDataLoaded(true);
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
       addNotification({
@@ -107,28 +137,108 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     }
   };
 
-  // Filtra prodotti
+  const fetchProducts = async (page = 0, reset = false) => {
+    if (!priceListId) return;
+
+    if (reset) {
+      setProducts([]);
+      setProductPage(0);
+      setHasMoreProducts(true);
+    }
+
+    setIsLoadingProducts(true);
+    try {
+      const from = page * PRODUCTS_PAGE_SIZE;
+      const to = from + PRODUCTS_PAGE_SIZE - 1;
+
+      let query = supabase
+        .from('products')
+        .select('id, code, name, description, category, unit, base_price, is_active, customer_id', { count: 'exact' })
+        .eq('is_active', true)
+        .order('name')
+        .range(from, to);
+
+      if (selectedCategory !== 'all') {
+        if (selectedCategory === NO_CATEGORY_VALUE) {
+          query = query.is('category', null);
+        } else {
+          query = query.eq('category', selectedCategory);
+        }
+      }
+
+      const trimmedSearch = debouncedSearchTerm.trim();
+      if (trimmedSearch) {
+        const searchValue = `%${trimmedSearch}%`;
+        query = query.or([
+          `name.ilike.${searchValue}`,
+          `code.ilike.${searchValue}`,
+          `description.ilike.${searchValue}`,
+          `category.ilike.${searchValue}`
+        ].join(','));
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      const normalizedData = data || [];
+      setTotalAvailableProducts(count ?? normalizedData.length);
+      setHasMoreProducts(
+        count !== null && count !== undefined
+          ? to + 1 < count
+          : normalizedData.length === PRODUCTS_PAGE_SIZE
+      );
+      setProducts(prev => reset ? normalizedData : [...prev, ...normalizedData]);
+      setProductPage(page);
+    } catch (error) {
+      console.error('Errore nel caricamento prodotti:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Errore nel caricamento dei prodotti'
+      });
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen || !priceListId || !initialDataLoaded) return;
+    fetchProducts(0, true);
+  }, [debouncedSearchTerm, selectedCategory, currentCustomer?.id, initialDataLoaded, isOpen, priceListId]);
+
+  const handleLoadMoreProducts = () => {
+    if (!hasMoreProducts || isLoadingProducts) return;
+    fetchProducts(productPage + 1);
+  };
+
+  // Filtra prodotti lato client per controlli extra (cliente assegnato)
+  const normalizedSearch = debouncedSearchTerm ? debouncedSearchTerm.toLowerCase() : '';
   const filteredProducts = products.filter(product => {
     // Filtra i prodotti assegnati ad altri clienti
     if (currentCustomer?.id && product.customer_id && product.customer_id !== currentCustomer.id) {
       return false;
     }
 
-    // Filtro per ricerca
-    const matchesSearch = !searchTerm ||
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    // Filtro per ricerca (ridondante rispetto al backend ma utile per sicurezza/UI)
+    const matchesSearch = !normalizedSearch ||
+      product.name.toLowerCase().includes(normalizedSearch) ||
+      product.code.toLowerCase().includes(normalizedSearch) ||
+      product.description?.toLowerCase().includes(normalizedSearch) ||
+      product.category?.toLowerCase().includes(normalizedSearch);
 
     // Filtro per categoria
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesCategory =
+      selectedCategory === 'all'
+        ? true
+        : selectedCategory === NO_CATEGORY_VALUE
+          ? !product.category
+          : product.category === selectedCategory;
 
     return matchesSearch && matchesCategory;
   });
-
-  // Categorie uniche
-  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+  const displayedCount = totalAvailableProducts || filteredProducts.length;
+  const isInitialLoading = isLoading || (isLoadingProducts && products.length === 0);
 
   const handleProductToggle = (product: Product, e?: React.MouseEvent) => {
     // Previeni la propagazione dell'evento se fornito
@@ -263,9 +373,18 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   const handleClose = () => {
     setSearchTerm('');
+    setDebouncedSearchTerm('');
     setSelectedCategory('all');
     setSelectedProducts([]);
     setExistingProductIds(new Set());
+    setProducts([]);
+    setCategories([]);
+    setInitialDataLoaded(false);
+    setHasMoreProducts(true);
+    setProductPage(0);
+    setTotalAvailableProducts(0);
+    setIsLoading(false);
+    setIsLoadingProducts(false);
     setIsAdding(false);
     onClose();
   };
@@ -301,15 +420,16 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                 <Label htmlFor="category" className="text-xs font-medium text-gray-700">
                   Categoria
                 </Label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as CategoryFilterValue)}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Tutte le categorie" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutte le categorie</SelectItem>
+                    <SelectItem value={NO_CATEGORY_VALUE}>Senza categoria</SelectItem>
                     {categories.map(category => (
-                      <SelectItem key={category} value={category || ''}>
-                        {category || 'Senza categoria'}
+                      <SelectItem key={category} value={category}>
+                        {category}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -322,7 +442,10 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                   size="sm"
                   onClick={() => {
                     setSearchTerm('');
+                    setDebouncedSearchTerm('');
                     setSelectedCategory('all');
+                    setProductPage(0);
+                    setHasMoreProducts(true);
                   }}
                   className="h-8 text-xs"
                 >
@@ -336,7 +459,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           <div className="bg-white border border-gray-200 rounded-lg p-3">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-800">
-                Prodotti Disponibili ({filteredProducts.length})
+                Prodotti Disponibili ({displayedCount})
               </h3>
               {selectedProducts.length > 0 && (
                 <Button
@@ -359,7 +482,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
               )}
             </div>
 
-            {isLoading ? (
+            {isInitialLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               </div>
@@ -374,48 +497,71 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
-                {filteredProducts.map(product => {
-                  const isSelected = selectedProducts.some(p => p.id === product.id);
-                  const isAlreadyInList = existingProductIds.has(product.id);
-                  return (
-                    <div
-                      key={product.id}
-                      onClick={(e) => handleProductToggle(product, e)}
-                      className={`border rounded-lg p-3 transition-all ${
-                        isAlreadyInList
-                          ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
-                          : isSelected 
-                            ? 'border-green-500 bg-green-50 cursor-pointer' 
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm text-gray-900">{product.name}</div>
-                          <div className="text-xs text-gray-500">Codice: {product.code}</div>
-                          {product.category && (
-                            <div className="text-xs text-gray-500">Categoria: {product.category}</div>
-                          )}
-                          <div className="text-xs text-gray-500">Prezzo: €{product.base_price.toFixed(2)}</div>
-                          {isAlreadyInList && (
-                            <div className="text-xs text-orange-600 mt-1 font-medium">Già nel listino</div>
-                          )}
-                        </div>
-                        <div className="ml-2 flex-shrink-0">
-                          {isAlreadyInList ? (
-                            <Check className="w-4 h-4 text-gray-400" />
-                          ) : isSelected ? (
-                            <Check className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <div className="w-4 h-4 border border-gray-300 rounded"></div>
-                          )}
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
+                  {filteredProducts.map(product => {
+                    const isSelected = selectedProducts.some(p => p.id === product.id);
+                    const isAlreadyInList = existingProductIds.has(product.id);
+                    return (
+                      <div
+                        key={product.id}
+                        onClick={(e) => handleProductToggle(product, e)}
+                        className={`border rounded-lg p-3 transition-all ${
+                          isAlreadyInList
+                            ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                            : isSelected 
+                              ? 'border-green-500 bg-green-50 cursor-pointer' 
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm text-gray-900">{product.name}</div>
+                            <div className="text-xs text-gray-500">Codice: {product.code}</div>
+                            {product.category && (
+                              <div className="text-xs text-gray-500">Categoria: {product.category}</div>
+                            )}
+                            <div className="text-xs text-gray-500">Prezzo: €{product.base_price.toFixed(2)}</div>
+                            {isAlreadyInList && (
+                              <div className="text-xs text-orange-600 mt-1 font-medium">Già nel listino</div>
+                            )}
+                          </div>
+                          <div className="ml-2 flex-shrink-0">
+                            {isAlreadyInList ? (
+                              <Check className="w-4 h-4 text-gray-400" />
+                            ) : isSelected ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <div className="w-4 h-4 border border-gray-300 rounded"></div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+
+                {hasMoreProducts && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLoadMoreProducts}
+                      disabled={isLoadingProducts}
+                      className="text-xs"
+                    >
+                      {isLoadingProducts ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Caricamento...
+                        </>
+                      ) : (
+                        'Carica altri prodotti'
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

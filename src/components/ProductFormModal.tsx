@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -247,6 +247,28 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   };
 
+  const normalizeCode = (code: string) => code.trim().toUpperCase();
+
+  const checkDuplicateCode = useCallback(async (code: string, excludeId?: string) => {
+    let query = supabase
+      .from('products')
+      .select('id', { head: false })
+      .ilike('code', code);
+
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+
+    const { data, error } = await query.limit(1);
+
+    if (error) {
+      console.error('Errore controllo codice duplicato:', error);
+      throw error;
+    }
+
+    return Boolean(data && data.length);
+  }, []);
+
   const onSubmit = async (data: ProductForm) => {
     if (!user?.id) {
       addNotification({
@@ -257,12 +279,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       return;
     }
 
+    const normalizedCode = normalizeCode(data.code);
+
     setIsSubmitting(true);
     
     try {
+      const isDuplicate = await checkDuplicateCode(normalizedCode, editingProduct?.id);
+      if (isDuplicate) {
+        addNotification({
+          type: 'error',
+          title: 'Codice duplicato',
+          message: `Esiste già un prodotto con codice "${normalizedCode}".`
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const productData = {
-        code: data.code,
-        name: data.name,
+        code: normalizedCode,
+        name: data.name.trim(),
         category: selectedCategory && selectedCategory.trim() !== '' ? selectedCategory : null,
         unit: data.unit || 'pz',
         base_price: data.base_price || 0,
