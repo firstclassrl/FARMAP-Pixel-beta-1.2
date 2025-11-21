@@ -75,6 +75,10 @@ const normalizePrefix = (value?: string | null) => {
   if (!value) return '';
   return value.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 2);
 };
+const normalizeCodeFilter = (value?: string | null) => {
+  if (!value) return '';
+  return value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 12);
+};
 
 // Database categories will be loaded dynamically
 
@@ -132,13 +136,13 @@ export const ProductsPage = () => {
     if (filterCustomer === 'all') return null;
     return customers.find(customer => customer.id === filterCustomer) || null;
   }, [customers, filterCustomer]);
-  const manualCodePrefix = useMemo(() => normalizePrefix(codePrefix), [codePrefix]);
+  const manualCodeFilter = useMemo(() => normalizeCodeFilter(codePrefix), [codePrefix]);
   const customerCodePrefix = useMemo(
     () => normalizePrefix(selectedCustomer?.code_prefix || ''),
     [selectedCustomer?.code_prefix]
   );
-  const effectiveCodePrefix = manualCodePrefix || customerCodePrefix;
-  const prefixSource: 'manual' | 'customer' | null = manualCodePrefix
+  const effectiveCodePrefix = manualCodeFilter || customerCodePrefix;
+  const prefixSource: 'manual' | 'customer' | null = manualCodeFilter
     ? 'manual'
     : customerCodePrefix
     ? 'customer'
@@ -261,7 +265,7 @@ export const ProductsPage = () => {
 
       const from = pageIndex * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const manualPrefix = normalizePrefix(codePrefix);
+      const manualPrefix = normalizeCodeFilter(codePrefix);
       const customerPrefix = normalizePrefix(selectedCustomer?.code_prefix || '');
       const prefix = manualPrefix || customerPrefix;
       const activeSearch = debouncedSearch.trim();
@@ -846,17 +850,16 @@ export const ProductsPage = () => {
         <CardContent className="pt-6 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Prefisso codice - campo piccolo */}
-            <div className="w-20">
+            <div className="w-32">
               <Input
-                placeholder="AA"
+                placeholder="Codice"
                 value={codePrefix}
                 onChange={(e) => {
-                  // Accetta solo lettere, max 2 caratteri
-                  const lettersOnly = e.target.value.replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase();
-                  setCodePrefix(lettersOnly);
+                  const sanitized = normalizeCodeFilter(e.target.value);
+                  setCodePrefix(sanitized);
                 }}
                 className="text-center font-mono text-sm"
-                maxLength={2}
+                maxLength={12}
               />
             </div>
             {/* Barra di ricerca - campo grande */}
