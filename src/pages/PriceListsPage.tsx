@@ -12,7 +12,8 @@ import {
   Users,
   Package,
   Percent,
-  AlertTriangle
+  AlertTriangle,
+  Copy
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -48,6 +49,7 @@ import BulkPriceListModal from '../components/BulkPriceListModal';
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
 type Customer = Database['public']['Tables']['customers']['Row'];
+type PriceListItemRow = Database['public']['Tables']['price_list_items']['Row'];
 
 interface PriceListWithDetails extends PriceList {
   customer?: Customer;
@@ -55,6 +57,10 @@ interface PriceListWithDetails extends PriceList {
   status: 'active' | 'draft' | 'expired';
   creator_name?: string | null;
 }
+
+type PriceListWithItems = PriceList & {
+  price_list_items: PriceListItemRow[];
+};
 
 interface KPIData {
   total: number;
@@ -80,6 +86,9 @@ export const PriceListsPage = () => {
   const [printPriceListId, setPrintPriceListId] = useState<string>('');
   const [priceListToArchive, setPriceListToArchive] = useState<PriceListWithDetails | null>(null); // MODIFICA 1: Rinominato da priceListToDelete
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [priceListToDuplicate, setPriceListToDuplicate] = useState<PriceListWithDetails | null>(null);
+  const [duplicateName, setDuplicateName] = useState('');
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   const { addNotification } = useNotifications();
   const { user } = useAuth();
@@ -331,6 +340,99 @@ export const PriceListsPage = () => {
       });
     } finally {
       setPriceListToArchive(null);
+    }
+  };
+
+  const handleDuplicatePriceList = (priceList: PriceListWithDetails) => {
+    setPriceListToDuplicate(priceList);
+    setDuplicateName(`${priceList.name} - copia`);
+  };
+
+  const resetDuplicateDialog = () => {
+    setPriceListToDuplicate(null);
+    setDuplicateName('');
+    setIsDuplicating(false);
+  };
+
+  const confirmPriceListDuplicate = async () => {
+    if (!priceListToDuplicate || !duplicateName.trim()) {
+      return;
+    }
+
+    setIsDuplicating(true);
+
+    try {
+      const { data: originalPriceList, error: fetchError } = await supabase
+        .from('price_lists')
+        .select(`
+          *,
+          price_list_items (*)
+        `)
+        .eq('id', priceListToDuplicate.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!originalPriceList) throw new Error('Impossibile recuperare il listino originale');
+
+      const typedOriginal = originalPriceList as PriceListWithItems;
+
+      const { data: newPriceList, error: insertError } = await supabase
+        .from('price_lists')
+        .insert({
+          name: duplicateName.trim(),
+          description: typedOriginal.description,
+          is_default: typedOriginal.is_default,
+          valid_from: typedOriginal.valid_from,
+          valid_until: typedOriginal.valid_until,
+          currency: typedOriginal.currency,
+          is_active: typedOriginal.is_active,
+          print_conditions: (typedOriginal as any).print_conditions ?? true,
+          payment_conditions: typedOriginal.payment_conditions,
+          shipping_conditions: typedOriginal.shipping_conditions,
+          delivery_conditions: typedOriginal.delivery_conditions,
+          brand_conditions: typedOriginal.brand_conditions,
+          created_by: user?.id || typedOriginal.created_by,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      if (!newPriceList) throw new Error('Impossibile creare il nuovo listino');
+
+      const itemsToClone = typedOriginal.price_list_items || [];
+      if (itemsToClone.length > 0) {
+        const chunkSize = 100;
+        for (let i = 0; i < itemsToClone.length; i += chunkSize) {
+          const chunk = itemsToClone.slice(i, i + chunkSize).map((item) => ({
+            price_list_id: newPriceList.id,
+            product_id: item.product_id,
+            price: item.price,
+            discount_percentage: item.discount_percentage,
+            min_quantity: item.min_quantity,
+          }));
+
+          const { error: itemsError } = await supabase.from('price_list_items').insert(chunk);
+          if (itemsError) throw itemsError;
+        }
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'Listino duplicato',
+        message: `"${priceListToDuplicate.name}" è stato duplicato come "${duplicateName.trim()}"`,
+      });
+
+      resetDuplicateDialog();
+      await loadPriceLists();
+    } catch (error: any) {
+      console.error('Error duplicating price list:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore duplicazione',
+        message: error.message || 'Impossibile duplicare il listino',
+      });
+    } finally {
+      setIsDuplicating(false);
     }
   };
 
@@ -626,6 +728,9 @@ export const PriceListsPage = () => {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleViewPriceList(priceList.id)}><Eye className="w-4 h-4 mr-2" /> Visualizza</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEditPriceList(priceList.id)}><Edit className="w-4 h-4 mr-2" /> Modifica</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicatePriceList(priceList)}>
+                            <Copy className="w-4 h-4 mr-2" /> Duplica
+                          </DropdownMenuItem>
                           {/* MODIFICA: L'azione ora è ARCHIVIA */}
                           <DropdownMenuItem onClick={() => handleArchivePriceList(priceList)} className="text-red-600">
                             <Trash2 className="w-4 h-4 mr-2" /> Archivia
@@ -681,6 +786,38 @@ export const PriceListsPage = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPriceListToArchive(null)}>Annulla</Button>
             <Button variant="destructive" onClick={confirmPriceListArchive}>Sì, archivia</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!priceListToDuplicate} onOpenChange={(open) => {
+        if (!open && !isDuplicating) {
+          resetDuplicateDialog();
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Duplica Listino</DialogTitle>
+            <DialogDescription>
+              Inserisci il nuovo nome per duplicare "{priceListToDuplicate?.name}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <Input
+              value={duplicateName}
+              onChange={(e) => setDuplicateName(e.target.value)}
+              placeholder="Nome nuovo listino"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetDuplicateDialog} disabled={isDuplicating}>
+              Annulla
+            </Button>
+            <Button onClick={confirmPriceListDuplicate} disabled={!duplicateName.trim() || isDuplicating}>
+              {isDuplicating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Duplica
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

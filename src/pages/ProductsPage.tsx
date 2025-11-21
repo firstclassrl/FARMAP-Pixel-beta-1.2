@@ -364,7 +364,7 @@ export const ProductsPage = () => {
 
   useEffect(() => {
     loadProducts({ append: false, pageIndex: 0 });
-  }, [loadProducts]);
+  }, [loadProducts, debouncedSearch, codePrefix, filterCategory, filterCustomer, filterPhoto, selectedCustomer?.code_prefix]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 350);
@@ -867,7 +867,7 @@ export const ProductsPage = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Cerca per nome, codice, descrizione o categoria..."
+                  placeholder="Cerca per nome"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"

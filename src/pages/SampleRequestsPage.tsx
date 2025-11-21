@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Eye, Package, Calendar, User, FileText, AlertTriangle, Printer, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, Package, Calendar, User, FileText, AlertTriangle, Printer, Upload, X, Image as ImageIcon, Minus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
@@ -351,6 +351,7 @@ export function SampleRequestsPage() {
     if (!selectedRequest) return;
 
     try {
+      // Aggiorna la richiesta principale
       const { error } = await supabase
         .from('sample_requests')
         .update({
@@ -363,12 +364,49 @@ export function SampleRequestsPage() {
 
       if (error) throw error;
 
+      // Elimina tutti gli items esistenti
+      const { error: deleteError } = await supabase
+        .from('sample_request_items')
+        .delete()
+        .eq('sample_request_id', selectedRequest.id);
+
+      if (deleteError) throw deleteError;
+
+      // Inserisci i nuovi items (solo quelli con nome prodotto)
+      const itemsToInsert = sampleProducts
+        .filter(item => item.product_name.trim() !== '')
+        .map(item => ({
+          sample_request_id: selectedRequest.id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          notes: ''
+        }));
+
+      if (itemsToInsert.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('sample_request_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
+
       setIsEditDialogOpen(false);
       setSelectedRequest(null);
       resetForm();
       loadData();
+
+      addNotification({
+        type: 'success',
+        title: 'Successo',
+        message: 'Richiesta campioni modificata con successo'
+      });
     } catch (error) {
       console.error('Error updating sample request:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Impossibile modificare la richiesta di campioni'
+      });
     }
   };
 
@@ -555,6 +593,28 @@ export function SampleRequestsPage() {
       status: request.status,
       notes: request.notes || ''
     });
+    
+    // Carica i prodotti esistenti nella modale di modifica
+    if (request.sample_request_items && request.sample_request_items.length > 0) {
+      const existingProducts = request.sample_request_items.map(item => ({
+        product_name: item.product_name,
+        quantity: item.quantity
+      }));
+      // Riempiamo fino a 10 righe con prodotti vuoti se necessario
+      while (existingProducts.length < 10) {
+        existingProducts.push({ product_name: '', quantity: 1 });
+      }
+      setSampleProducts(existingProducts);
+    } else {
+      setSampleProducts(Array(10).fill({ product_name: '', quantity: 1 }));
+    }
+    
+    // Imposta il cliente selezionato
+    const customer = customers.find(c => c.id === request.customer_id);
+    if (customer) {
+      setSelectedCustomer(customer);
+    }
+    
     setIsEditDialogOpen(true);
   };
 
@@ -882,7 +942,7 @@ export function SampleRequestsPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifica Richiesta Campioni</DialogTitle>
           </DialogHeader>
@@ -890,18 +950,14 @@ export function SampleRequestsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="customer">Cliente</Label>
-                <Select value={formData.customer_id} onValueChange={(value) => setFormData({...formData, customer_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(customer => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.company_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => setIsCustomerSelectionOpen(true)}
+                >
+                  {selectedCustomer ? selectedCustomer.company_name : "Seleziona cliente"}
+                </Button>
               </div>
               <div>
                 <Label htmlFor="status">Stato</Label>
@@ -936,8 +992,71 @@ export function SampleRequestsPage() {
                 placeholder="Note aggiuntive..."
               />
             </div>
+
+            {/* Sample Products in Edit Mode */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Prodotti Richiesti</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSampleProducts([...sampleProducts, { product_name: '', quantity: 1 }]);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Aggiungi
+                </Button>
+              </div>
+              <div className="space-y-2 mt-2">
+                {sampleProducts.map((product, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-8">
+                      <Input
+                        value={product.product_name}
+                        onChange={(e) => handleProductChange(index, 'product_name', e.target.value)}
+                        placeholder={`Prodotto ${index + 1}`}
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={product.quantity}
+                        onChange={(e) => handleProductChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                        placeholder="Quantità"
+                        className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newProducts = sampleProducts.filter((_, i) => i !== index);
+                          // Assicuriamoci di avere almeno una riga vuota
+                          if (newProducts.length === 0) {
+                            setSampleProducts([{ product_name: '', quantity: 1 }]);
+                          } else {
+                            setSampleProducts(newProducts);
+                          }
+                        }}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsEditDialogOpen(false);
+                resetForm();
+              }}>
                 Annulla
               </Button>
               <Button onClick={handleUpdateRequest}>

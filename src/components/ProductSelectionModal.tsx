@@ -44,7 +44,6 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   onProductsAdded
 }) => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
@@ -70,16 +69,6 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     
     setIsLoading(true);
     try {
-      // Carica clienti
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('id, company_name, code_prefix')
-        .eq('is_active', true)
-        .order('company_name');
-
-      if (customersError) throw customersError;
-      setCustomers(customersData || []);
-
       // Carica prodotti già presenti nel listino - IMPORTANTE: sempre ricaricare per avere dati aggiornati
       const { data: existingItems, error: existingError } = await supabase
         .from('price_list_items')
@@ -120,16 +109,9 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   // Filtra prodotti
   const filteredProducts = products.filter(product => {
-    // Filtro per cliente (code_prefix)
-    if (currentCustomer?.code_prefix) {
-      const productPrefix = product.code.substring(0, 2);
-      if (productPrefix !== currentCustomer.code_prefix) {
-        // Controlla se il prefisso appartiene a qualche cliente
-        const prefixBelongsToCustomer = customers.some(c => c.code_prefix === productPrefix);
-        if (prefixBelongsToCustomer) {
-          return false; // Il prodotto appartiene a un altro cliente
-        }
-      }
+    // Filtra i prodotti assegnati ad altri clienti
+    if (currentCustomer?.id && product.customer_id && product.customer_id !== currentCustomer.id) {
+      return false;
     }
 
     // Filtro per ricerca
