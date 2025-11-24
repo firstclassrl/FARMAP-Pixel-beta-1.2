@@ -71,6 +71,15 @@ type ProductWithCustomer = Product & {
 };
 
 const PAGE_SIZE = 60;
+const SEARCHABLE_PRODUCT_COLUMNS = [
+  'name',
+  'code',
+  'description',
+  'category',
+  'cartone',
+  'pallet',
+  'ean',
+] as const;
 const normalizePrefix = (value?: string | null) => {
   if (!value) return '';
   return value.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 2);
@@ -269,6 +278,21 @@ export const ProductsPage = () => {
       const customerPrefix = normalizePrefix(selectedCustomer?.code_prefix || '');
       const prefix = manualPrefix || customerPrefix;
       const activeSearch = debouncedSearch.trim();
+
+      let matchingCustomerIds: string[] = [];
+      if (activeSearch) {
+        const { data: customerMatches, error: customerSearchError } = await supabase
+          .from('customers')
+          .select('id')
+          .ilike('company_name', `%${activeSearch}%`);
+
+        if (customerSearchError) {
+          console.warn('Customer search failed:', customerSearchError);
+        } else if (customerMatches) {
+          matchingCustomerIds = customerMatches.map(customer => customer.id);
+        }
+      }
+
       let query = supabase
         .from('products')
         .select(`
@@ -301,15 +325,15 @@ export const ProductsPage = () => {
 
       if (activeSearch) {
         const searchValue = `%${activeSearch}%`;
-        const orFilters = [
-          `name.ilike.${searchValue}`,
-          `code.ilike.${searchValue}`,
-          `description.ilike.${searchValue}`,
-          `category.ilike.${searchValue}`,
-          `client_product_code.ilike.${searchValue}`,
-          `supplier_product_code.ilike.${searchValue}`
-        ].join(',');
-        query = query.or(orFilters);
+        const orFilters = SEARCHABLE_PRODUCT_COLUMNS.map(
+          column => `${column}.ilike.${searchValue}`
+        );
+
+        if (matchingCustomerIds.length > 0) {
+          orFilters.push(`customer_id.in.(${matchingCustomerIds.join(',')})`);
+        }
+
+        query = query.or(orFilters.join(','));
       }
 
       const { data, error, count } = await query;
