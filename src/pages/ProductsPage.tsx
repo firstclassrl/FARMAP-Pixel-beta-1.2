@@ -302,14 +302,13 @@ export const ProductsPage = () => {
       if (activeSearch) {
         const searchValue = `%${activeSearch}%`;
         const orFilters = [
-          `code.ilike.${searchValue}`,
           `name.ilike.${searchValue}`,
+          `code.ilike.${searchValue}`,
           `description.ilike.${searchValue}`,
           `category.ilike.${searchValue}`,
           `brand_name.ilike.${searchValue}`,
           `client_product_code.ilike.${searchValue}`,
-          `supplier_product_code.ilike.${searchValue}`,
-          `customers.company_name.ilike.${searchValue}`
+          `supplier_product_code.ilike.${searchValue}`
         ].join(',');
         query = query.or(orFilters);
       }

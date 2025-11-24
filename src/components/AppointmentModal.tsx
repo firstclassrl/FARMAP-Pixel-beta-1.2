@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Phone, Bell, User, FileText, X } from 'lucide-react';
+import { Calendar, MapPin, Phone, Bell, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -32,11 +32,11 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
 }) => {
   const pad = (value: number) => value.toString().padStart(2, '0');
 
-  const formatDateForInput = (date: Date) => {
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
+  const formatDateForDisplay = (date: Date) => {
     const day = pad(date.getDate());
-    return `${year}-${month}-${day}`;
+    const month = pad(date.getMonth() + 1);
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
   const formatTimeForInput = (date: Date) => {
@@ -45,11 +45,11 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     return `${hours}:${minutes}`;
   };
 
-  const mergeDateAndTime = (dateValue: string, timeValue: string) => {
-    if (!dateValue) return new Date();
-    const [year, month, day] = dateValue.split('-').map(Number);
+  const mergeDateAndTime = (dateValue: Date, timeValue: string) => {
     const [hour = 0, minute = 0] = (timeValue || '00:00').split(':').map(Number);
-    return new Date(year, (month || 1) - 1, day || 1, hour, minute);
+    const date = new Date(dateValue);
+    date.setHours(hour, minute, 0, 0);
+    return date;
   };
 
   const [formData, setFormData] = useState<AppointmentFormData>({
@@ -71,6 +71,10 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     start: formatTimeForInput(formData.startDate),
     end: formatTimeForInput(formData.endDate)
   });
+  const [dateInputs, setDateInputs] = useState({
+    start: formatDateForDisplay(formData.startDate),
+    end: formatDateForDisplay(formData.endDate)
+  });
 
   useEffect(() => {
     if (appointment) {
@@ -88,9 +92,15 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
         reminderMinutes: appointment.reminderMinutes || 30
       });
     } else {
+      const now = new Date();
+      const later = new Date(Date.now() + 60 * 60 * 1000);
       setTimeInputs({
-        start: formatTimeForInput(new Date()),
-        end: formatTimeForInput(new Date(Date.now() + 60 * 60 * 1000))
+        start: formatTimeForInput(now),
+        end: formatTimeForInput(later)
+      });
+      setDateInputs({
+        start: formatDateForDisplay(now),
+        end: formatDateForDisplay(later)
       });
     }
   }, [appointment]);
@@ -99,6 +109,10 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     setTimeInputs({
       start: formatTimeForInput(formData.startDate),
       end: formatTimeForInput(formData.endDate)
+    });
+    setDateInputs({
+      start: formatDateForDisplay(formData.startDate),
+      end: formatDateForDisplay(formData.endDate)
     });
   }, [formData.startDate, formData.endDate]);
 
@@ -121,7 +135,8 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
       newErrors.endDate = 'La data di fine deve essere successiva alla data di inizio';
     }
 
-    if (formData.type === 'appointment' && !formData.location.trim()) {
+    const locationValue = formData.location ?? '';
+    if (formData.type === 'appointment' && !locationValue.trim()) {
       newErrors.location = 'La location è obbligatoria per gli appuntamenti';
     }
 
@@ -171,13 +186,43 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
       const nextMinute = part === 'minute' ? value : currentMinute;
       const nextTime = `${nextHour}:${nextMinute}`;
       const dateField = field === 'start' ? 'startDate' : 'endDate';
-      const dateValue = formatDateForInput(formData[dateField]);
-      handleInputChange(dateField, mergeDateAndTime(dateValue, nextTime));
+      handleInputChange(dateField, mergeDateAndTime(formData[dateField], nextTime));
       return {
         ...prev,
         [field]: nextTime
       };
     });
+  };
+
+  const parseDisplayDate = (value: string): Date | null => {
+    if (!/^(\d{2})\/(\d{2})\/(\d{4})$/.test(value)) {
+      return null;
+    }
+    const [day, month, year] = value.split('/').map(Number);
+    const parsed = new Date(year, (month || 1) - 1, day || 1);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== (month || 1) - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+    return parsed;
+  };
+
+  const handleDateInputChange = (field: 'start' | 'end', value: string) => {
+    setDateInputs(prev => ({
+      ...prev,
+      [field]: value
+    }));
+
+    const parsedDate = parseDisplayDate(value);
+    if (parsedDate) {
+      const dateField = field === 'start' ? 'startDate' : 'endDate';
+      const existingDate = formData[dateField];
+      parsedDate.setHours(existingDate.getHours(), existingDate.getMinutes(), 0, 0);
+      handleInputChange(dateField, parsedDate);
+    }
   };
 
   const getTypeLabel = (type: string) => {
@@ -269,14 +314,16 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 <Label htmlFor="startDate">Data Inizio *</Label>
                 <Input
                   id="startDate"
-                  type="date"
-                  lang="it-IT"
-                  value={formatDateForInput(formData.startDate)}
-                  onChange={(e) => handleInputChange(
-                    'startDate',
-                    mergeDateAndTime(e.target.value, timeInputs.start)
-                  )}
-                  className={errors.startDate ? 'border-red-500' : ''}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="gg/mm/aaaa"
+                  value={dateInputs.start}
+                  onChange={(e) => handleDateInputChange('start', e.target.value)}
+                  onBlur={() => setDateInputs(prev => ({
+                    ...prev,
+                    start: formatDateForDisplay(formData.startDate)
+                  }))}
+                  className={`font-mono ${errors.startDate ? 'border-red-500' : ''}`}
                 />
               </div>
               <div className="space-y-2">
@@ -324,14 +371,16 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 <Label htmlFor="endDate">Data Fine *</Label>
                 <Input
                   id="endDate"
-                  type="date"
-                  lang="it-IT"
-                  value={formatDateForInput(formData.endDate)}
-                  onChange={(e) => handleInputChange(
-                    'endDate',
-                    mergeDateAndTime(e.target.value, timeInputs.end)
-                  )}
-                  className={errors.endDate ? 'border-red-500' : ''}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="gg/mm/aaaa"
+                  value={dateInputs.end}
+                  onChange={(e) => handleDateInputChange('end', e.target.value)}
+                  onBlur={() => setDateInputs(prev => ({
+                    ...prev,
+                    end: formatDateForDisplay(formData.endDate)
+                  }))}
+                  className={`font-mono ${errors.endDate ? 'border-red-500' : ''}`}
                 />
               </div>
               <div className="space-y-2">
@@ -398,7 +447,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   id="location"
-                  value={formData.location}
+                  value={formData.location ?? ''}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   placeholder="Indirizzo o luogo dell'appuntamento"
                   className={`pl-10 ${errors.location ? 'border-red-500' : ''}`}
@@ -414,7 +463,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="reminderMinutes">Promemoria (minuti prima)</Label>
             <Select
-              value={formData.reminderMinutes.toString()}
+              value={(formData.reminderMinutes ?? 30).toString()}
               onValueChange={(value) => handleInputChange('reminderMinutes', parseInt(value))}
             >
               <SelectTrigger>

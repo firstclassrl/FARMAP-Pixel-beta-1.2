@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, Phone, Bell, Plus, Filter, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { AppointmentModal } from '../components/AppointmentModal';
 import { CalendarFilters } from '../components/CalendarFilters';
-import { Appointment, CalendarEvent, AppointmentFormData } from '../types/calendar.types';
+import { Appointment, AppointmentFormData } from '../types/calendar.types';
 import { useAuth } from '../hooks/useAuth';
 import { useAppointmentsStore } from '../store/useAppointmentsStore';
-import { format, startOfDay, endOfDay, isToday, isTomorrow, isYesterday, addDays, subDays } from 'date-fns';
+import { format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 export default function CalendarPage() {
@@ -37,9 +37,6 @@ export default function CalendarPage() {
     fetchAppointments();
   }, [fetchAppointments]);
 
-  // Get appointments based on view mode
-  const selectedDateAppointments = getAppointmentsByDate(selectedDate);
-
   const getAppointmentsForDate = (date: Date) => {
     return getAppointmentsByDate(date);
   };
@@ -62,20 +59,6 @@ export default function CalendarPage() {
       const appointmentDate = new Date(appointment.startDate);
       return appointmentDate >= start && appointmentDate <= end;
     });
-  };
-
-  const getFilteredAppointments = () => {
-    let filtered = selectedDateAppointments;
-    
-    if (searchTerm) {
-      filtered = filtered.filter(appointment =>
-        appointment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    return filtered;
   };
 
   const handleCreateAppointment = async (formData: AppointmentFormData) => {
@@ -165,9 +148,13 @@ export default function CalendarPage() {
             <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                {format(new Date(appointment.startDate), 'HH:mm', { locale: it })}
+                <span className="font-semibold text-gray-700">
+                  {format(new Date(appointment.startDate), 'dd MMM yyyy HH:mm', { locale: it })}
+                </span>
                 {appointment.endDate && (
-                  <> - {format(new Date(appointment.endDate), 'HH:mm', { locale: it })}</>
+                  <span className="font-semibold text-gray-500">
+                    {' '}→ {format(new Date(appointment.endDate), 'HH:mm', { locale: it })}
+                  </span>
                 )}
               </div>
               
@@ -223,7 +210,6 @@ export default function CalendarPage() {
   );
 
   const todayAppointments = getAppointmentsForDate(selectedDate);
-  const filteredAppointments = getFilteredAppointments();
 
   const getViewAppointments = () => {
     switch (viewMode) {
@@ -392,7 +378,7 @@ export default function CalendarPage() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Calendar className="w-4 h-4 text-yellow-600" />
-                Oggi - {format(selectedDate, 'dd MMM', { locale: it })}
+                {format(selectedDate, "EEEE dd MMM", { locale: it })}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
