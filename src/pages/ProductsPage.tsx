@@ -306,7 +306,6 @@ export const ProductsPage = () => {
           `code.ilike.${searchValue}`,
           `description.ilike.${searchValue}`,
           `category.ilike.${searchValue}`,
-          `brand_name.ilike.${searchValue}`,
           `client_product_code.ilike.${searchValue}`,
           `supplier_product_code.ilike.${searchValue}`
         ].join(',');

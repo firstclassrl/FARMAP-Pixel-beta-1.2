@@ -9,3 +9,4 @@ COMMENT ON COLUMN public.price_lists.print_conditions IS 'Se true, stampa le con
 
 
 
+
