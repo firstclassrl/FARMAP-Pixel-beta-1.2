@@ -241,7 +241,11 @@ export async function deleteLabRecipe(id: string) {
 }
 
 export async function duplicateLabRecipe(recipeId: string, overrides?: Partial<LabRecipeInsert>) {
-  const recipe = await getLabRecipeById(recipeId);
+  const [recipe, ingredients] = await Promise.all([
+    getLabRecipeById(recipeId),
+    listLabRecipeIngredients(recipeId),
+  ]);
+
   const cloneBase: LabRecipeInsert = {
     code: recipe.code,
     name: recipe.name,
@@ -258,13 +262,29 @@ export async function duplicateLabRecipe(recipeId: string, overrides?: Partial<L
     approved_by: recipe.approved_by ?? undefined,
     last_review_at: recipe.last_review_at ?? undefined
   };
-  return createLabRecipe({
+  const clone = await createLabRecipe({
     ...cloneBase,
     version: (recipe.version ?? 1) + 1,
     status: 'draft',
     code: `${recipe.code}-v${(recipe.version ?? 1) + 1}`,
     ...overrides
   });
+
+  if (ingredients.length) {
+    await saveLabRecipeIngredients(
+      clone.id,
+      ingredients.map((ingredient, index) => ({
+        raw_material_id: ingredient.raw_material_id,
+        percentage: ingredient.percentage,
+        quantity: ingredient.quantity,
+        cost_share: ingredient.cost_share,
+        notes: ingredient.notes ?? undefined,
+        position: index,
+      }))
+    );
+  }
+
+  return clone;
 }
 
 export async function listLabRecipeIngredients(recipeId: string) {
