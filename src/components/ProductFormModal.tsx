@@ -28,6 +28,7 @@ const productSchema = z.object({
   weight: z.number().min(0).optional(),
   dimensions: z.string().optional(),
   code: z.string().min(1, 'Codice prodotto richiesto'),
+  category: z.string().optional(),
   cartone: z.string().optional(),
   pallet: z.string().optional(),
   // Allow empty input for "strati": treat '' or NaN as undefined so it's not required
@@ -59,7 +60,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   categories = []
 }) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [selectedCategory, setSelectedCategory] = React.useState<string>('');
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [selectedPhoto, setSelectedPhoto] = React.useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
@@ -72,16 +72,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     handleSubmit,
     formState: { errors },
     reset,
-    setValue
+    setValue,
+    watch
   } = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       unit: 'pz',
       base_price: 0,
       cost: 0,
-      iva: 22
+      iva: 22,
+      category: ''
     }
   });
+  const categoryValue = watch('category');
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -92,7 +95,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           setValue(key as keyof ProductForm, value as any);
         }
       });
-      setSelectedCategory(editingProduct.category || '');
+      setValue('category', editingProduct.category || '');
       
       // Set existing photo URL if available
       if (editingProduct?.photo_url) {
@@ -107,9 +110,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         unit: 'pz',
         base_price: 0,
         cost: 0,
-        iva: 22
+        iva: 22,
+        category: ''
       });
-      setSelectedCategory('');
       setUploadedPhotoUrl(null);
       setPhotoPreview(null);
     }
@@ -295,10 +298,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         return;
       }
 
+      const normalizedCategory = data.category?.trim();
       const productData = {
         code: normalizedCode,
         name: data.name.trim(),
-        category: selectedCategory && selectedCategory.trim() !== '' ? selectedCategory : null,
+        category: normalizedCategory && normalizedCategory !== '' ? normalizedCategory : null,
         unit: data.unit || 'pz',
         base_price: data.base_price || 0,
         cost: data.cost || 0,
@@ -409,8 +413,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       }
 
       // Reset form and call success callback
-      reset();
-      setSelectedCategory('');
+      reset({
+        unit: 'pz',
+        base_price: 0,
+        cost: 0,
+        iva: 22,
+        category: ''
+      });
       setSelectedPhoto(null);
       setPhotoPreview(null);
       setUploadedPhotoUrl(null);
@@ -430,8 +439,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   };
 
   const handleClose = () => {
-    reset();
-    setSelectedCategory('');
+    reset({
+      unit: 'pz',
+      base_price: 0,
+      cost: 0,
+      iva: 22,
+      category: ''
+    });
     setSelectedPhoto(null);
     setPhotoPreview(null);
     setUploadedPhotoUrl(null);
@@ -493,7 +507,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="category">Categoria</Label>
-                <Select value={selectedCategory || undefined} onValueChange={setSelectedCategory}>
+                <Select
+                  value={categoryValue || undefined}
+                  onValueChange={(value) => setValue('category', value, { shouldDirty: true })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona categoria (opzionale)" />
                   </SelectTrigger>
