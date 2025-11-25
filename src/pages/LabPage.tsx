@@ -12,7 +12,7 @@ import {
   PackagePlus,
   Plus,
   Sparkles,
-  TriangleAlert
+  AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -151,7 +151,7 @@ const LabPage = () => {
               accent="from-amber-500 to-orange-500"
             />
             <MetricBadge
-              icon={TriangleAlert}
+              icon={AlertTriangle}
               label="Alert stock"
               value={stats.lowStock.toString()}
               accent="from-red-500 to-rose-500"
@@ -368,7 +368,7 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">
-          <TriangleAlert className="w-4 h-4" />
+          <AlertTriangle className="w-4 h-4" />
           {error}
         </div>
       )}
@@ -791,7 +791,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">
-          <TriangleAlert className="w-4 h-4" />
+          <AlertTriangle className="w-4 h-4" />
           {error}
         </div>
       )}
@@ -1312,7 +1312,7 @@ const SamplesTab = ({ hook, recipes, customers, customersLoading, profileId, not
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">
-          <TriangleAlert className="w-4 h-4" />
+          <AlertTriangle className="w-4 h-4" />
           {error}
         </div>
       )}

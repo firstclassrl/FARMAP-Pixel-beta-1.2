@@ -50,6 +50,8 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [codeFilter, setCodeFilter] = useState('');
+  const [debouncedCodeFilter, setDebouncedCodeFilter] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilterValue>('all');
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +73,13 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedCodeFilter(codeFilter.trim());
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [codeFilter]);
+
   // Carica dati quando la modale viene aperta
   useEffect(() => {
     if (isOpen && priceListId) {
@@ -78,6 +87,8 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       setSelectedProducts([]);
       setSearchTerm('');
       setDebouncedSearchTerm('');
+      setCodeFilter('');
+      setDebouncedCodeFilter('');
       setSelectedCategory('all');
       setProducts([]);
       setProductPage(0);
@@ -167,6 +178,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       }
 
       const trimmedSearch = debouncedSearchTerm.trim();
+      const trimmedCode = debouncedCodeFilter.trim();
       if (trimmedSearch) {
         const searchValue = `%${trimmedSearch}%`;
         query = query.or([
@@ -175,6 +187,9 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           `description.ilike.${searchValue}`,
           `category.ilike.${searchValue}`
         ].join(','));
+      }
+      if (trimmedCode) {
+        query = query.ilike('code', `${trimmedCode}%`);
       }
 
       const { data, error, count } = await query;
@@ -205,7 +220,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   useEffect(() => {
     if (!isOpen || !priceListId || !initialDataLoaded) return;
     fetchProducts(0, true);
-  }, [debouncedSearchTerm, selectedCategory, currentCustomer?.id, initialDataLoaded, isOpen, priceListId]);
+  }, [debouncedSearchTerm, debouncedCodeFilter, selectedCategory, currentCustomer?.id, initialDataLoaded, isOpen, priceListId]);
 
   const handleLoadMoreProducts = () => {
     if (!hasMoreProducts || isLoadingProducts) return;
@@ -214,6 +229,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   // Filtra prodotti lato client per controlli extra (cliente assegnato)
   const normalizedSearch = debouncedSearchTerm ? debouncedSearchTerm.toLowerCase() : '';
+  const normalizedCodeFilter = debouncedCodeFilter ? debouncedCodeFilter.toLowerCase() : '';
   const filteredProducts = products.filter(product => {
     // Filtra i prodotti assegnati ad altri clienti
     if (currentCustomer?.id && product.customer_id && product.customer_id !== currentCustomer.id) {
@@ -227,6 +243,8 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       product.description?.toLowerCase().includes(normalizedSearch) ||
       product.category?.toLowerCase().includes(normalizedSearch);
 
+    const matchesCode = !normalizedCodeFilter || product.code.toLowerCase().startsWith(normalizedCodeFilter);
+
     // Filtro per categoria
     const matchesCategory =
       selectedCategory === 'all'
@@ -235,7 +253,7 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           ? !product.category
           : product.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCode && matchesCategory;
   });
   const displayedCount = totalAvailableProducts || filteredProducts.length;
   const isInitialLoading = isLoading || (isLoadingProducts && products.length === 0);
@@ -374,6 +392,8 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   const handleClose = () => {
     setSearchTerm('');
     setDebouncedSearchTerm('');
+    setCodeFilter('');
+    setDebouncedCodeFilter('');
     setSelectedCategory('all');
     setSelectedProducts([]);
     setExistingProductIds(new Set());
@@ -399,7 +419,19 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         <div className="h-full overflow-y-auto space-y-4 p-1">
           {/* Filtri */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <Label htmlFor="codeFilter" className="text-xs font-medium text-gray-700">
+                  Codice Prodotto
+                </Label>
+                <Input
+                  id="codeFilter"
+                  placeholder="Filtra per codice (es. EN)"
+                  value={codeFilter}
+                  onChange={(e) => setCodeFilter(e.target.value)}
+                  className="h-8 text-sm uppercase"
+                />
+              </div>
               <div>
                 <Label htmlFor="search" className="text-xs font-medium text-gray-700">
                   Cerca Prodotti
@@ -443,6 +475,8 @@ const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                   onClick={() => {
                     setSearchTerm('');
                     setDebouncedSearchTerm('');
+                    setCodeFilter('');
+                    setDebouncedCodeFilter('');
                     setSelectedCategory('all');
                     setProductPage(0);
                     setHasMoreProducts(true);
