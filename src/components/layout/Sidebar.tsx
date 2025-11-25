@@ -13,7 +13,8 @@ import {
   UserCog,
   Loader2,
   Building2,
-  Calendar
+  Calendar,
+  FlaskConical
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useUI } from '../../store/useStore';
@@ -22,7 +23,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 // Definiamo la lista completa di tutte le possibili voci del menu con i colori specifici
 const allNavigationItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'commerciale', 'lettore'], color: 'neutral' },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'commerciale', 'lettore', 'lab'], color: 'neutral' },
   { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales', 'commerciale'], color: 'blue' },
   { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'commerciale', 'lettore'], color: 'green' },
   { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales', 'commerciale'], color: 'purple' },
@@ -35,6 +36,7 @@ const allNavigationItems = [
     roles: ['admin', 'sales', 'commerciale', 'production'],
     color: 'emerald'
   },
+  { name: 'LAB', href: '/lab', icon: FlaskConical, roles: ['admin', 'lab'], color: 'pink' },
   { name: 'Campionatura', href: '/sample-requests', icon: Building2, roles: ['admin', 'sales', 'commerciale'], color: 'red' },
   { name: 'Report', href: '/reports', icon: BarChart3, roles: ['admin', 'sales', 'commerciale', 'lettore'], color: 'blue' },
   { name: 'Gestione Utenti', href: '/user-management', icon: UserCog, roles: ['admin'], color: 'neutral' }
@@ -108,6 +110,7 @@ export function Sidebar() {
                     red: isActive ? "bg-red-600 text-white" : "text-neutral-400 hover:bg-red-600/20 hover:text-red-400",
                     indigo: isActive ? "bg-indigo-600 text-white" : "text-neutral-400 hover:bg-indigo-600/20 hover:text-indigo-400",
                     yellow: isActive ? "bg-yellow-600 text-white" : "text-neutral-400 hover:bg-yellow-600/20 hover:text-yellow-400",
+                    pink: isActive ? "bg-pink-600 text-white" : "text-neutral-400 hover:bg-pink-600/20 hover:text-pink-400",
                     neutral: isActive ? "bg-neutral-700 text-white" : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
                   };
                   return colorMap[color as keyof typeof colorMap] || colorMap.neutral;

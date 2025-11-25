@@ -4,10 +4,11 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { useAuth } from '../../hooks/useAuth';
+import { UserRole } from '../../types/roles';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: 'admin' | 'commerciale' | 'lettore';
+  requiredRole?: UserRole | UserRole[];
 }
 
 export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
@@ -54,8 +55,12 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
+  const requiredRoles = requiredRole
+    ? (Array.isArray(requiredRole) ? requiredRole : [requiredRole])
+    : null;
+
   // If role is required, check user role
-  if (requiredRole) {
+  if (requiredRoles && requiredRoles.length > 0) {
     // Check if profile exists and has the required role
     if (!profile) {
       return (
@@ -68,7 +73,7 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
       );
     }
 
-    if (profile.role !== requiredRole) {
+    if (!requiredRoles.includes(profile.role)) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center">
           <div className="text-center max-w-md mx-auto p-6">
@@ -80,7 +85,12 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
               Non hai i permessi necessari per accedere a questa sezione.
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              Ruolo richiesto: <span className="font-medium">{requiredRole}</span><br />
+              {requiredRoles.length === 1 ? (
+                <>Ruolo richiesto: <span className="font-medium">{requiredRoles[0]}</span></>
+              ) : (
+                <>Ruoli richiesti: <span className="font-medium">{requiredRoles.join(', ')}</span></>
+              )}
+              <br />
               Il tuo ruolo: <span className="font-medium">{profile.role}</span>
             </p>
             <Button asChild>

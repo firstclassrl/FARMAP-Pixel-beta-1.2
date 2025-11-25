@@ -36,7 +36,7 @@ export default function GardenPage() {
       // 1. Decidiamo quale "finestra" (Vista) usare in base al ruolo dell'utente
       let viewName = '';
       const role = profile.role as string;
-      if (role === 'admin' || role === 'commerciale' || role === 'sales') {
+      if (role === 'admin' || role === 'commerciale' || role === 'sales' || role === 'lab') {
         viewName = 'view_products_commercial';
       } else if (role === 'production') {
         viewName = 'view_products_production';

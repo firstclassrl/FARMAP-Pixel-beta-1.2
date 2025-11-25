@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { User, LogOut, Settings, Shield, UserCog } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/button';
@@ -39,7 +38,11 @@ export const UserProfile = () => {
     const labels = {
       admin: 'Amministratore',
       commerciale: 'Commerciale',
-      lettore: 'Lettore'
+      lettore: 'Lettore',
+      production: 'Produzione',
+      sales: 'Vendite',
+      customer_user: 'Cliente',
+      lab: 'Laboratorio'
     };
     return labels[role as keyof typeof labels] || role;
   };
@@ -48,7 +51,11 @@ export const UserProfile = () => {
     const colors = {
       admin: 'text-red-600',
       commerciale: 'text-blue-600',
-      lettore: 'text-gray-600'
+      lettore: 'text-gray-600',
+      production: 'text-orange-600',
+      sales: 'text-teal-600',
+      customer_user: 'text-yellow-600',
+      lab: 'text-pink-600'
     };
     return colors[role as keyof typeof colors] || 'text-gray-600';
   };

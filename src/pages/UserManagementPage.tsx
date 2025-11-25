@@ -48,7 +48,7 @@ const createUserSchema = z.object({
   email: z.string().email('Email non valida').min(1, 'Email richiesta'),
   password: z.string().min(6, 'Password deve essere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user'], {
+  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user', 'sales', 'lab'], {
     required_error: 'Ruolo richiesto'
   })
 });
@@ -60,7 +60,9 @@ const roleLabels = {
   commerciale: 'Commerciale (Vendite)',
   lettore: 'Lettore',
   production: 'Produzione',
-  customer_user: 'Utente Cliente'
+  customer_user: 'Utente Cliente',
+  sales: 'Vendite (Esteso)',
+  lab: 'Laboratorio'
 };
 
 const roleDescriptions = {
@@ -68,7 +70,9 @@ const roleDescriptions = {
   commerciale: 'Gestione vendite e clienti (tutte le funzioni tranne gestione utenti)',
   lettore: 'Solo visualizzazione dati',
   production: 'Gestione produzione e magazzino',
-  customer_user: 'Accesso limitato per clienti'
+  customer_user: 'Accesso limitato per clienti',
+  sales: 'Vendite avanzate (report + listini)',
+  lab: 'Accesso alla sezione LAB e insight qualità'
 };
 
 const getRoleBadge = (role: string) => {
@@ -77,7 +81,9 @@ const getRoleBadge = (role: string) => {
     commerciale: 'bg-blue-100 text-blue-800 border-blue-200',
     lettore: 'bg-gray-100 text-gray-800 border-gray-200',
     production: 'bg-orange-100 text-orange-800 border-orange-200',
-    customer_user: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    customer_user: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    sales: 'bg-teal-100 text-teal-800 border-teal-200',
+    lab: 'bg-pink-100 text-pink-800 border-pink-200'
   };
 
   return (
@@ -113,7 +119,7 @@ export const UserManagementPage = () => {
 
 const editUserSchema = z.object({
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user'], {
+  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user', 'sales', 'lab'], {
     required_error: 'Ruolo richiesto'
   })
 });
@@ -578,6 +584,18 @@ const editUserSchema = z.object({
                         <span className="text-xs text-gray-500">Accesso limitato</span>
                       </div>
                     </SelectItem>
+                    <SelectItem value="sales">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Vendite (Esteso)</span>
+                        <span className="text-xs text-gray-500">Listini avanzati e report</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="lab">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Laboratorio</span>
+                        <span className="text-xs text-gray-500">Accesso alla sezione LAB</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.role && (
@@ -755,6 +773,18 @@ const editUserSchema = z.object({
                     <div className="flex flex-col">
                       <span className="font-medium">Utente Cliente</span>
                       <span className="text-xs text-gray-500">Accesso limitato</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="sales">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Vendite (Esteso)</span>
+                      <span className="text-xs text-gray-500">Listini avanzati e report</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="lab">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Laboratorio</span>
+                      <span className="text-xs text-gray-500">Accesso alla sezione LAB</span>
                     </div>
                   </SelectItem>
                 </SelectContent>

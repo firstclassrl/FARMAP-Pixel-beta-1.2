@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { UserRole } from '../types/roles';
 
 // Estendi il tipo User per includere raw_user_meta_data
 interface ExtendedUser extends User {
@@ -16,7 +17,7 @@ interface Profile {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales';
+  role: UserRole;
   created_at: string;
   updated_at: string;
 }
@@ -98,13 +99,13 @@ export function useAuth(): {
           const mustBeAdmin = user.email === 'antonio.pasetti@farmapindustry.it';
           const effectiveProfile: Profile = dbProfile ? {
             ...dbProfile,
-            role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
+            role: (mustBeAdmin ? 'admin' : (dbProfile.role as UserRole)),
           } : {
             id: user.id,
             email: user.email || '',
             full_name: user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'User',
             avatar_url: null,
-            role: (mustBeAdmin ? 'admin' : 'lettore') as any,
+            role: (mustBeAdmin ? 'admin' : 'lettore'),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -166,13 +167,13 @@ export function useAuth(): {
 
             const effectiveProfile: Profile = dbProfile ? {
               ...dbProfile,
-              role: (mustBeAdmin ? 'admin' : dbProfile.role) as any,
+              role: (mustBeAdmin ? 'admin' : (dbProfile.role as UserRole)),
             } : {
               id: user.id,
               email: user.email || '',
               full_name: user.email?.split('@')[0] || 'User',
               avatar_url: null,
-              role: (mustBeAdmin ? 'admin' : 'lettore') as any,
+              role: (mustBeAdmin ? 'admin' : 'lettore'),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             };

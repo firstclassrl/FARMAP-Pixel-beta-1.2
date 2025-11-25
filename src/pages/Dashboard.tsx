@@ -7,7 +7,8 @@ import {
   BarChart3,
   Sprout,
   Building2,
-  Calendar
+  Calendar,
+  FlaskConical
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
@@ -94,6 +95,17 @@ const quickActions = [
     roles: ['admin', 'commerciale', 'sales']
   },
   {
+    title: 'LAB',
+    description: 'Gestisci materie prime, ricette e campionature dedicate',
+    icon: FlaskConical,
+    href: '/lab',
+    color: 'bg-pink-500',
+    hoverColor: 'hover:bg-pink-600',
+    borderHover: 'hover:border-pink-500',
+    textHover: 'group-hover:text-pink-600',
+    roles: ['admin', 'lab']
+  },
+  {
     title: 'Report',
     description: 'Analizza le performance e monitora i KPI',
     icon: BarChart3,
@@ -102,7 +114,7 @@ const quickActions = [
     hoverColor: 'hover:bg-indigo-600',
     borderHover: 'hover:border-indigo-500',
     textHover: 'group-hover:text-indigo-600',
-    roles: ['admin', 'commerciale', 'lettore', 'sales']
+    roles: ['admin', 'commerciale', 'lettore', 'sales', 'lab']
   }
 ];
 

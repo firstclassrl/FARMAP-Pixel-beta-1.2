@@ -15,7 +15,7 @@ export interface Database {
           email: string
           full_name: string | null
           avatar_url: string | null
-          role: 'admin' | 'commerciale' | 'lettore'
+          role: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab'
           created_at: string
           updated_at: string
         }
@@ -24,7 +24,7 @@ export interface Database {
           email: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'commerciale' | 'lettore'
+          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab'
           created_at?: string
           updated_at?: string
         }
@@ -33,7 +33,7 @@ export interface Database {
           email?: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'commerciale' | 'lettore'
+          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab'
           created_at?: string
           updated_at?: string
         }
@@ -517,6 +517,221 @@ export interface Database {
           created_at?: string
         }
       }
+      lab_raw_materials: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          supplier: string | null
+          unit: string
+          cost_per_unit: number
+          density: number | null
+          lead_time_days: number | null
+          min_stock_level: number | null
+          current_stock: number | null
+          safety_notes: string | null
+          sds_url: string | null
+          attachments: Json
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name: string
+          supplier?: string | null
+          unit?: string
+          cost_per_unit?: number
+          density?: number | null
+          lead_time_days?: number | null
+          min_stock_level?: number | null
+          current_stock?: number | null
+          safety_notes?: string | null
+          sds_url?: string | null
+          attachments?: Json
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name?: string
+          supplier?: string | null
+          unit?: string
+          cost_per_unit?: number
+          density?: number | null
+          lead_time_days?: number | null
+          min_stock_level?: number | null
+          current_stock?: number | null
+          safety_notes?: string | null
+          sds_url?: string | null
+          attachments?: Json
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      lab_recipes: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          version: number
+          status: string
+          batch_size: number
+          unit: string
+          target_cost: number | null
+          yield_percentage: number | null
+          notes: string | null
+          instructions: string | null
+          attachments: Json
+          created_by: string
+          approved_by: string | null
+          last_review_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name: string
+          version?: number
+          status?: string
+          batch_size?: number
+          unit?: string
+          target_cost?: number | null
+          yield_percentage?: number | null
+          notes?: string | null
+          instructions?: string | null
+          attachments?: Json
+          created_by: string
+          approved_by?: string | null
+          last_review_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name?: string
+          version?: number
+          status?: string
+          batch_size?: number
+          unit?: string
+          target_cost?: number | null
+          yield_percentage?: number | null
+          notes?: string | null
+          instructions?: string | null
+          attachments?: Json
+          created_by?: string
+          approved_by?: string | null
+          last_review_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      lab_recipe_ingredients: {
+        Row: {
+          id: string
+          recipe_id: string
+          raw_material_id: string
+          percentage: number
+          quantity: number | null
+          cost_share: number | null
+          notes: string | null
+          position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          recipe_id: string
+          raw_material_id: string
+          percentage: number
+          quantity?: number | null
+          cost_share?: number | null
+          notes?: string | null
+          position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          recipe_id?: string
+          raw_material_id?: string
+          percentage?: number
+          quantity?: number | null
+          cost_share?: number | null
+          notes?: string | null
+          position?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      lab_samples: {
+        Row: {
+          id: string
+          recipe_id: string | null
+          customer_id: string | null
+          project_name: string
+          status: 'draft' | 'pending' | 'in_progress' | 'ready' | 'sent' | 'approved' | 'rejected' | 'archived'
+          priority: string
+          customization_notes: string | null
+          customizations: Json
+          attachments: Json
+          requested_by: string | null
+          due_date: string | null
+          produced_at: string | null
+          shipped_at: string | null
+          cost_override: number | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          recipe_id?: string | null
+          customer_id?: string | null
+          project_name: string
+          status?: 'draft' | 'pending' | 'in_progress' | 'ready' | 'sent' | 'approved' | 'rejected' | 'archived'
+          priority?: string
+          customization_notes?: string | null
+          customizations?: Json
+          attachments?: Json
+          requested_by?: string | null
+          due_date?: string | null
+          produced_at?: string | null
+          shipped_at?: string | null
+          cost_override?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          recipe_id?: string | null
+          customer_id?: string | null
+          project_name?: string
+          status?: 'draft' | 'pending' | 'in_progress' | 'ready' | 'sent' | 'approved' | 'rejected' | 'archived'
+          priority?: string
+          customization_notes?: string | null
+          customizations?: Json
+          attachments?: Json
+          requested_by?: string | null
+          due_date?: string | null
+          produced_at?: string | null
+          shipped_at?: string | null
+          cost_override?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       appointments: {
         Row: {
           id: string
@@ -601,14 +816,39 @@ export interface Database {
           [_ in never]: never
         }
       }
+      lab_recipe_costs_view: {
+        Row: {
+          recipe_id: string
+          code: string
+          name: string
+          version: number
+          batch_size: number
+          unit: string
+          target_cost: number | null
+          total_percentage: number
+          total_quantity: number
+          estimated_batch_cost: number
+          estimated_unit_cost: number
+          ingredients_count: number
+          last_ingredient_update: string | null
+          recipe_updated_at: string | null
+        }
+        Insert: {
+          [_ in never]: never
+        }
+        Update: {
+          [_ in never]: never
+        }
+      }
     }
     Functions: {
       [_ in never]: never
     }
     Enums: {
-      user_role: 'admin' | 'commerciale' | 'lettore' | 'label_user'
+      user_role: 'admin' | 'commerciale' | 'lettore' | 'label_user' | 'production' | 'sales' | 'customer_user' | 'lab'
       order_status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
       quote_status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
+      lab_sample_status: 'draft' | 'pending' | 'in_progress' | 'ready' | 'sent' | 'approved' | 'rejected' | 'archived'
     }
     CompositeTypes: {
       [_ in never]: never

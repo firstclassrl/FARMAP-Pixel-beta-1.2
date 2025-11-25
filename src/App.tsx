@@ -20,6 +20,7 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import { GardenLoginPage } from './pages/GardenLoginPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import LabPage from './pages/LabPage';
 import Toast from './components/Toast';
 import { LoadingFallback } from './components/LoadingFallback';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -88,6 +89,14 @@ function App() {
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="sample-requests" element={<SampleRequestsPage />} />
                 <Route path="reports" element={<ReportsPage />} />
+                <Route
+                  path="lab"
+                  element={
+                    <ProtectedRoute requiredRole={['admin', 'lab']}>
+                      <LabPage />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="user-management" element={
                   <ProtectedRoute requiredRole="admin"><UserManagementPage /></ProtectedRoute>
