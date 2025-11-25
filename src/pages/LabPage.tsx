@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import {
@@ -11,8 +11,8 @@ import {
   Loader2,
   PackagePlus,
   Plus,
-  Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  Printer
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -52,6 +52,8 @@ const TAB_ITEMS = [
   { value: 'samples', label: 'Campionature', description: 'Richieste conto terzi e follow-up' },
   { value: 'insights', label: 'Insights', description: 'Metriche di laboratorio e alert' }
 ] as const;
+
+const RECIPE_STATUSES = ['draft', 'testing', 'approved', 'archived'] as const;
 
 const formatCurrency = (value: number | null | undefined) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
@@ -95,15 +97,6 @@ const LabPage = () => {
   }, [addNotification]);
 
   const stats = useMemo(() => {
-    const lowStock = rawMaterialsHook.materials.filter(
-      (material) =>
-        material.min_stock_level !== null &&
-        material.min_stock_level !== undefined &&
-        material.current_stock !== null &&
-        material.current_stock !== undefined &&
-        material.current_stock < material.min_stock_level
-    );
-
     const activeRecipes = recipesHook.recipes.filter((recipe) => recipe.status !== 'archived');
     const openSamples = samplesHook.samples.filter(
       (sample) => !['approved', 'archived'].includes(sample.status)
@@ -111,7 +104,6 @@ const LabPage = () => {
 
     return {
       totalMaterials: rawMaterialsHook.materials.length,
-      lowStock: lowStock.length,
       activeRecipes: activeRecipes.length,
       openSamples: openSamples.length
     };
@@ -131,7 +123,7 @@ const LabPage = () => {
               genera schede produzione e monitora le campionature dedicate ai clienti conto terzi.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <MetricBadge
               icon={Droplet}
               label="Materie Prime"
@@ -149,12 +141,6 @@ const LabPage = () => {
               label="Campionature aperte"
               value={stats.openSamples.toString()}
               accent="from-amber-500 to-orange-500"
-            />
-            <MetricBadge
-              icon={AlertTriangle}
-              label="Alert stock"
-              value={stats.lowStock.toString()}
-              accent="from-red-500 to-rose-500"
             />
           </div>
         </div>
@@ -205,11 +191,7 @@ const LabPage = () => {
           </Tabs.Content>
 
           <Tabs.Content value="insights">
-            <InsightsTab
-              materials={rawMaterialsHook.materials}
-              recipes={recipesHook.recipes}
-              samples={samplesHook.samples}
-            />
+            <InsightsTab recipes={recipesHook.recipes} samples={samplesHook.samples} />
           </Tabs.Content>
         </div>
       </Tabs.Root>
@@ -233,8 +215,6 @@ type MaterialFormValues = {
   unit: string;
   cost_per_unit: number;
   lead_time_days?: number;
-  min_stock_level?: number;
-  current_stock?: number;
   sds_url?: string;
   safety_notes?: string;
 };
@@ -264,8 +244,6 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
         unit: material.unit,
         cost_per_unit: material.cost_per_unit,
         lead_time_days: material.lead_time_days ?? undefined,
-        min_stock_level: material.min_stock_level ?? undefined,
-        current_stock: material.current_stock ?? undefined,
         sds_url: material.sds_url ?? '',
         safety_notes: material.safety_notes ?? ''
       });
@@ -278,8 +256,6 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
         unit: 'kg',
         cost_per_unit: 0,
         lead_time_days: undefined,
-        min_stock_level: undefined,
-        current_stock: undefined,
         sds_url: '',
         safety_notes: ''
       });
@@ -297,18 +273,16 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
       return;
     }
 
-    const normalizeNumber = (value?: number) =>
+    const safeNumber = (value?: number) =>
       typeof value === 'number' && !Number.isNaN(value) ? value : null;
 
     const payload = {
       ...values,
-      cost_per_unit: normalizeNumber(values.cost_per_unit) ?? 0,
+      cost_per_unit: safeNumber(values.cost_per_unit) ?? 0,
       supplier: values.supplier || null,
       sds_url: values.sds_url || null,
       safety_notes: values.safety_notes || null,
-      lead_time_days: normalizeNumber(values.lead_time_days),
-      min_stock_level: normalizeNumber(values.min_stock_level),
-      current_stock: normalizeNumber(values.current_stock)
+      lead_time_days: safeNumber(values.lead_time_days)
     };
 
     try {
@@ -391,9 +365,6 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
                   Costo unitario
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Azioni
                 </th>
               </tr>
@@ -429,19 +400,6 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
                     <td className="px-4 py-3 text-sm text-gray-600">{material.supplier || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {formatCurrency(material.cost_per_unit)} / {material.unit}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">
-                          {material.current_stock ?? 0} {material.unit}
-                        </Badge>
-                        {material.min_stock_level !== null &&
-                          material.min_stock_level !== undefined &&
-                          material.current_stock !== null &&
-                          material.current_stock < material.min_stock_level && (
-                            <Badge className="bg-red-100 text-red-700 border-red-200">Low</Badge>
-                          )}
-                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex gap-2">
@@ -481,21 +439,15 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
             <FormField label="Fornitore">
               <Input {...form.register('supplier')} />
             </FormField>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="Costo unitario (€)" required>
                 <Input type="number" step="0.01" {...form.register('cost_per_unit', { valueAsNumber: true })} />
               </FormField>
-              <FormField label="Stock attuale">
-                <Input type="number" step="0.001" {...form.register('current_stock', { valueAsNumber: true })} />
-              </FormField>
-              <FormField label="Stock minimo">
-                <Input type="number" step="0.001" {...form.register('min_stock_level', { valueAsNumber: true })} />
-              </FormField>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="Lead time (giorni)">
                 <Input type="number" {...form.register('lead_time_days', { valueAsNumber: true })} />
               </FormField>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="Scheda di sicurezza (URL)">
                 <Input type="url" {...form.register('sds_url')} />
               </FormField>
@@ -562,6 +514,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
     createRecipe,
     updateRecipe,
     duplicateRecipe,
+    deleteRecipe,
     fetchIngredients,
     saveIngredients,
     generateProductionSheet
@@ -574,6 +527,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
   const [ingredients, setIngredients] = useState<LabRecipeIngredientWithMaterial[]>([]);
   const [ingredientsLoading, setIngredientsLoading] = useState(false);
   const [sheetPayload, setSheetPayload] = useState<ProductionSheetPayload | null>(null);
+  const sheetPrintRef = useRef<HTMLDivElement | null>(null);
 
   const recipeForm = useForm<RecipeFormValues>({
     defaultValues: {
@@ -655,6 +609,24 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
       });
     }
     setDialogOpen(true);
+  };
+
+  const handleDeleteRecipe = async (recipe: LabRecipe, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!window.confirm(`Eliminare definitivamente la ricetta ${recipe.name}?`)) return;
+    try {
+      await deleteRecipe(recipe.id);
+      notify({ type: 'success', title: 'Ricetta eliminata' });
+      if (selectedRecipeId === recipe.id) {
+        setSelectedRecipeId(recipes.filter(r => r.id !== recipe.id)[0]?.id ?? null);
+      }
+    } catch (err) {
+      notify({
+        type: 'error',
+        title: 'Errore eliminazione',
+        message: err instanceof Error ? err.message : 'Operazione non riuscita'
+      });
+    }
   };
 
   const submitRecipe = async (values: RecipeFormValues) => {
@@ -761,6 +733,34 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
     }
   }, [generateProductionSheet, notify, selectedRecipe]);
 
+  const handlePrintSheet = useCallback(() => {
+    if (!sheetPayload || !sheetPrintRef.current) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Scheda produzione ${sheetPayload.header.code}</title>
+          <style>
+            @page { size: A4; margin: 20mm; }
+            body { font-family: 'Inter', Arial, sans-serif; color: #111827; }
+            h1 { font-size: 20px; margin-bottom: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #e5e7eb; padding: 8px; font-size: 12px; text-align: left; }
+            th { background: #f3f4f6; text-transform: uppercase; letter-spacing: 0.04em; }
+            .section { margin-top: 16px; }
+          </style>
+        </head>
+        <body>
+          ${sheetPrintRef.current.innerHTML}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  }, [sheetPayload]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -829,13 +829,20 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                   <p>
                     Batch: <span className="font-medium">{recipe.batch_size ?? 0} {recipe.unit ?? 'kg'}</span>
                   </p>
-                  <div className="flex gap-2 pt-2">
-                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); openRecipeDialog(recipe); }}>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openRecipeDialog(recipe);
+                      }}
+                    >
                       Modifica
                     </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      className="bg-amber-500 hover:bg-amber-600 text-white"
                       onClick={async (event) => {
                         event.stopPropagation();
                         try {
@@ -852,6 +859,13 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                       }}
                     >
                       Duplica
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                      onClick={(event) => handleDeleteRecipe(recipe, event)}
+                    >
+                      Elimina
                     </Button>
                   </div>
                 </CardContent>
@@ -885,7 +899,20 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
 
               <div className="grid md:grid-cols-3 gap-4">
                 <InfoCard label="Batch" value={`${selectedRecipe.batch_size ?? 0} ${selectedRecipe.unit ?? 'kg'}`} />
-                <InfoCard label="Target Cost" value={formatCurrency(selectedRecipe.target_cost)} />
+                <InfoCard
+                  label="Costo stimato"
+                  value={formatCurrency(
+                    ingredients.reduce((sum, ingredient) => {
+                      const qty =
+                        ingredient.quantity ??
+                        calculateIngredientQuantity(ingredient.percentage, selectedRecipe.batch_size ?? 0);
+                      const costShare =
+                        ingredient.cost_share ??
+                        calculateIngredientCost(qty, ingredient.raw_material?.cost_per_unit ?? 0);
+                      return sum + costShare;
+                    }, 0)
+                  )}
+                />
                 <InfoCard label="Stato" value={selectedRecipe.status} />
               </div>
 
@@ -961,7 +988,25 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                 <Input {...recipeForm.register('code', { required: true })} />
               </FormField>
               <FormField label="Stato" required>
-                <Input {...recipeForm.register('status', { required: true })} />
+                <Controller
+                  name="status"
+                  control={recipeForm.control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona stato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RECIPE_STATUSES.map(statusOption => (
+                          <SelectItem key={statusOption} value={statusOption}>
+                            {statusOption}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </FormField>
             </div>
             <FormField label="Nome" required>
@@ -1099,7 +1144,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
           {!sheetPayload ? (
             <div className="text-center py-8 text-gray-500">Nessun dato disponibile.</div>
           ) : (
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2" ref={sheetPrintRef}>
               <div>
                 <p className="text-xs uppercase text-gray-500">Ricetta</p>
                 <p className="text-lg font-semibold text-gray-900">
@@ -1149,9 +1194,13 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
               )}
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex flex-wrap gap-2 justify-end">
             <Button variant="outline" onClick={() => setSheetDialogOpen(false)}>
               Chiudi
+            </Button>
+            <Button onClick={handlePrintSheet} disabled={!sheetPayload}>
+              <Printer className="w-4 h-4 mr-2" />
+              Stampa A4
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1524,20 +1573,11 @@ const SamplesTab = ({ hook, recipes, customers, customersLoading, profileId, not
  * Insights Tab
  */
 type InsightsTabProps = {
-  materials: LabRawMaterial[];
   recipes: LabRecipe[];
   samples: LabSampleWithRelations[];
 };
 
-const InsightsTab = ({ materials, recipes, samples }: InsightsTabProps) => {
-  const lowStock = materials.filter(
-    (material) =>
-      material.min_stock_level !== null &&
-      material.min_stock_level !== undefined &&
-      material.current_stock !== null &&
-      material.current_stock < material.min_stock_level
-  );
-
+const InsightsTab = ({ recipes, samples }: InsightsTabProps) => {
   const highPrioritySamples = samples.filter((sample) => sample.priority === 'high');
   const recentRecipes = [...recipes].sort(
     (a, b) => new Date(b.updated_at ?? '').getTime() - new Date(a.updated_at ?? '').getTime()
@@ -1545,33 +1585,6 @@ const InsightsTab = ({ materials, recipes, samples }: InsightsTabProps) => {
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
-      <Card className="p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Sparkles className="w-5 h-5 text-rose-500" />
-          <div>
-            <p className="text-sm uppercase tracking-wide text-rose-500 font-semibold">Alert materia prima</p>
-            <h3 className="text-xl font-semibold text-gray-900">Stock critico ({lowStock.length})</h3>
-          </div>
-        </div>
-        {lowStock.length === 0 ? (
-          <p className="text-sm text-gray-500">Nessuna materia prima sotto soglia.</p>
-        ) : (
-          <ul className="space-y-3">
-            {lowStock.map((material) => (
-              <li key={material.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium text-gray-900">{material.name}</p>
-                  <p className="text-xs text-gray-500">{material.supplier || 'Fornitore non specificato'}</p>
-                </div>
-                <Badge className="bg-red-100 text-red-700">
-                  {material.current_stock ?? 0}/{material.min_stock_level} {material.unit}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
       <Card className="p-6 space-y-4">
         <div className="flex items-center gap-3">
           <ClipboardList className="w-5 h-5 text-emerald-500" />

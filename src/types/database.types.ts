@@ -527,8 +527,6 @@ export interface Database {
           cost_per_unit: number
           density: number | null
           lead_time_days: number | null
-          min_stock_level: number | null
-          current_stock: number | null
           safety_notes: string | null
           sds_url: string | null
           attachments: Json
@@ -546,8 +544,6 @@ export interface Database {
           cost_per_unit?: number
           density?: number | null
           lead_time_days?: number | null
-          min_stock_level?: number | null
-          current_stock?: number | null
           safety_notes?: string | null
           sds_url?: string | null
           attachments?: Json
@@ -565,8 +561,6 @@ export interface Database {
           cost_per_unit?: number
           density?: number | null
           lead_time_days?: number | null
-          min_stock_level?: number | null
-          current_stock?: number | null
           safety_notes?: string | null
           sds_url?: string | null
           attachments?: Json

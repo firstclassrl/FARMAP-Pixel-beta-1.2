@@ -44,8 +44,6 @@ CREATE TABLE IF NOT EXISTS lab_raw_materials (
   cost_per_unit numeric(12,4) NOT NULL DEFAULT 0,
   density numeric(10,4),
   lead_time_days integer,
-  min_stock_level numeric(12,3),
-  current_stock numeric(12,3),
   safety_notes text,
   sds_url text,
   attachments jsonb NOT NULL DEFAULT '[]'::jsonb,

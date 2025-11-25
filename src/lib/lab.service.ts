@@ -233,6 +233,13 @@ export async function updateLabRecipe(id: string, updates: LabRecipeUpdate) {
   );
 }
 
+export async function deleteLabRecipe(id: string) {
+  const { error } = await supabase.from('lab_recipes').delete().eq('id', id);
+  if (error) {
+    throw new Error(error.message || defaultErrorMessage);
+  }
+}
+
 export async function duplicateLabRecipe(recipeId: string, overrides?: Partial<LabRecipeInsert>) {
   const recipe = await getLabRecipeById(recipeId);
   const cloneBase: LabRecipeInsert = {

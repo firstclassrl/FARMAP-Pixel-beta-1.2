@@ -4,6 +4,7 @@ import {
   createLabRawMaterial,
   createLabRecipe,
   createLabSample,
+  deleteLabRecipe,
   deleteLabRawMaterial,
   duplicateLabRecipe,
   getLabRecipeById,
@@ -140,6 +141,11 @@ export function useLabRecipes(initialSearch = '') {
     return clone;
   }, []);
 
+  const remove = useCallback(async (id: string) => {
+    await deleteLabRecipe(id);
+    setRecipes(prev => prev.filter(recipe => recipe.id !== id));
+  }, []);
+
   const persistIngredients = useCallback(async (recipeId: string, ingredients: LabRecipeIngredientInsert[]) => {
     return saveLabRecipeIngredients(recipeId, ingredients);
   }, []);
@@ -173,6 +179,7 @@ export function useLabRecipes(initialSearch = '') {
     createRecipe: create,
     updateRecipe: update,
     duplicateRecipe: duplicate,
+    deleteRecipe: remove,
     saveIngredients: persistIngredients,
     fetchIngredients,
     fetchRecipe,

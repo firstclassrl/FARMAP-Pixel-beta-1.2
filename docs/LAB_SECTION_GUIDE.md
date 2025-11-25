@@ -28,8 +28,8 @@ Questa guida descrive come abilitare la nuova area **LAB** (materie prime, ricet
 ## 3. Funzionalità principali
 
 ### Materie prime
-- Anagrafica completa (fornitore, costi, note di sicurezza, stock).
-- Modale CRUD con validazione e alert su scorte minime (visibile nella tab Insights).
+- Anagrafica completa (fornitore, costi, note di sicurezza).
+- Modale CRUD con validazione e allegati SDS.
 
 ### Ricette
 - Lista ricette con versioning rapido (duplica versione +1).
@@ -41,7 +41,7 @@ Questa guida descrive come abilitare la nuova area **LAB** (materie prime, ricet
 - Modale per creare o modificare richieste conto terzi con selezione ricetta e cliente.
 
 ### Insights
-- Alert stock, campionature ad alta priorità, ultime ricette aggiornate.
+- Campionature ad alta priorità e ultime ricette aggiornate.
 
 ## 4. Workflow suggerito
 
@@ -54,7 +54,7 @@ Questa guida descrive come abilitare la nuova area **LAB** (materie prime, ricet
 
 - Aggiungere allegati PDF alle ricette/campionature (colonne `attachments` già pronte).
 - Esportare la scheda produzione in PDF usando i componenti di stampa già presenti nel progetto.
-- Automatizzare notifiche quando lo stock di una materia scende sotto soglia (`Insights` mette in evidenza gli alert già oggi).
+- Integrare notifiche per ricordare le campionature in prossima consegna.
 
 ## 6. Test rapidi
 
