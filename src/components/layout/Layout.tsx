@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { LoadingFallback } from '../LoadingFallback';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '../ui/button';
+import ReminderListener from '../ReminderListener';
 
 export const Layout = () => {
   const { sidebarCollapsed } = useUI();
@@ -41,6 +42,7 @@ export const Layout = () => {
       
       <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         <Header />
+        <ReminderListener />
         
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-full mx-auto">
