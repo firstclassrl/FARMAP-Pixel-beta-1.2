@@ -790,6 +790,16 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
       items: []
     }
   });
+  const watchedItems = ingredientsForm.watch('items');
+  const totalPercentage = useMemo(
+    () =>
+      watchedItems.reduce(
+        (sum, item) =>
+          sum + (Number.isFinite(item.percentage) ? Number(item.percentage) : 0),
+        0
+      ),
+    [watchedItems]
+  );
 
   const ingredientsArray = useFieldArray({
     control: ingredientsForm.control,
