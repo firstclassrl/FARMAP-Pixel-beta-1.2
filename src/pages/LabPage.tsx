@@ -1,4 +1,5 @@
-import { CSSProperties, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Ref, forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import {
@@ -55,14 +56,16 @@ type CustomerLite = {
 const TAB_ITEMS = [
   { value: 'materials', label: 'Materie Prime', description: 'Anagrafica ingredienti e materie prime' },
   { value: 'recipes', label: 'Ricette', description: 'Percentuali, costi e schede produzione' },
-  { value: 'samples', label: 'Campionature', description: 'Richieste conto terzi e follow-up' },
-  { value: 'insights', label: 'Insights', description: 'Metriche di laboratorio e alert' }
+  { value: 'samples', label: 'Campionature', description: 'Richieste conto terzi e follow-up' }
 ] as const;
 
 const RECIPE_STATUSES = ['draft', 'testing', 'approved', 'archived'] as const;
 
 const formatCurrency = (value: number | null | undefined) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
+
+const formatQuantity = (value: number | null | undefined) =>
+  new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(value || 0);
 
 const CLASS_BADGE_COLORS = [
   'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -81,6 +84,249 @@ const getClassBadgeClasses = (classId?: string | null) => {
   if (!classId) return 'bg-gray-100 text-gray-700 border-gray-200';
   const hash = Array.from(classId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return CLASS_BADGE_COLORS[hash % CLASS_BADGE_COLORS.length];
+};
+
+const PRODUCTION_SHEET_STYLES = `
+:root {
+  --ps-bg: #ffffff;
+  --ps-muted: #6b7280;
+  --ps-strong: #0f172a;
+  --ps-border: #e5e7eb;
+  --ps-accent: #f43f5e;
+  --ps-card-bg: #fdf2f8;
+  --ps-radius: 24px;
+  --ps-card-radius: 20px;
+  --ps-font: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body.production-sheet-print {
+  background: #f8fafc;
+  padding: 32px;
+}
+
+.production-sheet {
+  background: var(--ps-bg);
+  border-radius: var(--ps-radius);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12);
+  padding: 32px;
+  font-family: var(--ps-font);
+  color: var(--ps-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.production-sheet__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--ps-border);
+  padding-bottom: 16px;
+}
+
+.production-sheet__eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--ps-muted);
+  margin-bottom: 6px;
+}
+
+.production-sheet__title {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.production-sheet__meta,
+.production-sheet__meta-block span {
+  color: var(--ps-muted);
+  font-size: 14px;
+}
+
+.production-sheet__meta-block {
+  border-left: 2px solid var(--ps-border);
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.production-sheet__meta-block strong {
+  font-size: 16px;
+}
+
+.production-sheet__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.production-sheet__summary-card {
+  border-radius: var(--ps-card-radius);
+  border: 1px solid var(--ps-border);
+  background: #f8fafc;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.production-sheet__summary-card--highlight {
+  background: linear-gradient(135deg, #fee2e2, #fce7f3);
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+.production-sheet__summary-label {
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ps-muted);
+}
+
+.production-sheet__summary-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.production-sheet__table-wrapper {
+  border: 1px solid var(--ps-border);
+  border-radius: var(--ps-card-radius);
+  overflow: hidden;
+}
+
+.production-sheet__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.production-sheet__table th {
+  background: #f8fafc;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+  color: var(--ps-muted);
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--ps-border);
+}
+
+.production-sheet__table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+  vertical-align: top;
+}
+
+.production-sheet__ingredient-name {
+  font-weight: 600;
+  color: var(--ps-strong);
+}
+
+.production-sheet__ingredient-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--ps-muted);
+}
+
+.production-sheet__phase-row {
+  background: #fff1f2;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: #be123c;
+}
+
+.production-sheet__instructions {
+  border-radius: var(--ps-card-radius);
+  border: 1px dashed rgba(244, 63, 94, 0.4);
+  background: #fff7fb;
+  padding: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ps-strong);
+}
+
+.production-sheet__section-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: var(--ps-strong);
+}
+
+.production-sheet__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.production-sheet__status-card {
+  border: 1px solid rgba(79, 70, 229, 0.25);
+  border-radius: var(--ps-card-radius);
+  background: linear-gradient(135deg, rgba(199, 210, 254, 0.4), rgba(254, 202, 202, 0.3));
+  padding: 18px;
+}
+
+.production-sheet__status-card h5 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: #4c1d95;
+  margin-bottom: 8px;
+}
+
+.production-sheet__status-card p {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #312e81;
+}
+
+.production-sheet__empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--ps-muted);
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .production-sheet {
+    padding: 20px;
+  }
+  .production-sheet__header {
+    flex-direction: column;
+  }
+  .production-sheet__meta-block {
+    border-left: none;
+    border-top: 2px solid var(--ps-border);
+    padding: 12px 0 0;
+  }
+  .production-sheet__table th,
+  .production-sheet__table td {
+    font-size: 12px;
+  }
+}
+
+@media print {
+  body.production-sheet-print {
+    padding: 10mm;
+  }
+  .production-sheet {
+    box-shadow: none;
+    border: 1px solid var(--ps-border);
+  }
+}
+`;
+
+const ensureProductionSheetStylesInjected = () => {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('production-sheet-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'production-sheet-styles';
+  style.textContent = PRODUCTION_SHEET_STYLES;
+  document.head.appendChild(style);
 };
 
 const LabPage = () => {
@@ -215,9 +461,6 @@ const LabPage = () => {
             />
           </Tabs.Content>
 
-          <Tabs.Content value="insights">
-            <InsightsTab recipes={recipesHook.recipes} samples={samplesHook.samples} />
-          </Tabs.Content>
         </div>
       </Tabs.Root>
     </div>
@@ -613,6 +856,52 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={materialPickerOpen} onOpenChange={(open) => {
+        setMaterialPickerOpen(open);
+        if (!open) setMaterialSearchTerm('');
+      }}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Seleziona materia prima</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={materialSearchTerm}
+              onChange={(event) => setMaterialSearchTerm(event.target.value)}
+              placeholder="Cerca per nome, codice o classe..."
+              autoFocus
+            />
+            <div className="max-h-[420px] overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
+              {filteredMaterials.length === 0 ? (
+                <p className="p-4 text-sm text-gray-500">Nessuna materia prima trovata.</p>
+              ) : (
+                filteredMaterials.map((material) => (
+                  <button
+                    key={material.id}
+                    type="button"
+                    className="w-full text-left p-3 hover:bg-gray-50 flex items-center justify-between gap-4"
+                    onClick={() => handleMaterialSelection(material)}
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">{material.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {material.code} · {material.material_class?.name ?? 'Nessuna classe'}
+                      </p>
+                    </div>
+                    <span
+                      className="inline-flex items-center rounded-md border px-3 py-1 text-xs font-semibold"
+                      style={getClassColorStyle(material.material_class?.id)}
+                    >
+                      Seleziona
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={manageClassesOpen} onOpenChange={setManageClassesOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -789,7 +1078,6 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
   const [ingredients, setIngredients] = useState<LabRecipeIngredientWithMaterial[]>([]);
   const [ingredientsLoading, setIngredientsLoading] = useState(false);
   const [sheetPayload, setSheetPayload] = useState<ProductionSheetPayload | null>(null);
-  const sheetPrintRef = useRef<HTMLDivElement | null>(null);
   const [versions, setVersions] = useState<LabRecipeVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [versionActionLoading, setVersionActionLoading] = useState(false);
@@ -819,11 +1107,43 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
       ),
     [watchedItems]
   );
+  const openMaterialPicker = useCallback(() => {
+    if (!materials.length) return;
+    setMaterialSearchTerm('');
+    setMaterialPickerOpen(true);
+  }, [materials.length]);
 
   const ingredientsArray = useFieldArray({
     control: ingredientsForm.control,
     name: 'items'
   });
+  const [materialPickerOpen, setMaterialPickerOpen] = useState(false);
+  const [materialSearchTerm, setMaterialSearchTerm] = useState('');
+  const filteredMaterials = useMemo(() => {
+    const term = materialSearchTerm.trim().toLowerCase();
+    if (!term) return materials;
+    return materials.filter((material) => {
+      const corpus = [material.name, material.code, material.material_class?.name]
+        .filter(Boolean)
+        .map((value) => value!.toLowerCase());
+      return corpus.some((value) => value.includes(term));
+    });
+  }, [materialSearchTerm, materials]);
+
+  const handleMaterialSelection = useCallback(
+    (material?: LabRawMaterial) => {
+      const fallbackId = material?.id ?? materials[0]?.id ?? '';
+      if (!fallbackId) return;
+      ingredientsArray.append({
+        raw_material_id: fallbackId,
+        percentage: 0,
+        notes: '',
+        phase: 'Acqua'
+      });
+      setMaterialPickerOpen(false);
+    },
+    [ingredientsArray, materials]
+  );
 
   const selectedRecipe = useMemo(() => {
     if (!recipes.length) return null;
@@ -1077,31 +1397,27 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
   }, [generateProductionSheet, notify, selectedRecipe]);
 
   const handlePrintSheet = useCallback(() => {
-    if (!sheetPayload || !sheetPrintRef.current) return;
+    if (!sheetPayload) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    const markup = renderProductionSheetMarkup(sheetPayload);
     printWindow.document.write(`
       <html>
         <head>
           <title>Scheda produzione ${sheetPayload.header.code}</title>
-          <style>
-            @page { size: A4; margin: 20mm; }
-            body { font-family: 'Inter', Arial, sans-serif; color: #111827; }
-            h1 { font-size: 20px; margin-bottom: 4px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #e5e7eb; padding: 8px; font-size: 12px; text-align: left; }
-            th { background: #f3f4f6; text-transform: uppercase; letter-spacing: 0.04em; }
-            .section { margin-top: 16px; }
-          </style>
+          <style>${PRODUCTION_SHEET_STYLES}</style>
         </head>
-        <body>
-          ${sheetPrintRef.current.innerHTML}
+        <body class="production-sheet-print">
+          ${markup}
         </body>
       </html>
     `);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
+    setTimeout(() => {
+      printWindow.print();
+    }, 50);
   }, [sheetPayload]);
 
   return (
@@ -1455,7 +1771,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
 
       {/* Ingredients dialog */}
       <Dialog open={ingredientsDialogOpen} onOpenChange={setIngredientsDialogOpen}>
-        <DialogContent className="sm:max-w-5xl">
+        <DialogContent className="sm:max-w-6xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Ingredienti ricetta</DialogTitle>
           </DialogHeader>
@@ -1464,8 +1780,8 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
               Aggiungi almeno una materia prima per poter comporre la ricetta.
             </div>
           )}
-          <form onSubmit={ingredientsForm.handleSubmit(submitIngredients)} className="space-y-4">
-        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+          <form onSubmit={ingredientsForm.handleSubmit(submitIngredients)} className="flex h-full flex-col gap-4">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-2">
               {ingredientsArray.fields.map((field, index) => (
                 <div key={field.id} className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
                   <div className="flex items-center justify-between">
@@ -1486,25 +1802,46 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                         name={`items.${index}.raw_material_id`}
                         control={ingredientsForm.control}
                         rules={{ required: true }}
-                        render={({ field }) => (
-                          <Select value={field.value} onValueChange={field.onChange} disabled={!materials.length || materialsLoading}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleziona" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {materials.map((material) => (
-                                <SelectItem key={material.id} value={material.id}>
-                                  <div className="flex flex-col">
-                                    <span className="font-medium text-sm">{material.name} · {material.code}</span>
-                                    {material.material_class && (
-                                      <span className="text-xs text-gray-500">{material.material_class.name}</span>
-                                    )}
+                        render={({ field }) => {
+                          const selectedMaterial = materials.find((material) => material.id === field.value);
+                          return (
+                            <div className="space-y-2">
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                disabled={!materials.length || materialsLoading}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleziona" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {materials.map((material) => (
+                                    <SelectItem key={material.id} value={material.id}>
+                                      {material.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Codice</p>
+                                  <div className="mt-1 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2 font-medium text-gray-900">
+                                    {selectedMaterial?.code ?? '—'}
                                   </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Classe</p>
+                                  <div
+                                    className="mt-1 rounded-lg border px-3 py-2 font-semibold text-xs"
+                                    style={getClassColorStyle(selectedMaterial?.material_class?.id)}
+                                  >
+                                    {selectedMaterial?.material_class?.name ?? 'Nessuna classe'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }}
                       />
                     </FormField>
                     <FormField label="Percentuale (%)" required>
@@ -1556,19 +1893,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                 </span>
                 {' '} / 100%
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  ingredientsArray.append({
-                    raw_material_id: materials[0]?.id || '',
-                    percentage: 0,
-                    notes: '',
-                    phase: 'Acqua'
-                  })
-                }
-                disabled={!materials.length}
-              >
+              <Button type="button" variant="outline" onClick={openMaterialPicker} disabled={!materials.length}>
                 <Plus className="w-4 h-4 mr-2" />
                 Aggiungi ingrediente
               </Button>
@@ -1588,92 +1913,28 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
 
       {/* Production sheet dialog */}
       <Dialog open={sheetDialogOpen} onOpenChange={setSheetDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Scheda produzione</DialogTitle>
-          </DialogHeader>
-          {!sheetPayload ? (
-            <div className="text-center py-8 text-gray-500">Nessun dato disponibile.</div>
-          ) : (
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2" ref={sheetPrintRef}>
-              <div>
-                <p className="text-xs uppercase text-gray-500">Ricetta</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {sheetPayload.header.name} · {sheetPayload.header.code}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Batch {sheetPayload.header.batchSize} {sheetPayload.header.unit} · Versione {sheetPayload.header.version}
-                </p>
-              </div>
-              <div className="grid md:grid-cols-3 gap-3 text-sm">
-                <InfoCard label="Costo lotto stimato" value={formatCurrency(sheetPayload.summary.estimatedBatchCost)} />
-                <InfoCard label="Costo unitario" value={formatCurrency(sheetPayload.summary.estimatedUnitCost)} />
-                <InfoCard label="Totale %" value={`${sheetPayload.summary.totalPercentage.toFixed(2)}%`} />
-              </div>
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
-                    <tr>
-                      <th className="px-3 py-2">Ingrediente</th>
-                      <th className="px-3 py-2">% lotto</th>
-                      <th className="px-3 py-2">Fase</th>
-                      <th className="px-3 py-2">Quantità</th>
-                      <th className="px-3 py-2">Costo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {['Acqua', 'Olio', 'Polveri'].map((phaseKey) => {
-                      const phaseItems = sheetPayload.ingredients.filter(
-                        (ing) => (ing.phase ?? 'Acqua') === phaseKey
-                      );
-                      if (!phaseItems.length) return null;
-                      return (
-                        <Fragment key={phaseKey}>
-                          <tr className="bg-gray-100">
-                            <td colSpan={5} className="px 3 py-2 font-semibold text-gray-700 uppercase text-sm">
-                              Fase {phaseKey}
-                            </td>
-                          </tr>
-                          {phaseItems.map((row, index) => (
-                            <tr key={row.id ?? `${phaseKey}-${index}`}>
-                              <td className="px-3 py-2 font-medium text-gray-900">
-                                {row.name}
-                                <span className="block text-xs text-gray-500">{row.code}</span>
-                                {row.className && (
-                                  <span className="block text-xs text-gray-500">{row.className}</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2">{row.percentage}%</td>
-                              <td className="px-3 py-2">{row.phase ?? 'Acqua'}</td>
-                              <td className="px-3 py-2">
-                                {row.quantity} {sheetPayload.header.unit}
-                              </td>
-                              <td className="px-3 py-2">{formatCurrency(row.costShare)}</td>
-                            </tr>
-                          ))}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {sheetPayload.steps.instructions && (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm">
-                  <p className="font-semibold mb-1">Istruzioni</p>
-                  <p>{sheetPayload.steps.instructions}</p>
-                </div>
+        <DialogContent className="max-w-[96vw] w-[96vw] h-[92vh] max-h-[92vh] p-0">
+          <div className="flex h-full flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4">
+              <DialogTitle>Scheda produzione</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto px-6 pb-6">
+              {!sheetPayload ? (
+                <div className="text-center py-8 text-gray-500">Nessun dato disponibile.</div>
+              ) : (
+                <ProductionSheet payload={sheetPayload} />
               )}
             </div>
-          )}
-          <DialogFooter className="flex flex-wrap gap-2 justify-end">
-            <Button variant="outline" onClick={() => setSheetDialogOpen(false)}>
-              Chiudi
-            </Button>
-            <Button onClick={handlePrintSheet} disabled={!sheetPayload}>
-              <Printer className="w-4 h-4 mr-2" />
-              Stampa A4
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="border-t border-gray-100 px-6 py-4 flex flex-wrap gap-2 justify-end">
+              <Button variant="outline" onClick={() => setSheetDialogOpen(false)}>
+                Chiudi
+              </Button>
+              <Button onClick={handlePrintSheet} disabled={!sheetPayload}>
+                <Printer className="w-4 h-4 mr-2" />
+                Stampa A4
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -2043,72 +2304,6 @@ const SamplesTab = ({ hook, recipes, customers, customersLoading, profileId, not
 /**
  * Insights Tab
  */
-type InsightsTabProps = {
-  recipes: LabRecipe[];
-  samples: LabSampleWithRelations[];
-};
-
-const InsightsTab = ({ recipes, samples }: InsightsTabProps) => {
-  const highPrioritySamples = samples.filter((sample) => sample.priority === 'high');
-  const recentRecipes = [...recipes].sort(
-    (a, b) => new Date(b.updated_at ?? '').getTime() - new Date(a.updated_at ?? '').getTime()
-  ).slice(0, 3);
-
-  return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      <Card className="p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <ClipboardList className="w-5 h-5 text-emerald-500" />
-          <div>
-            <p className="text-sm uppercase tracking-wide text-emerald-500 font-semibold">Campionature</p>
-            <h3 className="text-xl font-semibold text-gray-900">Priorità alta ({highPrioritySamples.length})</h3>
-          </div>
-        </div>
-        {highPrioritySamples.length === 0 ? (
-          <p className="text-sm text-gray-500">Nessuna richiesta urgente.</p>
-        ) : (
-          <ul className="space-y-3">
-            {highPrioritySamples.slice(0, 5).map((sample) => (
-              <li key={sample.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium text-gray-900">{sample.project_name}</p>
-                  <p className="text-xs text-gray-500">{sample.customer?.company_name || 'Cliente interno'}</p>
-                </div>
-                <Badge variant="outline">{sample.status}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card className="p-6 space-y-4 lg:col-span-2">
-        <div className="flex items-center gap-3">
-          <FileText className="w-5 h-5 text-indigo-500" />
-          <div>
-            <p className="text-sm uppercase tracking-wide text-indigo-500 font-semibold">Ricette aggiornate</p>
-            <h3 className="text-xl font-semibold text-gray-900">Ultimi aggiornamenti</h3>
-          </div>
-        </div>
-        {recentRecipes.length === 0 ? (
-          <p className="text-sm text-gray-500">Non ci sono modifiche recenti alle ricette.</p>
-        ) : (
-          <div className="grid md:grid-cols-3 gap-4">
-            {recentRecipes.map((recipe) => (
-              <div key={recipe.id} className="border border-gray-200 rounded-xl p-4 text-sm">
-                <p className="text-xs text-gray-500 uppercase">Aggiornata il {new Date(recipe.updated_at ?? recipe.created_at).toLocaleDateString('it-IT')}</p>
-                <p className="font-semibold text-gray-900">{recipe.name}</p>
-                <p className="text-xs text-gray-500">
-                  Batch {recipe.batch_size ?? 0} {recipe.unit ?? 'kg'} · Stato {recipe.status}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-};
-
 /**
  * Shared UI helpers
  */
@@ -2150,6 +2345,189 @@ const FormField = ({
     {children}
   </div>
 );
+
+type ProductionSheetProps = {
+  payload: ProductionSheetPayload;
+  className?: string;
+};
+
+type ProductionSheetSection = {
+  phase: string;
+  items: ProductionSheetPayload['ingredients'];
+};
+
+const ProductionSheetContent = ({
+  payload,
+  className,
+  innerRef
+}: ProductionSheetProps & { innerRef?: Ref<HTMLDivElement> }) => {
+  const groupedPhases = useMemo<ProductionSheetSection[]>(() => {
+    const map = new Map<string, ProductionSheetPayload['ingredients']>();
+    payload.ingredients.forEach((ingredient) => {
+      const key = ingredient.phase ?? 'Generale';
+      const existing = map.get(key);
+      if (existing) {
+        existing.push(ingredient);
+      } else {
+        map.set(key, [ingredient]);
+      }
+    });
+    const orderedPhases = [
+      ...LAB_MIX_PHASES.filter((phase) => map.has(phase)),
+      ...Array.from(map.keys()).filter((phase) => !LAB_MIX_PHASES.includes(phase as LabMixPhase)).sort()
+    ];
+    return orderedPhases.map((phase) => ({
+      phase,
+      items: map.get(phase) ?? []
+    }));
+  }, [payload.ingredients]);
+
+  const lastReviewLabel = payload.header.lastReviewAt
+    ? new Date(payload.header.lastReviewAt).toLocaleDateString('it-IT')
+    : '—';
+
+  return (
+    <div ref={innerRef} className={cn('production-sheet', className)}>
+      <div className="production-sheet__header">
+        <div>
+          <p className="production-sheet__eyebrow">Ricetta</p>
+          <h2 className="production-sheet__title">
+            {payload.header.name} · {payload.header.code}
+          </h2>
+          <p className="production-sheet__meta">
+            Batch {payload.header.batchSize} {payload.header.unit} · Versione {payload.header.version}
+          </p>
+        </div>
+        <div className="production-sheet__meta-block">
+          <span>Ultima revisione</span>
+          <strong>{lastReviewLabel}</strong>
+          <span>
+            Totale lotto: {formatQuantity(payload.summary.totalQuantity)} {payload.header.unit}
+          </span>
+        </div>
+      </div>
+
+      <div className="production-sheet__summary">
+        <div className="production-sheet__summary-card production-sheet__summary-card--highlight">
+          <span className="production-sheet__summary-label">Costo lotto stimato</span>
+          <span className="production-sheet__summary-value">
+            {formatCurrency(payload.summary.estimatedBatchCost)}
+          </span>
+        </div>
+        <div className="production-sheet__summary-card">
+          <span className="production-sheet__summary-label">Costo unitario</span>
+          <span className="production-sheet__summary-value">
+            {formatCurrency(payload.summary.estimatedUnitCost)}
+          </span>
+        </div>
+        <div className="production-sheet__summary-card">
+          <span className="production-sheet__summary-label">Target cost</span>
+          <span className="production-sheet__summary-value">
+            {formatCurrency(payload.summary.targetCost)}
+          </span>
+        </div>
+        <div className="production-sheet__summary-card">
+          <span className="production-sheet__summary-label">Totale percentuali</span>
+          <span className="production-sheet__summary-value">
+            {payload.summary.totalPercentage.toFixed(2)}%
+          </span>
+        </div>
+      </div>
+
+      <div className="production-sheet__stats">
+        <div className="production-sheet__status-card">
+          <h5>Ingredienti</h5>
+          <p>{payload.summary.ingredientsCount}</p>
+        </div>
+        <div className="production-sheet__status-card">
+          <h5>Quantità totale</h5>
+          <p>
+            {formatQuantity(payload.summary.totalQuantity)} {payload.header.unit}
+          </p>
+        </div>
+      </div>
+
+      <div className="production-sheet__table-wrapper">
+        <table className="production-sheet__table">
+          <thead>
+            <tr>
+              <th>Ingrediente</th>
+              <th>% lotto</th>
+              <th>Fase</th>
+              <th>Quantità</th>
+              <th>Costo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groupedPhases.length === 0 ? (
+              <tr>
+                <td colSpan={5}>
+                  <div className="production-sheet__empty">Nessun ingrediente disponibile.</div>
+                </td>
+              </tr>
+            ) : (
+              groupedPhases.map(({ phase, items }) => (
+                <Fragment key={phase}>
+                  <tr className="production-sheet__phase-row">
+                    <td colSpan={5}>Fase {phase}</td>
+                  </tr>
+                  {items.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <span className="production-sheet__ingredient-name">{row.name}</span>
+                        <span className="production-sheet__ingredient-meta">{row.code}</span>
+                        {row.className && (
+                          <span className="production-sheet__ingredient-meta">{row.className}</span>
+                        )}
+                        {row.supplier && (
+                          <span className="production-sheet__ingredient-meta">Fornitore: {row.supplier}</span>
+                        )}
+                      </td>
+                      <td>{row.percentage}%</td>
+                      <td>{row.phase ?? 'Generale'}</td>
+                      <td>
+                        {formatQuantity(row.quantity)} {payload.header.unit}
+                      </td>
+                      <td>{formatCurrency(row.costShare)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {(payload.steps.instructions || payload.steps.notes) && (
+        <div className="production-sheet__instructions">
+          {payload.steps.instructions && (
+            <>
+              <p className="production-sheet__section-title">Istruzioni operative</p>
+              <p>{payload.steps.instructions}</p>
+            </>
+          )}
+          {payload.steps.notes && (
+            <>
+              <p className="production-sheet__section-title" style={{ marginTop: '16px' }}>
+                Note aggiuntive
+              </p>
+              <p>{payload.steps.notes}</p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ProductionSheet = forwardRef<HTMLDivElement, ProductionSheetProps>(({ payload, className }, ref) => {
+  ensureProductionSheetStylesInjected();
+  return <ProductionSheetContent payload={payload} className={className} innerRef={ref} />;
+});
+ProductionSheet.displayName = 'ProductionSheet';
+
+const renderProductionSheetMarkup = (payload: ProductionSheetPayload) =>
+  renderToStaticMarkup(<ProductionSheetContent payload={payload} />);
 
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
   <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
