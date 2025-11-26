@@ -64,6 +64,25 @@ const RECIPE_STATUSES = ['draft', 'testing', 'approved', 'archived'] as const;
 const formatCurrency = (value: number | null | undefined) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
 
+const CLASS_BADGE_COLORS = [
+  'bg-emerald-50 text-emerald-700 border-emerald-100',
+  'bg-sky-50 text-sky-700 border-sky-100',
+  'bg-amber-50 text-amber-700 border-amber-100',
+  'bg-violet-50 text-violet-700 border-violet-100',
+  'bg-rose-50 text-rose-700 border-rose-100',
+  'bg-cyan-50 text-cyan-700 border-cyan-100',
+  'bg-pink-50 text-pink-700 border-pink-100',
+  'bg-indigo-50 text-indigo-700 border-indigo-100',
+  'bg-lime-50 text-lime-700 border-lime-100',
+  'bg-orange-50 text-orange-700 border-orange-100'
+] as const;
+
+const getClassBadgeClasses = (classId?: string | null) => {
+  if (!classId) return 'bg-gray-100 text-gray-700 border-gray-200';
+  const hash = Array.from(classId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return CLASS_BADGE_COLORS[hash % CLASS_BADGE_COLORS.length];
+};
+
 const LabPage = () => {
   const { profile } = useAuth();
   const { addNotification } = useNotifications();
