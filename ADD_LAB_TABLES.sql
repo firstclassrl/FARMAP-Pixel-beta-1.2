@@ -30,13 +30,27 @@ BEGIN
       'archived'
     );
   END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'lab_mix_phase') THEN
+    CREATE TYPE lab_mix_phase AS ENUM ('Acqua', 'Olio', 'Polveri');
+  END IF;
 END $$;
 
 -- -----------------------------------------------------
--- 2. LAB RAW MATERIALS
+-- 2. LAB RAW MATERIALS CLASSES
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS lab_material_classes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- -----------------------------------------------------
+-- 3. LAB RAW MATERIALS
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS lab_raw_materials (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id uuid REFERENCES lab_material_classes(id),
   code text NOT NULL UNIQUE,
   name text NOT NULL,
   supplier text,
@@ -55,9 +69,10 @@ CREATE TABLE IF NOT EXISTS lab_raw_materials (
 
 CREATE INDEX IF NOT EXISTS idx_lab_raw_materials_supplier ON lab_raw_materials (supplier);
 CREATE INDEX IF NOT EXISTS idx_lab_raw_materials_name ON lab_raw_materials USING gin (to_tsvector('simple', name));
+CREATE INDEX IF NOT EXISTS idx_lab_raw_materials_class ON lab_raw_materials (class_id);
 
 -- -----------------------------------------------------
--- 3. LAB RECIPES
+-- 4. LAB RECIPES
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS lab_recipes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,7 +98,7 @@ CREATE TABLE IF NOT EXISTS lab_recipes (
 CREATE INDEX IF NOT EXISTS idx_lab_recipes_code ON lab_recipes (code);
 
 -- -----------------------------------------------------
--- 4. RECIPE INGREDIENTS (PERCENTAGES + COST)
+-- 5. RECIPE INGREDIENTS (PERCENTAGES + COST)
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS lab_recipe_ingredients (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,6 +109,7 @@ CREATE TABLE IF NOT EXISTS lab_recipe_ingredients (
   cost_share numeric(14,4),
   notes text,
   position integer NOT NULL DEFAULT 0,
+  phase lab_mix_phase DEFAULT 'Acqua',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -101,7 +117,22 @@ CREATE TABLE IF NOT EXISTS lab_recipe_ingredients (
 CREATE INDEX IF NOT EXISTS idx_lab_recipe_ingredients_recipe ON lab_recipe_ingredients (recipe_id);
 
 -- -----------------------------------------------------
--- 5. LAB SAMPLES (CUSTOM BATCHES)
+-- 6. RECIPE VERSIONING HISTORY
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS lab_recipe_versions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  recipe_id uuid NOT NULL REFERENCES lab_recipes(id) ON DELETE CASCADE,
+  version integer NOT NULL,
+  snapshot jsonb NOT NULL,
+  ingredients jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_by uuid REFERENCES profiles(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lab_recipe_versions_recipe ON lab_recipe_versions (recipe_id);
+
+-- -----------------------------------------------------
+-- 7. LAB SAMPLES (CUSTOM BATCHES)
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS lab_samples (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -128,7 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_lab_samples_customer ON lab_samples (customer_id)
 CREATE INDEX IF NOT EXISTS idx_lab_samples_status ON lab_samples (status);
 
 -- -----------------------------------------------------
--- 6. COST VIEW FOR UI/PDF SHEETS
+-- 8. COST VIEW FOR UI/PDF SHEETS
 -- -----------------------------------------------------
 CREATE OR REPLACE VIEW lab_recipe_costs_view AS
 SELECT

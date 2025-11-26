@@ -10,12 +10,14 @@ Questa guida descrive come abilitare la nuova area **LAB** (materie prime, ricet
 
 2. **Schema LAB**
    - Esegui `ADD_LAB_TABLES.sql` per creare:
+     - `lab_material_classes`
      - `lab_raw_materials`
      - `lab_recipes`
-     - `lab_recipe_ingredients`
+     - `lab_recipe_ingredients` (con il campo `phase`)
+     - `lab_recipe_versions`
      - `lab_samples`
      - `lab_recipe_costs_view`
-   - Lo script abilita `pgcrypto`, crea l'enum `lab_sample_status` e configura gli indici principali.
+   - Lo script abilita `pgcrypto`, crea gli enum `lab_sample_status` e `lab_mix_phase` e configura gli indici principali.
 
 > **Nota**: i due script sono indipendenti, ma è consigliato applicarli nell'ordine sopra indicato.
 
@@ -29,12 +31,13 @@ Questa guida descrive come abilitare la nuova area **LAB** (materie prime, ricet
 
 ### Materie prime
 - Anagrafica completa (fornitore, costi, note di sicurezza).
-- Modale CRUD con validazione e allegati SDS.
+- Gestione classi dedicate con elenco, aggiunta ed eliminazione.
+- Modale CRUD con selezione della classe e allegati SDS.
 
 ### Ricette
-- Lista ricette con versioning rapido (duplica versione +1).
-- Editor ingredienti con calcolo automatico quantitativi/costi in base al batch.
-- Generazione scheda produzione (`Scheda produzione`) pronta per la stampa/futuro PDF.
+- Cronologia versioni con snapshot ingredienti e pulsanti “Nuova versione / Ripristina”.
+- Editor ingredienti con calcolo automatico quantitativi/costi e fasi di miscelazione (Acqua, Olio, Polveri).
+- Generazione scheda produzione (`Scheda produzione`) pronta per la stampa A4 e ordinata per fase.
 
 ### Campionature
 - Lista campionature con filtri stato/ricerca, gestione status inline e priorità.
@@ -45,10 +48,11 @@ Questa guida descrive come abilitare la nuova area **LAB** (materie prime, ricet
 
 ## 4. Workflow suggerito
 
-1. **Import iniziale**: popola `lab_raw_materials` (via UI o CSV) con i costi reali.
-2. **Ricette**: crea la prima ricetta, aggiungi ingredienti legandoli alle materie prime.
-3. **Scheda produzione**: usa la scheda generata per condividere il batch con la produzione.
-4. **Campionature**: per richieste conto terzi, crea una campionatura collegando ricetta e cliente e monitora lo stato.
+1. **Classi + materie**: crea le classi necessarie e popola `lab_raw_materials` (via UI o CSV) con i costi reali.
+2. **Ricette**: crea la prima ricetta, assegna gli ingredienti alla classe corretta e imposta la fase di miscelazione.
+3. **Versioning**: quando concludi un lotto, salva una versione e incrementa il numero con il pulsante “Nuova versione”.
+4. **Scheda produzione**: genera/stampa la scheda A4 (ordinata per fase) e condividila con la produzione.
+5. **Campionature**: per richieste conto terzi, crea una campionatura collegando ricetta e cliente e monitora lo stato.
 
 ## 5. Estensioni consigliate
 
@@ -58,9 +62,10 @@ Questa guida descrive come abilitare la nuova area **LAB** (materie prime, ricet
 
 ## 6. Test rapidi
 
-- Login con admin → accesso `/lab` → verifica tab Materie Prime.
-- Creazione nuova materia prima → appare in lista e nella tab Ricette come opzione.
-- Creazione ricetta + salvataggio ingredienti → scheda produzione mostra i dati corretti.
+- Login con admin → accesso `/lab` → verifica tab Materie Prime e la gestione delle classi.
+- Creazione nuova materia prima → assegnazione classe e apparizione nella tab Ricette come opzione.
+- Creazione ricetta + salvataggio ingredienti/fasi → scheda produzione mostra i dati corretti e ordinati.
+- Salvataggio nuova versione e ripristino → cronologia aggiornata e valori applicati.
 - Creazione campionatura → filtro per stato aggiorna i risultati.
 
 In caso di problemi, consulta il log del browser (la pagina gestisce errori tramite le notifiche globali) oppure verifica le policy RLS eseguendo di nuovo `ADD_LAB_ROLE_AND_POLICIES.sql`.

@@ -520,6 +520,7 @@ export interface Database {
       lab_raw_materials: {
         Row: {
           id: string
+          class_id: string | null
           code: string
           name: string
           supplier: string | null
@@ -537,6 +538,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          class_id?: string | null
           code: string
           name: string
           supplier?: string | null
@@ -554,7 +556,25 @@ export interface Database {
         }
         Update: {
           id?: string
+          class_id?: string | null
           code?: string
+      lab_material_classes: {
+        Row: {
+          id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_at?: string
+        }
+      }
           name?: string
           supplier?: string | null
           unit?: string
@@ -639,6 +659,7 @@ export interface Database {
           cost_share: number | null
           notes: string | null
           position: number
+          phase: 'Acqua' | 'Olio' | 'Polveri' | null
           created_at: string
           updated_at: string
         }
@@ -651,6 +672,7 @@ export interface Database {
           cost_share?: number | null
           notes?: string | null
           position?: number
+          phase?: 'Acqua' | 'Olio' | 'Polveri' | null
           created_at?: string
           updated_at?: string
         }
@@ -663,8 +685,38 @@ export interface Database {
           cost_share?: number | null
           notes?: string | null
           position?: number
+          phase?: 'Acqua' | 'Olio' | 'Polveri' | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      lab_recipe_versions: {
+        Row: {
+          id: string
+          recipe_id: string
+          version: number
+          snapshot: Json
+          ingredients: Json
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          recipe_id: string
+          version: number
+          snapshot: Json
+          ingredients?: Json
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          recipe_id?: string
+          version?: number
+          snapshot?: Json
+          ingredients?: Json
+          created_by?: string | null
+          created_at?: string
         }
       }
       lab_samples: {
@@ -843,6 +895,7 @@ export interface Database {
       order_status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
       quote_status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
       lab_sample_status: 'draft' | 'pending' | 'in_progress' | 'ready' | 'sent' | 'approved' | 'rejected' | 'archived'
+      lab_mix_phase: 'Acqua' | 'Olio' | 'Polveri'
     }
     CompositeTypes: {
       [_ in never]: never

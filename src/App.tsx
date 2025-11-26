@@ -24,10 +24,15 @@ import LabPage from './pages/LabPage';
 import Toast from './components/Toast';
 import { LoadingFallback } from './components/LoadingFallback';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { UserRole } from './types/roles';
 
 function App() {
   const { user, profile, loading, error } = useAuth();
   const [bootBypass, setBootBypass] = useState(false);
+
+  const renderWithRoles = (roles: UserRole[], element: JSX.Element) => (
+    <ProtectedRoute requiredRole={roles}>{element}</ProtectedRoute>
+  );
 
   // If loading persists unusually long, bypass as logged-out to avoid infinite spinner
   useEffect(() => {
@@ -81,26 +86,31 @@ function App() {
               
               {/* Main app routes */}
               <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="customers" element={<CustomersPage />} />
-                <Route path="products" element={<ProductsPage />} />
-                <Route path="price-lists" element={<PriceListsPage />} />
-                <Route path="orders" element={<OrdersPage />} />
-                <Route path="calendar" element={<CalendarPage />} />
-                <Route path="sample-requests" element={<SampleRequestsPage />} />
-                <Route path="reports" element={<ReportsPage />} />
                 <Route
-                  path="lab"
+                  index
                   element={
-                    <ProtectedRoute requiredRole={['admin', 'lab']}>
-                      <LabPage />
+                    profile?.role === 'lab'
+                      ? <Navigate to="/lab" replace />
+                      : renderWithRoles(['admin', 'sales', 'commerciale', 'lettore'], <Dashboard />)
+                  }
+                />
+                <Route path="customers" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lab'], <CustomersPage />)} />
+                <Route path="products" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lettore', 'lab'], <ProductsPage />)} />
+                <Route path="price-lists" element={renderWithRoles(['admin', 'sales', 'commerciale'], <PriceListsPage />)} />
+                <Route path="orders" element={renderWithRoles(['admin', 'sales', 'commerciale'], <OrdersPage />)} />
+                <Route path="calendar" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lab'], <CalendarPage />)} />
+                <Route path="sample-requests" element={renderWithRoles(['admin', 'sales', 'commerciale'], <SampleRequestsPage />)} />
+                <Route path="reports" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lettore'], <ReportsPage />)} />
+                <Route path="lab" element={renderWithRoles(['admin', 'lab'], <LabPage />)} />
+                <Route path="notifications" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lettore'], <NotificationsPage />)} />
+                <Route
+                  path="user-management"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <UserManagementPage />
                     </ProtectedRoute>
                   }
                 />
-                <Route path="notifications" element={<NotificationsPage />} />
-                <Route path="user-management" element={
-                  <ProtectedRoute requiredRole="admin"><UserManagementPage /></ProtectedRoute>
-                } />
               </Route>
               
               {/* Redirect auth routes to dashboard when already logged in */}

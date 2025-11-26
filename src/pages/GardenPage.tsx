@@ -196,7 +196,7 @@ export default function GardenPage() {
         {/* Navigation Buttons - Tablet Optimized */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 flex justify-between items-center">
           {/* Back to Pixel Button - Only for Admin, Commercial and Sales (NOT for production) */}
-          {(profile?.role === 'admin' || profile?.role === 'commerciale' || profile?.role === 'sales') && (
+          {(profile?.role === 'admin' || profile?.role === 'commerciale' || profile?.role === 'sales' || profile?.role === 'lab') && (
             <Button
               onClick={() => navigate('/')}
               variant="outline"

@@ -12,7 +12,8 @@ import {
   PackagePlus,
   Plus,
   AlertTriangle,
-  Printer
+  Printer,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -27,9 +28,13 @@ import { useAuth } from '../hooks/useAuth';
 import {
   calculateIngredientCost,
   calculateIngredientQuantity,
+  LAB_MIX_PHASES,
+  LabMixPhase,
   LabRawMaterial,
+  LabRawMaterialWithClass,
   LabRecipe,
   LabRecipeIngredientWithMaterial,
+  LabRecipeVersion,
   LabSampleStatus,
   LabSampleWithRelations,
   ProductionSheetPayload
@@ -217,12 +222,29 @@ type MaterialFormValues = {
   lead_time_days?: number;
   sds_url?: string;
   safety_notes?: string;
+  class_id?: string;
 };
 
 const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
-  const { materials, loading, error, search, setSearch, createMaterial, updateMaterial, deleteMaterial } = hook;
+  const {
+    materials,
+    loading,
+    error,
+    search,
+    setSearch,
+    createMaterial,
+    updateMaterial,
+    deleteMaterial,
+    classes,
+    classesLoading,
+    classError,
+    createClass,
+    deleteClass
+  } = hook;
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<LabRawMaterial | null>(null);
+  const [editing, setEditing] = useState<LabRawMaterialWithClass | null>(null);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassName, setNewClassName] = useState('');
 
   const form = useForm<MaterialFormValues>({
     defaultValues: {
@@ -230,11 +252,12 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
       name: '',
       supplier: '',
       unit: 'kg',
-      cost_per_unit: 0
+      cost_per_unit: 0,
+      class_id: ''
     }
   });
 
-  const openDialog = (material?: LabRawMaterial) => {
+  const openDialog = (material?: LabRawMaterialWithClass) => {
     if (material) {
       setEditing(material);
       form.reset({
@@ -245,7 +268,8 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
         cost_per_unit: material.cost_per_unit,
         lead_time_days: material.lead_time_days ?? undefined,
         sds_url: material.sds_url ?? '',
-        safety_notes: material.safety_notes ?? ''
+        safety_notes: material.safety_notes ?? '',
+        class_id: material.class_id ?? ''
       });
     } else {
       setEditing(null);
@@ -257,7 +281,8 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
         cost_per_unit: 0,
         lead_time_days: undefined,
         sds_url: '',
-        safety_notes: ''
+        safety_notes: '',
+        class_id: ''
       });
     }
     setDialogOpen(true);
@@ -282,7 +307,8 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
       supplier: values.supplier || null,
       sds_url: values.sds_url || null,
       safety_notes: values.safety_notes || null,
-      lead_time_days: safeNumber(values.lead_time_days)
+      lead_time_days: safeNumber(values.lead_time_days),
+      class_id: values.class_id ? values.class_id : null
     };
 
     try {
@@ -306,7 +332,7 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
     }
   };
 
-  const handleDelete = async (material: LabRawMaterial) => {
+  const handleDelete = async (material: LabRawMaterialWithClass) => {
     if (!window.confirm(`Eliminare definitivamente ${material.name}?`)) return;
     try {
       await deleteMaterial(material.id);
@@ -316,6 +342,36 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
         type: 'error',
         title: 'Errore eliminazione',
         message: err instanceof Error ? err.message : 'Operazione non riuscita'
+      });
+    }
+  };
+
+  const handleAddClass = async () => {
+    const value = newClassName.trim();
+    if (!value) return;
+    try {
+      await createClass(value);
+      setNewClassName('');
+      notify({ type: 'success', title: 'Classe aggiunta' });
+    } catch (err) {
+      notify({
+        type: 'error',
+        title: 'Errore classe',
+        message: err instanceof Error ? err.message : 'Impossibile creare la classe'
+      });
+    }
+  };
+
+  const handleDeleteClass = async (classId: string, name: string) => {
+    if (!window.confirm(`Eliminare la classe "${name}"?`)) return;
+    try {
+      await deleteClass(classId);
+      notify({ type: 'success', title: 'Classe eliminata' });
+    } catch (err) {
+      notify({
+        type: 'error',
+        title: 'Errore classe',
+        message: err instanceof Error ? err.message : 'Impossibile eliminare la classe'
       });
     }
   };
@@ -346,6 +402,59 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
           {error}
         </div>
       )}
+      {classError && (
+        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">
+          <AlertTriangle className="w-4 h-4" />
+          {classError}
+        </div>
+      )}
+
+      <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold text-gray-900">Classi materie prime</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              value={newClassName}
+              onChange={event => setNewClassName(event.target.value)}
+              placeholder="Nome classe (es. Conservanti)"
+            />
+            <Button
+              onClick={handleAddClass}
+              disabled={!newClassName.trim()}
+            >
+              Aggiungi
+            </Button>
+          </div>
+          {classesLoading ? (
+            <div className="text-sm text-gray-500 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Caricamento classi...
+            </div>
+          ) : classes.length === 0 ? (
+            <p className="text-sm text-gray-500">Nessuna classe definita.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {classes.map(cls => (
+                <span
+                  key={cls.id}
+                  className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1 rounded-full border border-emerald-100"
+                >
+                  {cls.name}
+                  <button
+                    type="button"
+                    className="ml-2 text-red-500 hover:text-red-700"
+                    onClick={() => handleDeleteClass(cls.id, cls.name)}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -392,6 +501,11 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-medium text-gray-900">{material.name}</p>
+                        {material.material_class && (
+                          <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            {material.material_class.name}
+                          </span>
+                        )}
                         {material.safety_notes && (
                           <p className="text-xs text-gray-500">{material.safety_notes}</p>
                         )}
@@ -438,6 +552,30 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
             </FormField>
             <FormField label="Fornitore">
               <Input {...form.register('supplier')} />
+            </FormField>
+            <FormField label="Classe">
+              <Controller
+                name="class_id"
+                control={form.control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || 'none'}
+                    onValueChange={value => field.onChange(value === 'none' ? '' : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona una classe" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessuna</SelectItem>
+                      {classes.map(cls => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </FormField>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="Costo unitario (€)" required>
@@ -498,6 +636,7 @@ type IngredientsFormValues = {
   items: Array<{
     raw_material_id: string;
     percentage: number;
+    phase: LabMixPhase;
     notes?: string;
   }>;
 };
@@ -517,7 +656,11 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
     deleteRecipe,
     fetchIngredients,
     saveIngredients,
-    generateProductionSheet
+    fetchRecipeVersions,
+    createRecipeVersion,
+    restoreRecipeVersion,
+    generateProductionSheet,
+    refresh
   } = hook;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [ingredientsDialogOpen, setIngredientsDialogOpen] = useState(false);
@@ -528,6 +671,9 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
   const [ingredientsLoading, setIngredientsLoading] = useState(false);
   const [sheetPayload, setSheetPayload] = useState<ProductionSheetPayload | null>(null);
   const sheetPrintRef = useRef<HTMLDivElement | null>(null);
+  const [versions, setVersions] = useState<LabRecipeVersion[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionActionLoading, setVersionActionLoading] = useState(false);
 
   const recipeForm = useForm<RecipeFormValues>({
     defaultValues: {
@@ -581,6 +727,34 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
 
     loadIngredients();
   }, [fetchIngredients, notify, selectedRecipe]);
+
+  const loadVersions = useCallback(
+    async (targetId?: string) => {
+      const recipeId = targetId ?? selectedRecipe?.id;
+      if (!recipeId) {
+        setVersions([]);
+        return;
+      }
+      setVersionsLoading(true);
+      try {
+        const data = await fetchRecipeVersions(recipeId);
+        setVersions(data);
+      } catch (err) {
+        notify({
+          type: 'error',
+          title: 'Errore versioni',
+          message: err instanceof Error ? err.message : 'Impossibile caricare le versioni'
+        });
+      } finally {
+        setVersionsLoading(false);
+      }
+    },
+    [fetchRecipeVersions, notify, selectedRecipe?.id]
+  );
+
+  useEffect(() => {
+    loadVersions(selectedRecipe?.id);
+  }, [loadVersions, selectedRecipe?.id]);
 
   const openRecipeDialog = (recipe?: LabRecipe) => {
     if (recipe) {
@@ -674,13 +848,52 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
       items: ingredients.map((ingredient) => ({
         raw_material_id: ingredient.raw_material_id,
         percentage: ingredient.percentage,
-        notes: ingredient.notes ?? ''
+        notes: ingredient.notes ?? '',
+        phase: (ingredient.phase as LabMixPhase | undefined) ?? 'Acqua'
       }))
     });
     if (!ingredients.length) {
       ingredientsArray.replace([
-        { raw_material_id: materials[0]?.id || '', percentage: 0, notes: '' }
+        { raw_material_id: materials[0]?.id || '', percentage: 0, notes: '', phase: 'Acqua' }
       ]);
+    }
+  };
+
+  const handleCreateVersion = async () => {
+    if (!selectedRecipe) return;
+    setVersionActionLoading(true);
+    try {
+      await createRecipeVersion(selectedRecipe.id, profileId);
+      await refresh();
+      await loadVersions(selectedRecipe.id);
+      notify({ type: 'success', title: 'Nuova versione creata' });
+    } catch (err) {
+      notify({
+        type: 'error',
+        title: 'Errore versione',
+        message: err instanceof Error ? err.message : 'Impossibile creare una nuova versione'
+      });
+    } finally {
+      setVersionActionLoading(false);
+    }
+  };
+
+  const handleRestoreVersion = async (versionId: string) => {
+    if (!selectedRecipe) return;
+    setVersionActionLoading(true);
+    try {
+      await restoreRecipeVersion(versionId, selectedRecipe.id, profileId);
+      await refresh();
+      await loadVersions(selectedRecipe.id);
+      notify({ type: 'success', title: 'Versione ripristinata' });
+    } catch (err) {
+      notify({
+        type: 'error',
+        title: 'Errore ripristino',
+        message: err instanceof Error ? err.message : 'Impossibile ripristinare la versione'
+      });
+    } finally {
+      setVersionActionLoading(false);
     }
   };
 
@@ -700,7 +913,8 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
             quantity,
             cost_share,
             notes: item.notes || null,
-            position: index
+            position: index,
+            phase: item.phase || 'Acqua'
           };
         });
 
@@ -932,6 +1146,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                         <tr>
                           <th className="px-4 py-3">Materia</th>
                           <th className="px-4 py-3">% lotto</th>
+                          <th className="px-4 py-3">Fase</th>
                           <th className="px-4 py-3">Quantità</th>
                           <th className="px-4 py-3 hidden md:table-cell">Costo stimato</th>
                         </tr>
@@ -942,8 +1157,14 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                             <td className="px-4 py-3">
                               <div className="font-medium">{ingredient.raw_material?.name || 'Materia'}</div>
                               <div className="text-xs text-gray-500">{ingredient.raw_material?.code}</div>
+                              {ingredient.raw_material?.material_class?.name && (
+                                <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                  {ingredient.raw_material.material_class.name}
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3">{ingredient.percentage}%</td>
+                            <td className="px-4 py-3">{(ingredient.phase as LabMixPhase | undefined) ?? 'Acqua'}</td>
                             <td className="px-4 py-3">
                               {ingredient.quantity ?? calculateIngredientQuantity(ingredient.percentage, selectedRecipe.batch_size ?? 0)}{' '}
                               {selectedRecipe.unit ?? 'kg'}
@@ -961,6 +1182,62 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                  <h4 className="text-lg font-semibold text-gray-900">Versioni salvate</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCreateVersion}
+                    disabled={!selectedRecipe || versionActionLoading}
+                  >
+                    {versionActionLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvataggio...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nuova versione
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {versionsLoading ? (
+                  <div className="text-sm text-gray-500 flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Caricamento versioni...
+                  </div>
+                ) : versions.length === 0 ? (
+                  <p className="text-sm text-gray-500">Nessuna versione salvata.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {versions.map((version) => (
+                      <div
+                        key={version.id}
+                        className="border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                      >
+                        <div>
+                          <p className="font-semibold text-gray-900">Versione {version.version}</p>
+                          <p className="text-xs text-gray-500">
+                            Salvata il {new Date(version.created_at).toLocaleString('it-IT')}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={versionActionLoading}
+                          onClick={() => handleRestoreVersion(version.id)}
+                        >
+                          Ripristina
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1069,7 +1346,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                       Rimuovi
                     </Button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <FormField label="Materia prima" required>
                       <Controller
                         name={`items.${index}.raw_material_id`}
@@ -1083,7 +1360,12 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                             <SelectContent>
                               {materials.map((material) => (
                                 <SelectItem key={material.id} value={material.id}>
-                                  {material.name} · {material.code}
+                                  <div className="flex flex-col">
+                                    <span className="font-medium text-sm">{material.name} · {material.code}</span>
+                                    {material.material_class && (
+                                      <span className="text-xs text-gray-500">{material.material_class.name}</span>
+                                    )}
+                                  </div>
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1101,6 +1383,26 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                     <FormField label="Note">
                       <Input {...ingredientsForm.register(`items.${index}.notes`)} />
                     </FormField>
+                    <FormField label="Fase" required>
+                      <Controller
+                        name={`items.${index}.phase`}
+                        control={ingredientsForm.control}
+                        render={({ field }) => (
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Fase" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {LAB_MIX_PHASES.map(phase => (
+                                <SelectItem key={phase} value={phase}>
+                                  {phase}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </FormField>
                   </div>
                 </div>
               ))}
@@ -1113,7 +1415,8 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                   ingredientsArray.append({
                     raw_material_id: materials[0]?.id || '',
                     percentage: 0,
-                    notes: ''
+                    notes: '',
+                    phase: 'Acqua'
                   })
                 }
                 disabled={!materials.length}
@@ -1165,6 +1468,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                     <tr>
                       <th className="px-3 py-2">Ingrediente</th>
                       <th className="px-3 py-2">% lotto</th>
+                      <th className="px-3 py-2">Fase</th>
                       <th className="px-3 py-2">Quantità</th>
                       <th className="px-3 py-2">Costo</th>
                     </tr>
@@ -1175,8 +1479,14 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                         <td className="px-3 py-2 font-medium text-gray-900">
                           {row.name}
                           <span className="block text-xs text-gray-500">{row.code}</span>
+                          {row.className && (
+                            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                              {row.className}
+                            </span>
+                          )}
                         </td>
                         <td className="px-3 py-2">{row.percentage}%</td>
+                        <td className="px-3 py-2">{row.phase ?? 'Acqua'}</td>
                         <td className="px-3 py-2">
                           {row.quantity} {sheetPayload.header.unit}
                         </td>

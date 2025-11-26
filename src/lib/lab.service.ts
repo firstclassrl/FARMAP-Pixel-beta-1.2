@@ -1,3 +1,31 @@
+export type RecipeSnapshot = {
+  code: string;
+  name: string;
+  version: number;
+  status: string;
+  batch_size: number;
+  unit: string;
+  target_cost: number | null;
+  yield_percentage: number | null;
+  notes: string | null;
+  instructions: string | null;
+  attachments: LabRecipe['attachments'];
+};
+
+export type VersionedIngredient = {
+  raw_material_id: string;
+  percentage: number;
+  quantity: number | null;
+  cost_share: number | null;
+  notes: string | null;
+  position: number;
+  phase: LabMixPhase | null;
+};
+
+export type LabRecipeVersion = Omit<LabRecipeVersionRow, 'snapshot' | 'ingredients'> & {
+  snapshot: RecipeSnapshot;
+  ingredients: VersionedIngredient[];
+};
 import { supabase } from './supabase';
 import type { PostgrestError } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
@@ -9,6 +37,11 @@ type Enums = Database['public']['Enums'];
 export type LabRawMaterial = Tables['lab_raw_materials']['Row'];
 export type LabRawMaterialInsert = Tables['lab_raw_materials']['Insert'];
 export type LabRawMaterialUpdate = Tables['lab_raw_materials']['Update'];
+export type LabMaterialClass = Tables['lab_material_classes']['Row'];
+export type LabMaterialClassInsert = Tables['lab_material_classes']['Insert'];
+export type LabRawMaterialWithClass = LabRawMaterial & {
+  material_class?: LabMaterialClass | null;
+};
 
 export type LabRecipe = Tables['lab_recipes']['Row'];
 export type LabRecipeInsert = Tables['lab_recipes']['Insert'];
@@ -28,9 +61,12 @@ export type LabSampleWithRelations = LabSample & {
 
 export type LabRecipeCostSummary = Views['lab_recipe_costs_view']['Row'];
 export type LabSampleStatus = Enums['lab_sample_status'];
+export type LabMixPhase = Enums['lab_mix_phase'];
+
+export type LabRecipeVersionRow = Tables['lab_recipe_versions']['Row'];
 
 export type LabRecipeIngredientWithMaterial = LabRecipeIngredient & {
-  raw_material?: LabRawMaterial | null;
+  raw_material?: LabRawMaterialWithClass | null;
 };
 
 export type ProductionSheetPayload = {
@@ -62,6 +98,8 @@ export type ProductionSheetPayload = {
     quantity: number;
     unitCost: number;
     costShare: number;
+    phase: LabMixPhase | null;
+    className?: string | null;
     supplier?: string | null;
     safetyNotes?: string | null;
   }>;
@@ -79,6 +117,7 @@ const LAB_SAMPLE_STATUSES: LabSampleStatus[] = [
 ];
 
 const LAB_SAMPLE_PRIORITIES = ['low', 'normal', 'high'] as const;
+export const LAB_MIX_PHASES: LabMixPhase[] = ['Acqua', 'Olio', 'Polveri'];
 
 const defaultErrorMessage = 'Errore durante la comunicazione con Supabase';
 
@@ -106,6 +145,14 @@ async function unwrapSingle<T>(
   return data;
 }
 
+function mapVersionRow(row: LabRecipeVersionRow): LabRecipeVersion {
+  return {
+    ...row,
+    snapshot: row.snapshot as RecipeSnapshot,
+    ingredients: (row.ingredients as VersionedIngredient[]) ?? []
+  };
+}
+
 async function unwrapList<T>(promise: SupabaseListResponse<T>): Promise<T[]> {
   const { data, error } = await promise;
   if (error) {
@@ -114,13 +161,67 @@ async function unwrapList<T>(promise: SupabaseListResponse<T>): Promise<T[]> {
   return data ?? [];
 }
 
+async function fetchRecipeSnapshot(recipeId: string) {
+  const recipe = await getLabRecipeById(recipeId);
+  const ingredients = await unwrapList<Tables['lab_recipe_ingredients']['Row']>(
+    supabase
+      .from('lab_recipe_ingredients')
+      .select('*')
+      .eq('recipe_id', recipeId)
+      .order('position', { ascending: true })
+  );
+
+  const snapshot: RecipeSnapshot = {
+    code: recipe.code,
+    name: recipe.name,
+    version: recipe.version ?? 1,
+    status: recipe.status,
+    batch_size: recipe.batch_size ?? 0,
+    unit: recipe.unit ?? 'kg',
+    target_cost: recipe.target_cost ?? null,
+    yield_percentage: recipe.yield_percentage ?? null,
+    notes: recipe.notes ?? null,
+    instructions: recipe.instructions ?? null,
+    attachments: recipe.attachments ?? []
+  };
+
+  const versionIngredients: VersionedIngredient[] = ingredients.map(ing => ({
+    raw_material_id: ing.raw_material_id,
+    percentage: ing.percentage,
+    quantity: ing.quantity ?? null,
+    cost_share: ing.cost_share ?? null,
+    notes: ing.notes ?? null,
+    position: ing.position ?? 0,
+    phase: (ing.phase as LabMixPhase | null) ?? 'Acqua'
+  }));
+
+  return { recipe, snapshot, versionIngredients };
+}
+
+async function archiveCurrentRecipeVersion(recipeId: string, createdBy?: string) {
+  const { recipe, snapshot, versionIngredients } = await fetchRecipeSnapshot(recipeId);
+  return unwrapSingle<LabRecipeVersionRow>(
+    supabase
+      .from('lab_recipe_versions')
+      .insert({
+        recipe_id: recipeId,
+        version: recipe.version ?? 1,
+        snapshot,
+        ingredients: versionIngredients,
+        created_by: createdBy ?? null
+      })
+      .select()
+      .single()
+  );
+}
+
 /**
  * RAW MATERIALS
  */
 export async function listLabRawMaterials(params?: { search?: string }) {
   let query = supabase
     .from('lab_raw_materials')
-    .select('*')
+    .select('*, material_class:lab_material_classes(*)')
     .order('name', { ascending: true });
 
   if (params?.search) {
@@ -128,7 +229,7 @@ export async function listLabRawMaterials(params?: { search?: string }) {
     query = query.or(`name.ilike.${searchValue},code.ilike.${searchValue},supplier.ilike.${searchValue}`);
   }
 
-  return unwrapList<LabRawMaterial>(query);
+  return unwrapList<LabRawMaterialWithClass>(query);
 }
 
 export async function createLabRawMaterial(payload: LabRawMaterialInsert) {
@@ -164,6 +265,32 @@ export async function updateLabRawMaterial(id: string, updates: LabRawMaterialUp
 
 export async function deleteLabRawMaterial(id: string) {
   const { error } = await supabase.from('lab_raw_materials').delete().eq('id', id);
+  if (error) {
+    throw new Error(error.message || defaultErrorMessage);
+  }
+}
+
+export async function listLabMaterialClasses() {
+  return unwrapList<LabMaterialClass>(
+    supabase
+      .from('lab_material_classes')
+      .select('*')
+      .order('name', { ascending: true })
+  );
+}
+
+export async function createLabMaterialClass(name: string) {
+  return unwrapSingle<LabMaterialClass>(
+    supabase
+      .from('lab_material_classes')
+      .insert({ name })
+      .select()
+      .single()
+  );
+}
+
+export async function deleteLabMaterialClass(id: string) {
+  const { error } = await supabase.from('lab_material_classes').delete().eq('id', id);
   if (error) {
     throw new Error(error.message || defaultErrorMessage);
   }
@@ -291,7 +418,7 @@ export async function listLabRecipeIngredients(recipeId: string) {
   return unwrapList<LabRecipeIngredientWithMaterial>(
     supabase
       .from('lab_recipe_ingredients')
-      .select('*, raw_material:lab_raw_materials(*)')
+      .select('*, raw_material:lab_raw_materials(*, material_class:lab_material_classes(*))')
       .eq('recipe_id', recipeId)
       .order('position', { ascending: true })
   );
@@ -308,6 +435,7 @@ export async function saveLabRecipeIngredients(recipeId: string, ingredients: La
   const payload = ingredients.map((ingredient, index) => ({
     position: index,
     recipe_id: recipeId,
+    phase: ingredient.phase ?? 'Acqua',
     ...ingredient
   }));
 
@@ -331,6 +459,69 @@ export async function getRecipeCostSummary(recipeId: string) {
   }
 
   return data as LabRecipeCostSummary | null;
+}
+
+export async function listLabRecipeVersions(recipeId: string) {
+  const rows = await unwrapList<LabRecipeVersionRow>(
+    supabase
+      .from('lab_recipe_versions')
+      .select('*')
+      .eq('recipe_id', recipeId)
+      .order('created_at', { ascending: false })
+  );
+  return rows.map(mapVersionRow);
+}
+
+export async function createNewRecipeVersion(recipeId: string, createdBy?: string) {
+  const recipe = await getLabRecipeById(recipeId);
+  await archiveCurrentRecipeVersion(recipeId, createdBy);
+  return updateLabRecipe(recipeId, {
+    version: (recipe.version ?? 1) + 1,
+    last_review_at: new Date().toISOString()
+  });
+}
+
+export async function restoreRecipeVersion(versionId: string, createdBy?: string) {
+  const versionRow = await unwrapSingle<LabRecipeVersionRow>(
+    supabase
+      .from('lab_recipe_versions')
+      .select('*')
+      .eq('id', versionId)
+      .single()
+  );
+
+  const version = mapVersionRow(versionRow);
+  await archiveCurrentRecipeVersion(version.recipe_id, createdBy);
+
+  const snapshot = version.snapshot;
+  const updatedRecipe = await updateLabRecipe(version.recipe_id, {
+    name: snapshot.name,
+    status: snapshot.status,
+    batch_size: snapshot.batch_size,
+    unit: snapshot.unit,
+    target_cost: snapshot.target_cost,
+    yield_percentage: snapshot.yield_percentage,
+    notes: snapshot.notes,
+    instructions: snapshot.instructions,
+    attachments: snapshot.attachments,
+    version: (snapshot.version ?? 1) + 1,
+    last_review_at: new Date().toISOString()
+  });
+
+  await saveLabRecipeIngredients(
+    version.recipe_id,
+    version.ingredients.map(ingredient => ({
+      raw_material_id: ingredient.raw_material_id,
+      percentage: ingredient.percentage,
+      quantity: ingredient.quantity ?? undefined,
+      cost_share: ingredient.cost_share ?? undefined,
+      notes: ingredient.notes ?? undefined,
+      position: ingredient.position,
+      phase: ingredient.phase ?? 'Acqua'
+    }))
+  );
+
+  return updatedRecipe;
 }
 
 /**
@@ -419,12 +610,21 @@ export function buildProductionSheetPayload(
       quantity,
       unitCost,
       costShare,
+      phase: (ingredient.phase as LabMixPhase | null) ?? 'Acqua',
+      className: ingredient.raw_material?.material_class?.name ?? null,
       supplier: ingredient.raw_material?.supplier,
       safetyNotes: ingredient.raw_material?.safety_notes
     };
   });
 
-  const totals = rows.reduce(
+  const phaseIndex = (phase: LabMixPhase | null | undefined) => {
+    const idx = LAB_MIX_PHASES.indexOf(phase ?? 'Acqua');
+    return idx === -1 ? LAB_MIX_PHASES.length : idx;
+  };
+
+  const sortedRows = rows.sort((a, b) => phaseIndex(a.phase) - phaseIndex(b.phase));
+
+  const totals = sortedRows.reduce(
     (acc, row) => {
       acc.totalQuantity += row.quantity;
       acc.estimatedCost += row.costShare;
@@ -451,15 +651,15 @@ export function buildProductionSheetPayload(
       targetCost: recipe.target_cost,
       estimatedBatchCost: summary?.estimated_batch_cost ?? totals.estimatedCost,
       estimatedUnitCost: summary?.estimated_unit_cost ?? estimatedUnitCost,
-      totalPercentage: summary?.total_percentage ?? totals.totalPercentage,
-      totalQuantity: summary?.total_quantity ?? totals.totalQuantity,
-      ingredientsCount: summary?.ingredients_count ?? rows.length
+        totalPercentage: summary?.total_percentage ?? totals.totalPercentage,
+        totalQuantity: summary?.total_quantity ?? totals.totalQuantity,
+        ingredientsCount: summary?.ingredients_count ?? sortedRows.length
     },
     steps: {
       instructions: recipe.instructions,
       notes: recipe.notes
     },
-    ingredients: rows
+      ingredients: sortedRows
   };
 }
 

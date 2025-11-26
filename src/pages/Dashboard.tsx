@@ -96,7 +96,7 @@ const quickActions = [
   },
   {
     title: 'LAB',
-    description: 'Gestisci materie prime, ricette e campionature dedicate',
+    description: 'Gestisci materie prime, ricette e campionature',
     icon: FlaskConical,
     href: '/lab',
     color: 'bg-pink-500',

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   buildProductionSheetPayload,
+  createLabMaterialClass,
   createLabRawMaterial,
   createLabRecipe,
   createLabSample,
+  createNewRecipeVersion,
+  deleteLabMaterialClass,
   deleteLabRecipe,
   deleteLabRawMaterial,
   duplicateLabRecipe,
@@ -11,22 +14,26 @@ import {
   getRecipeCostSummary,
   LAB_SAMPLE_PRIORITIES,
   LAB_SAMPLE_STATUSES,
+  LabMaterialClass,
   LabRecipe,
   LabRecipeIngredientInsert,
   LabRecipeInsert,
   LabRecipeUpdate,
-  LabRawMaterial,
   LabRawMaterialInsert,
   LabRawMaterialUpdate,
+  LabRawMaterialWithClass,
   LabSampleInsert,
   LabSampleStatus,
   LabSampleWithRelations,
   LabSampleUpdate,
+  listLabMaterialClasses,
   listLabRawMaterials,
   listLabRecipes,
   listLabRecipeIngredients,
+  listLabRecipeVersions,
   listLabSamples,
   ProductionSheetPayload,
+  restoreRecipeVersion as restoreRecipeVersionEntry,
   saveLabRecipeIngredients,
   updateLabRawMaterial,
   updateLabRecipe,
@@ -42,10 +49,13 @@ function toErrorMessage(error: unknown, fallback = 'Operazione non riuscita'): s
 }
 
 export function useLabRawMaterials(initialSearch = '') {
-  const [materials, setMaterials] = useState<LabRawMaterial[]>([]);
+  const [materials, setMaterials] = useState<LabRawMaterialWithClass[]>([]);
+  const [classes, setClasses] = useState<LabMaterialClass[]>([]);
   const [search, setSearch] = useState(initialSearch);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<AsyncError>(null);
+  const [classesLoading, setClassesLoading] = useState(true);
+  const [classError, setClassError] = useState<AsyncError>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,37 +72,91 @@ export function useLabRawMaterials(initialSearch = '') {
     }
   }, [search]);
 
+  const loadClasses = useCallback(async () => {
+    setClassesLoading(true);
+    try {
+      const data = await listLabMaterialClasses();
+      setClasses(data);
+      setClassError(null);
+    } catch (err) {
+      setClassError(toErrorMessage(err, 'Impossibile caricare le classi'));
+    } finally {
+      setClassesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    loadClasses();
+  }, [loadClasses]);
+
   const create = useCallback(async (payload: LabRawMaterialInsert) => {
     const created = await createLabRawMaterial(payload);
-    setMaterials(prev => [created, ...prev]);
-    return created;
-  }, []);
+    const enriched: LabRawMaterialWithClass = {
+      ...created,
+      material_class: classes.find(cls => cls.id === created.class_id) ?? null
+    };
+    setMaterials(prev => [enriched, ...prev]);
+    return enriched;
+  }, [classes]);
 
   const update = useCallback(async (id: string, updates: LabRawMaterialUpdate) => {
     const updated = await updateLabRawMaterial(id, updates);
-    setMaterials(prev => prev.map(item => (item.id === id ? updated : item)));
-    return updated;
-  }, []);
+    const enriched: LabRawMaterialWithClass = {
+      ...updated,
+      material_class: classes.find(cls => cls.id === updated.class_id) ?? null
+    };
+    setMaterials(prev => prev.map(item => (item.id === id ? enriched : item)));
+    return enriched;
+  }, [classes]);
 
   const remove = useCallback(async (id: string) => {
     await deleteLabRawMaterial(id);
     setMaterials(prev => prev.filter(item => item.id !== id));
   }, []);
 
+  const createClass = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return null;
+      const created = await createLabMaterialClass(trimmed);
+      setClasses(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      return created;
+    },
+    []
+  );
+
+  const removeClass = useCallback(
+    async (id: string) => {
+      await deleteLabMaterialClass(id);
+      setClasses(prev => prev.filter(cls => cls.id !== id));
+      setMaterials(prev =>
+        prev.map(material =>
+          material.class_id === id ? { ...material, class_id: null, material_class: null } : material
+        )
+      );
+    },
+    []
+  );
+
   return {
     materials,
+    classes,
     loading,
     error,
+    classesLoading,
+    classError,
     search,
     setSearch,
     refresh: load,
     createMaterial: create,
     updateMaterial: update,
-    deleteMaterial: remove
+    deleteMaterial: remove,
+    createClass,
+    deleteClass: removeClass
   };
 }
 
@@ -167,6 +231,22 @@ export function useLabRecipes(initialSearch = '') {
     return buildProductionSheetPayload(recipe, ingredients, summary);
   }, []);
 
+  const listVersions = useCallback(async (recipeId: string) => {
+    return listLabRecipeVersions(recipeId);
+  }, []);
+
+  const createVersion = useCallback(async (recipeId: string, userId?: string) => {
+    const updated = await createNewRecipeVersion(recipeId, userId);
+    setRecipes(prev => prev.map(recipe => (recipe.id === recipeId ? updated : recipe)));
+    return updated;
+  }, []);
+
+  const restoreVersion = useCallback(async (versionId: string, recipeId: string, userId?: string) => {
+    const updated = await restoreRecipeVersionEntry(versionId, userId);
+    setRecipes(prev => prev.map(recipe => (recipe.id === recipeId ? updated : recipe)));
+    return updated;
+  }, []);
+
   return {
     recipes,
     loading,
@@ -183,6 +263,9 @@ export function useLabRecipes(initialSearch = '') {
     saveIngredients: persistIngredients,
     fetchIngredients,
     fetchRecipe,
+    fetchRecipeVersions: listVersions,
+    createRecipeVersion: createVersion,
+    restoreRecipeVersion: restoreVersion,
     generateProductionSheet: generateSheet
   };
 }

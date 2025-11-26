@@ -17,7 +17,8 @@ import {
   AlertCircle,
   CheckCircle,
   Check,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { useNotifications } from '../store/useStore';
 import { FileUploadZone } from '../components/FileUploadZone';
@@ -268,6 +269,56 @@ export default function ProductDetailsPage() {
     }
   };
 
+  const handleDeleteDocument = async (documentType: 'ST' | 'SDS') => {
+    if (!product) return;
+
+    try {
+      setUploading(true);
+      const filePath = `${product.id}/${documentType}.pdf`;
+
+      const { error: removeError } = await supabase.storage
+        .from('technical-data-sheets')
+        .remove([filePath]);
+
+      if (removeError) {
+        console.warn(`Errore durante la rimozione del file ${documentType}:`, removeError);
+      }
+
+      const updateField = documentType === 'ST' ? 'st_url' : 'sds_url';
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ [updateField]: null })
+        .eq('id', product.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      setProduct((prev: any) => ({ ...prev, [updateField]: null }));
+
+      if (documentType === 'ST') {
+        setStExists(false);
+      } else {
+        setSdsExists(false);
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'Documento eliminato',
+        message: `${documentType} rimosso con successo`
+      });
+    } catch (error: any) {
+      console.error(`Errore nell'eliminazione del documento ${documentType}:`, error);
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: `Impossibile eliminare il documento ${documentType}: ${error.message}`
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleDownloadST = async () => {
     if (!product) return;
     
@@ -352,8 +403,19 @@ export default function ProductDetailsPage() {
     }
   };
 
-  const canViewDocuments = profile?.role === 'admin' || profile?.role === 'customer_user' || profile?.role === 'sales' || profile?.role === 'commerciale';
-  const canUploadImage = profile?.role === 'admin' || profile?.role === 'production' || profile?.role === 'sales' || profile?.role === 'commerciale';
+  const canViewDocuments =
+    profile?.role === 'admin' ||
+    profile?.role === 'customer_user' ||
+    profile?.role === 'sales' ||
+    profile?.role === 'commerciale' ||
+    profile?.role === 'lab';
+
+  const canUploadImage =
+    profile?.role === 'admin' ||
+    profile?.role === 'production' ||
+    profile?.role === 'sales' ||
+    profile?.role === 'commerciale' ||
+    profile?.role === 'lab';
 
   if (loading) {
     return (
@@ -766,6 +828,17 @@ export default function ProductDetailsPage() {
                       >
                         {uploading ? '...' : 'Scegli'}
                       </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteDocument('ST')}
+                        disabled={uploading || (!stExists && !product?.st_url)}
+                        className="w-full border-red-500/60 text-red-200 hover:bg-red-500/20 h-7 text-xs flex items-center justify-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Elimina ST
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -826,6 +899,17 @@ export default function ProductDetailsPage() {
                         className="w-full bg-green-500/30 backdrop-blur-sm border-green-400/50 text-white hover:bg-green-500/40 h-7 text-xs"
                       >
                         {uploading ? '...' : 'Scegli'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteDocument('SDS')}
+                        disabled={uploading || (!sdsExists && !product?.sds_url)}
+                        className="w-full border-red-500/60 text-red-200 hover:bg-red-500/20 h-7 text-xs flex items-center justify-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Elimina SDS
                       </Button>
                     </div>
                   </CardContent>

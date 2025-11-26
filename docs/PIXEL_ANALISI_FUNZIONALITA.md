@@ -105,3 +105,4 @@ Documento riepilogativo che fotografa tutte le capability presenti oggi nel bran
 Il perimetro copre l’intero ciclo commerciale FARMAP: anagrafiche clienti/prodotti, listini, ordini, campionature, calendario, reportistica, notifiche, gestione utenti, esperienza Garden dedicata, automazioni media e pipeline di deploy multi-provider. Ogni area è accompagnata da moduli UI, store Zustand, funzioni Supabase o script SQL/documentazione per garantire replicabilità e manutenzione.
 
 
+
