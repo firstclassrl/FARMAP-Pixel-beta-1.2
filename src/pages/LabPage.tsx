@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useNotifications } from '../store/useStore';
 import { useAuth } from '../hooks/useAuth';
+import { cn } from '../lib/cn';
 import {
   calculateIngredientCost,
   calculateIngredientQuantity,
