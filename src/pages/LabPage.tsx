@@ -886,52 +886,6 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
           </form>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={materialPickerOpen} onOpenChange={(open) => {
-        setMaterialPickerOpen(open);
-        if (!open) setMaterialSearchTerm('');
-      }}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Seleziona materia prima</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              value={materialSearchTerm}
-              onChange={(event) => setMaterialSearchTerm(event.target.value)}
-              placeholder="Cerca per nome, codice o classe..."
-              autoFocus
-            />
-            <div className="max-h-[420px] overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
-              {filteredMaterials.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">Nessuna materia prima trovata.</p>
-              ) : (
-                filteredMaterials.map((material) => (
-                  <button
-                    key={material.id}
-                    type="button"
-                    className="w-full text-left p-3 hover:bg-gray-50 flex items-center justify-between gap-4"
-                    onClick={() => handleMaterialSelection(material)}
-                  >
-                    <div>
-                      <p className="font-semibold text-gray-900">{material.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {material.code} · {material.material_class?.name ?? 'Nessuna classe'}
-                      </p>
-                    </div>
-                    <span
-                      className="inline-flex items-center rounded-md border px-3 py-1 text-xs font-semibold"
-                      style={getClassColorStyle(material.material_class?.id)}
-                    >
-                      Seleziona
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
       <Dialog open={manageClassesOpen} onOpenChange={setManageClassesOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -1937,6 +1891,55 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
               </DialogFooter>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={materialPickerOpen}
+        onOpenChange={(open) => {
+          setMaterialPickerOpen(open);
+          if (!open) setMaterialSearchTerm('');
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Seleziona materia prima</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={materialSearchTerm}
+              onChange={(event) => setMaterialSearchTerm(event.target.value)}
+              placeholder="Cerca per nome, codice o classe..."
+              autoFocus
+            />
+            <div className="max-h-[420px] overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
+              {filteredMaterials.length === 0 ? (
+                <p className="p-4 text-sm text-gray-500">Nessuna materia prima trovata.</p>
+              ) : (
+                filteredMaterials.map((material) => (
+                  <button
+                    key={material.id}
+                    type="button"
+                    className="w-full text-left p-3 hover:bg-gray-50 flex items-center justify-between gap-4"
+                    onClick={() => handleMaterialSelection(material)}
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">{material.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {material.code} · {material.material_class?.name ?? 'Nessuna classe'}
+                      </p>
+                    </div>
+                    <span
+                      className="inline-flex items-center rounded-md border px-3 py-1 text-xs font-semibold"
+                      style={getClassColorStyle(material.material_class?.id)}
+                    >
+                      Seleziona
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
