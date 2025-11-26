@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import {
@@ -63,6 +63,58 @@ const RECIPE_STATUSES = ['draft', 'testing', 'approved', 'archived'] as const;
 
 const formatCurrency = (value: number | null | undefined) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
+
+const CLASS_COLOR_PALETTE = [
+  { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0' },
+  { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+  { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
+  { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe' },
+  { bg: '#fdf2f8', text: '#be185d', border: '#fbcfe8' },
+  { bg: '#ecfeff', text: '#155e75', border: '#99f6e4' },
+  { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
+  { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
+  { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' },
+  { bg: '#f5f5f4', text: '#44403c', border: '#e7e5e4' }
+] as const;
+
+const DEFAULT_CLASS_COLOR = { bg: '#f1f5f9', text: '#0f172a', border: '#cbd5f5' };
+
+const getClassColorStyle = (classId?: string | null): CSSProperties => {
+  if (!classId) return DEFAULT_CLASS_COLOR;
+  const hash = Array.from(classId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const color = CLASS_COLOR_PALETTE[hash % CLASS_COLOR_PALETTE.length];
+  return {
+    backgroundColor: color.bg,
+    color: color.text,
+    borderColor: color.border
+  };
+};
+
+const getClassColorStyleString = (classId?: string | null) => {
+  const style = getClassColorStyle(classId);
+  return `background-color:${style.backgroundColor};color:${style.color};border-color:${style.borderColor};`;
+};
+
+const PHASE_LABEL_MAP: Record<string, string> = {
+  Acqua: 'Fase Acqua',
+  Olio: 'Fase Olio',
+  Polveri: 'Fase Polveri'
+};
+
+const getPhaseLabel = (phase?: LabMixPhase | null) => PHASE_LABEL_MAP[phase || ''] ?? 'Altre fasi';
+
+const PHASE_ORDER: Record<string, number> = {
+  Acqua: 0,
+  Olio: 1,
+  Polveri: 2
+};
+
+const sortByPhase = <T extends { phase?: LabMixPhase | null }>(items: T[]) =>
+  [...items].sort((a, b) => {
+    const orderA = PHASE_ORDER[a.phase || ''] ?? 99;
+    const orderB = PHASE_ORDER[b.phase || ''] ?? 99;
+    return orderA - orderB;
+  });
 
 const LabPage = () => {
   const { profile } = useAuth();
@@ -419,7 +471,10 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
           <Button variant="outline" onClick={() => hook.refresh()}>
             Aggiorna
           </Button>
-          <Button variant="outline" onClick={() => setManageClassesOpen(true)}>
+          <Button
+            onClick={() => setManageClassesOpen(true)}
+            className="bg-emerald-500 text-white hover:bg-emerald-600"
+          >
             Gestisci Classi
           </Button>
           <Button onClick={() => openDialog()}>
