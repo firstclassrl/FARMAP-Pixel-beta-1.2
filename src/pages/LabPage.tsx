@@ -239,11 +239,41 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
     classesLoading,
     classError,
     createClass,
+    updateClass,
     deleteClass
   } = hook;
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [manageClassesOpen, setManageClassesOpen] = useState(false);
   const [editing, setEditing] = useState<LabRawMaterialWithClass | null>(null);
   const [newClassName, setNewClassName] = useState('');
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
+  const [editingClassValue, setEditingClassValue] = useState('');
+
+  const classColorMap = useMemo(() => {
+    const palette = [
+      ['bg-emerald-50', 'text-emerald-700', 'border-emerald-100'],
+      ['bg-sky-50', 'text-sky-700', 'border-sky-100'],
+      ['bg-amber-50', 'text-amber-700', 'border-amber-100'],
+      ['bg-violet-50', 'text-violet-700', 'border-violet-100'],
+      ['bg-rose-50', 'text-rose-700', 'border-rose-100'],
+      ['bg-cyan-50', 'text-cyan-700', 'border-cyan-100'],
+      ['bg-lime-50', 'text-lime-700', 'border-lime-100'],
+      ['bg-indigo-50', 'text-indigo-700', 'border-indigo-100'],
+      ['bg-pink-50', 'text-pink-700', 'border-pink-100'],
+      ['bg-orange-50', 'text-orange-700', 'border-orange-100']
+    ];
+    const map: Record<string, string> = {};
+    classes.forEach((cls, idx) => {
+      const colors = palette[idx % palette.length];
+      map[cls.id] = `${colors[0]} ${colors[1]} ${colors[2]}`;
+    });
+    return map;
+  }, [classes]);
+
+  const getClassBadgeClasses = (classId?: string | null) =>
+    classId && classColorMap[classId]
+      ? classColorMap[classId]
+      : 'bg-gray-100 text-gray-700 border-gray-200';
 
   const form = useForm<MaterialFormValues>({
     defaultValues: {
@@ -384,9 +414,12 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
           placeholder="Cerca per nome, codice o fornitore"
           className="md:flex-1"
         />
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => hook.refresh()}>
             Aggiorna
+          </Button>
+          <Button variant="outline" onClick={() => setManageClassesOpen(true)}>
+            Gestisci Classi
           </Button>
           <Button onClick={() => openDialog()}>
             <Plus className="w-4 h-4 mr-2" />
@@ -401,59 +434,6 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
           {error}
         </div>
       )}
-      {classError && (
-        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">
-          <AlertTriangle className="w-4 h-4" />
-          {classError}
-        </div>
-      )}
-
-      <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-gray-900">Classi materie prime</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-              value={newClassName}
-              onChange={event => setNewClassName(event.target.value)}
-              placeholder="Nome classe (es. Conservanti)"
-            />
-            <Button
-              onClick={handleAddClass}
-              disabled={!newClassName.trim()}
-            >
-              Aggiungi
-            </Button>
-          </div>
-          {classesLoading ? (
-            <div className="text-sm text-gray-500 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Caricamento classi...
-            </div>
-          ) : classes.length === 0 ? (
-            <p className="text-sm text-gray-500">Nessuna classe definita.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {classes.map(cls => (
-                <span
-                  key={cls.id}
-                  className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1 rounded-full border border-emerald-100"
-                >
-                  {cls.name}
-                  <button
-                    type="button"
-                    className="ml-2 text-red-500 hover:text-red-700"
-                    onClick={() => handleDeleteClass(cls.id, cls.name)}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -603,6 +583,118 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={manageClassesOpen} onOpenChange={setManageClassesOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gestisci Classi</DialogTitle>
+          </DialogHeader>
+          {classError && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">
+              <AlertTriangle className="w-4 h-4" />
+              {classError}
+            </div>
+          )}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                value={newClassName}
+                onChange={event => setNewClassName(event.target.value)}
+                placeholder="Nome classe (es. Conservanti)"
+              />
+              <Button onClick={handleAddClass} disabled={!newClassName.trim()}>
+                Aggiungi
+              </Button>
+            </div>
+            {classesLoading ? (
+              <div className="text-sm text-gray-500 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Caricamento classi...
+              </div>
+            ) : classes.length === 0 ? (
+              <p className="text-sm text-gray-500">Nessuna classe definita.</p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {classes.map(cls => (
+                  <div
+                    key={cls.id}
+                    className="flex items-center justify-between border border-gray-200 rounded-xl p-2"
+                  >
+                    {editingClassId === cls.id ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <Input
+                          value={editingClassValue}
+                          onChange={event => setEditingClassValue(event.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await updateClass(cls.id, editingClassValue);
+                              setEditingClassId(null);
+                              setEditingClassValue('');
+                              notify({ type: 'success', title: 'Classe aggiornata' });
+                            } catch (err) {
+                              notify({
+                                type: 'error',
+                                title: 'Errore classe',
+                                message: err instanceof Error ? err.message : 'Impossibile aggiornare la classe'
+                              });
+                            }
+                          }}
+                          disabled={!editingClassValue.trim()}
+                        >
+                          Salva
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingClassId(null);
+                            setEditingClassValue('');
+                          }}
+                        >
+                          Annulla
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span
+                          className={cn(
+                            'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border',
+                            getClassBadgeClasses(cls.id)
+                          )}
+                        >
+                          {cls.name}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingClassId(cls.id);
+                              setEditingClassValue(cls.name);
+                            }}
+                          >
+                            Modifica
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="text-red-600 border-red-200"
+                            onClick={() => handleDeleteClass(cls.id, cls.name)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

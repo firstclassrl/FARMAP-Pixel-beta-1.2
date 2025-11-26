@@ -39,6 +39,7 @@ export type LabRawMaterialInsert = Tables['lab_raw_materials']['Insert'];
 export type LabRawMaterialUpdate = Tables['lab_raw_materials']['Update'];
 export type LabMaterialClass = Tables['lab_material_classes']['Row'];
 export type LabMaterialClassInsert = Tables['lab_material_classes']['Insert'];
+export type LabMaterialClassUpdate = Tables['lab_material_classes']['Update'];
 export type LabRawMaterialWithClass = LabRawMaterial & {
   material_class?: LabMaterialClass | null;
 };
@@ -294,6 +295,17 @@ export async function deleteLabMaterialClass(id: string) {
   if (error) {
     throw new Error(error.message || defaultErrorMessage);
   }
+}
+
+export async function updateLabMaterialClass(id: string, name: string) {
+  return unwrapSingle<LabMaterialClass>(
+    supabase
+      .from('lab_material_classes')
+      .update({ name })
+      .eq('id', id)
+      .select()
+      .single()
+  );
 }
 
 /**

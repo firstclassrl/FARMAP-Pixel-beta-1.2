@@ -35,6 +35,7 @@ import {
   ProductionSheetPayload,
   restoreRecipeVersion as restoreRecipeVersionEntry,
   saveLabRecipeIngredients,
+  updateLabMaterialClass,
   updateLabRawMaterial,
   updateLabRecipe,
   updateLabSample
@@ -129,6 +130,26 @@ export function useLabRawMaterials(initialSearch = '') {
     []
   );
 
+  const updateClass = useCallback(
+    async (id: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return null;
+      const updated = await updateLabMaterialClass(id, trimmed);
+      setClasses(prev =>
+        prev
+          .map(cls => (cls.id === id ? updated : cls))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
+      setMaterials(prev =>
+        prev.map(material =>
+          material.class_id === id ? { ...material, material_class: updated } : material
+        )
+      );
+      return updated;
+    },
+    []
+  );
+
   const removeClass = useCallback(
     async (id: string) => {
       await deleteLabMaterialClass(id);
@@ -156,6 +177,7 @@ export function useLabRawMaterials(initialSearch = '') {
     updateMaterial: update,
     deleteMaterial: remove,
     createClass,
+    updateClass,
     deleteClass: removeClass
   };
 }

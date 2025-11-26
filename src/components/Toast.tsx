@@ -34,7 +34,7 @@ const variantClasses: Record<
   },
 };
 
-const AUTO_DISMISS_MS = 10_000;
+const AUTO_DISMISS_MS = 3_000;
 
 function Toast() {
   const { notifications, markNotificationAsRead } = useNotifications();
