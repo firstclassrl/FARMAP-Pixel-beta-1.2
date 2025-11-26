@@ -659,7 +659,7 @@ export interface Database {
           cost_share: number | null
           notes: string | null
           position: number
-          phase: 'Acqua' | 'Olio' | 'Polveri' | null
+          phase: 'FASE 1' | 'FASE 2' | 'FASE 3' | 'FASE 4' | null
           created_at: string
           updated_at: string
         }
@@ -672,7 +672,7 @@ export interface Database {
           cost_share?: number | null
           notes?: string | null
           position?: number
-          phase?: 'Acqua' | 'Olio' | 'Polveri' | null
+          phase?: 'FASE 1' | 'FASE 2' | 'FASE 3' | 'FASE 4' | null
           created_at?: string
           updated_at?: string
         }
@@ -685,7 +685,7 @@ export interface Database {
           cost_share?: number | null
           notes?: string | null
           position?: number
-          phase?: 'Acqua' | 'Olio' | 'Polveri' | null
+          phase?: 'FASE 1' | 'FASE 2' | 'FASE 3' | 'FASE 4' | null
           created_at?: string
           updated_at?: string
         }
@@ -895,7 +895,7 @@ export interface Database {
       order_status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
       quote_status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
       lab_sample_status: 'draft' | 'pending' | 'in_progress' | 'ready' | 'sent' | 'approved' | 'rejected' | 'archived'
-      lab_mix_phase: 'Acqua' | 'Olio' | 'Polveri'
+      lab_mix_phase: 'FASE 1' | 'FASE 2' | 'FASE 3' | 'FASE 4'
     }
     CompositeTypes: {
       [_ in never]: never

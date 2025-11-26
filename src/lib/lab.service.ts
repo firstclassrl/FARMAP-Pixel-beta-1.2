@@ -118,7 +118,7 @@ const LAB_SAMPLE_STATUSES: LabSampleStatus[] = [
 ];
 
 const LAB_SAMPLE_PRIORITIES = ['low', 'normal', 'high'] as const;
-export const LAB_MIX_PHASES: LabMixPhase[] = ['Acqua', 'Olio', 'Polveri'];
+export const LAB_MIX_PHASES: LabMixPhase[] = ['FASE 1', 'FASE 2', 'FASE 3', 'FASE 4'];
 
 const defaultErrorMessage = 'Errore durante la comunicazione con Supabase';
 
@@ -193,7 +193,7 @@ async function fetchRecipeSnapshot(recipeId: string) {
     cost_share: ing.cost_share ?? null,
     notes: ing.notes ?? null,
     position: ing.position ?? 0,
-    phase: (ing.phase as LabMixPhase | null) ?? 'Acqua'
+    phase: (ing.phase as LabMixPhase | null) ?? 'FASE 1'
   }));
 
   return { recipe, snapshot, versionIngredients };
@@ -447,7 +447,7 @@ export async function saveLabRecipeIngredients(recipeId: string, ingredients: La
   const payload = ingredients.map((ingredient, index) => ({
     position: index,
     recipe_id: recipeId,
-    phase: ingredient.phase ?? 'Acqua',
+      phase: ingredient.phase ?? 'FASE 1',
     ...ingredient
   }));
 
@@ -529,7 +529,7 @@ export async function restoreRecipeVersion(versionId: string, createdBy?: string
       cost_share: ingredient.cost_share ?? undefined,
       notes: ingredient.notes ?? undefined,
       position: ingredient.position,
-      phase: ingredient.phase ?? 'Acqua'
+      phase: ingredient.phase ?? 'FASE 1'
     }))
   );
 
@@ -622,7 +622,7 @@ export function buildProductionSheetPayload(
       quantity,
       unitCost,
       costShare,
-      phase: (ingredient.phase as LabMixPhase | null) ?? 'Acqua',
+      phase: (ingredient.phase as LabMixPhase | null) ?? 'FASE 1',
       className: ingredient.raw_material?.material_class?.name ?? null,
       supplier: ingredient.raw_material?.supplier,
       safetyNotes: ingredient.raw_material?.safety_notes
@@ -630,7 +630,7 @@ export function buildProductionSheetPayload(
   });
 
   const phaseIndex = (phase: LabMixPhase | null | undefined) => {
-    const idx = LAB_MIX_PHASES.indexOf(phase ?? 'Acqua');
+    const idx = LAB_MIX_PHASES.indexOf(phase ?? 'FASE 1');
     return idx === -1 ? LAB_MIX_PHASES.length : idx;
   };
 

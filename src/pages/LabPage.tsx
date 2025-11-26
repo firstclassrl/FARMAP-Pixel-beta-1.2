@@ -138,13 +138,15 @@ body.production-sheet-print {
   background: var(--ps-bg);
   border-radius: var(--ps-radius);
   border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12);
-  padding: 32px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+  padding: 24px 28px;
   font-family: var(--ps-font);
   color: var(--ps-strong);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
+  max-height: 100vh;
+  box-sizing: border-box;
 }
 
 .production-sheet__header {
@@ -165,7 +167,7 @@ body.production-sheet-print {
 }
 
 .production-sheet__title {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   margin: 0;
 }
@@ -173,7 +175,7 @@ body.production-sheet-print {
 .production-sheet__meta,
 .production-sheet__meta-block span {
   color: var(--ps-muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .production-sheet__meta-block {
@@ -189,24 +191,7 @@ body.production-sheet-print {
 }
 
 .production-sheet__summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-}
-
-.production-sheet__summary-card {
-  border-radius: var(--ps-card-radius);
-  border: 1px solid var(--ps-border);
-  background: #f8fafc;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.production-sheet__summary-card--highlight {
-  background: linear-gradient(135deg, #fee2e2, #fce7f3);
-  border-color: rgba(244, 63, 94, 0.3);
+  display: none;
 }
 
 .production-sheet__summary-label {
@@ -287,31 +272,7 @@ body.production-sheet-print {
 }
 
 .production-sheet__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.production-sheet__status-card {
-  border: 1px solid rgba(79, 70, 229, 0.25);
-  border-radius: var(--ps-card-radius);
-  background: linear-gradient(135deg, rgba(199, 210, 254, 0.4), rgba(254, 202, 202, 0.3));
-  padding: 18px;
-}
-
-.production-sheet__status-card h5 {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  color: #4c1d95;
-  margin-bottom: 8px;
-}
-
-.production-sheet__status-card p {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #312e81;
+  display: none;
 }
 
 .production-sheet__empty {
@@ -321,9 +282,28 @@ body.production-sheet-print {
   font-size: 14px;
 }
 
+.production-sheet__qty-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #312e81;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.production-sheet__qty-pill-label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
 @media (max-width: 768px) {
   .production-sheet {
-    padding: 20px;
+    padding: 18px 16px;
   }
   .production-sheet__header {
     flex-direction: column;
@@ -1116,7 +1096,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
         raw_material_id: fallbackId,
         percentage: 0,
         notes: '',
-        phase: 'Acqua'
+        phase: 'FASE 1'
       });
       setMaterialPickerOpen(false);
     },
@@ -1281,12 +1261,12 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
         raw_material_id: ingredient.raw_material_id,
         percentage: ingredient.percentage,
         notes: ingredient.notes ?? '',
-        phase: (ingredient.phase as LabMixPhase | undefined) ?? 'Acqua'
+            phase: (ingredient.phase as LabMixPhase | undefined) ?? 'FASE 1'
       }))
     });
     if (!ingredients.length) {
       ingredientsArray.replace([
-        { raw_material_id: materials[0]?.id || '', percentage: 0, notes: '', phase: 'Acqua' }
+        { raw_material_id: materials[0]?.id || '', percentage: 0, notes: '', phase: 'FASE 1' }
       ]);
     }
   };
@@ -1346,7 +1326,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
             cost_share,
             notes: item.notes || null,
             position: index,
-            phase: item.phase || 'Acqua'
+            phase: item.phase || 'FASE 1'
           };
         });
 
@@ -1597,7 +1577,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                         )}
                             </td>
                             <td className="px-4 py-3">{ingredient.percentage}%</td>
-                            <td className="px-4 py-3">{(ingredient.phase as LabMixPhase | undefined) ?? 'Acqua'}</td>
+                            <td className="px-4 py-3">{(ingredient.phase as LabMixPhase | undefined) ?? 'FASE 1'}</td>
                             <td className="px-4 py-3">
                               {ingredient.quantity ?? calculateIngredientQuantity(ingredient.percentage, selectedRecipe.batch_size ?? 0)}{' '}
                               {selectedRecipe.unit ?? 'kg'}
@@ -1945,7 +1925,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
 
       {/* Production sheet dialog */}
       <Dialog open={sheetDialogOpen} onOpenChange={setSheetDialogOpen}>
-        <DialogContent className="max-w-[96vw] w-[96vw] h-[92vh] max-h-[92vh] p-0">
+        <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0">
           <div className="flex h-full flex-col">
             <DialogHeader className="px-6 pt-6 pb-4">
               <DialogTitle>Scheda produzione</DialogTitle>
@@ -2421,7 +2401,7 @@ const ProductionSheetContent = ({
   return (
     <div ref={innerRef} className={cn('production-sheet', className)}>
       <div className="production-sheet__header">
-        <div>
+        <div className="space-y-1">
           <p className="production-sheet__eyebrow">Ricetta</p>
           <h2 className="production-sheet__title">
             {payload.header.name} · {payload.header.code}
@@ -2429,53 +2409,16 @@ const ProductionSheetContent = ({
           <p className="production-sheet__meta">
             Batch {payload.header.batchSize} {payload.header.unit} · Versione {payload.header.version}
           </p>
+          <div className="production-sheet__qty-pill">
+            <span className="production-sheet__qty-pill-label">Quantità totale</span>
+            <span>
+              {formatQuantity(payload.summary.totalQuantity)} {payload.header.unit}
+            </span>
+          </div>
         </div>
         <div className="production-sheet__meta-block">
           <span>Ultima revisione</span>
           <strong>{lastReviewLabel}</strong>
-          <span>
-            Totale lotto: {formatQuantity(payload.summary.totalQuantity)} {payload.header.unit}
-          </span>
-        </div>
-      </div>
-
-      <div className="production-sheet__summary">
-        <div className="production-sheet__summary-card production-sheet__summary-card--highlight">
-          <span className="production-sheet__summary-label">Costo lotto stimato</span>
-          <span className="production-sheet__summary-value">
-            {formatCurrency(payload.summary.estimatedBatchCost)}
-          </span>
-        </div>
-        <div className="production-sheet__summary-card">
-          <span className="production-sheet__summary-label">Costo unitario</span>
-          <span className="production-sheet__summary-value">
-            {formatCurrency(payload.summary.estimatedUnitCost)}
-          </span>
-        </div>
-        <div className="production-sheet__summary-card">
-          <span className="production-sheet__summary-label">Target cost</span>
-          <span className="production-sheet__summary-value">
-            {formatCurrency(payload.summary.targetCost)}
-          </span>
-        </div>
-        <div className="production-sheet__summary-card">
-          <span className="production-sheet__summary-label">Totale percentuali</span>
-          <span className="production-sheet__summary-value">
-            {payload.summary.totalPercentage.toFixed(2)}%
-          </span>
-        </div>
-      </div>
-
-      <div className="production-sheet__stats">
-        <div className="production-sheet__status-card">
-          <h5>Ingredienti</h5>
-          <p>{payload.summary.ingredientsCount}</p>
-        </div>
-        <div className="production-sheet__status-card">
-          <h5>Quantità totale</h5>
-          <p>
-            {formatQuantity(payload.summary.totalQuantity)} {payload.header.unit}
-          </p>
         </div>
       </div>
 

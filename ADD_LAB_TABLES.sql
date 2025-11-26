@@ -32,7 +32,7 @@ BEGIN
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'lab_mix_phase') THEN
-    CREATE TYPE lab_mix_phase AS ENUM ('Acqua', 'Olio', 'Polveri');
+    CREATE TYPE lab_mix_phase AS ENUM ('FASE 1', 'FASE 2', 'FASE 3', 'FASE 4');
   END IF;
 END $$;
 
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS lab_recipe_ingredients (
   cost_share numeric(14,4),
   notes text,
   position integer NOT NULL DEFAULT 0,
-  phase lab_mix_phase DEFAULT 'Acqua',
+  phase lab_mix_phase DEFAULT 'FASE 1',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
