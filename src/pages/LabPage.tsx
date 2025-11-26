@@ -1,4 +1,4 @@
-import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import {
@@ -63,58 +63,6 @@ const RECIPE_STATUSES = ['draft', 'testing', 'approved', 'archived'] as const;
 
 const formatCurrency = (value: number | null | undefined) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
-
-const CLASS_COLOR_PALETTE = [
-  { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0' },
-  { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-  { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
-  { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe' },
-  { bg: '#fdf2f8', text: '#be185d', border: '#fbcfe8' },
-  { bg: '#ecfeff', text: '#155e75', border: '#99f6e4' },
-  { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
-  { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
-  { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' },
-  { bg: '#f5f5f4', text: '#44403c', border: '#e7e5e4' }
-] as const;
-
-const DEFAULT_CLASS_COLOR = { bg: '#f1f5f9', text: '#0f172a', border: '#cbd5f5' };
-
-const getClassColorStyle = (classId?: string | null): CSSProperties => {
-  if (!classId) return DEFAULT_CLASS_COLOR;
-  const hash = Array.from(classId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const color = CLASS_COLOR_PALETTE[hash % CLASS_COLOR_PALETTE.length];
-  return {
-    backgroundColor: color.bg,
-    color: color.text,
-    borderColor: color.border
-  };
-};
-
-const getClassColorStyleString = (classId?: string | null) => {
-  const style = getClassColorStyle(classId);
-  return `background-color:${style.backgroundColor};color:${style.color};border-color:${style.borderColor};`;
-};
-
-const PHASE_LABEL_MAP: Record<string, string> = {
-  Acqua: 'Fase Acqua',
-  Olio: 'Fase Olio',
-  Polveri: 'Fase Polveri'
-};
-
-const getPhaseLabel = (phase?: LabMixPhase | null) => PHASE_LABEL_MAP[phase || ''] ?? 'Altre fasi';
-
-const PHASE_ORDER: Record<string, number> = {
-  Acqua: 0,
-  Olio: 1,
-  Polveri: 2
-};
-
-const sortByPhase = <T extends { phase?: LabMixPhase | null }>(items: T[]) =>
-  [...items].sort((a, b) => {
-    const orderA = PHASE_ORDER[a.phase || ''] ?? 99;
-    const orderB = PHASE_ORDER[b.phase || ''] ?? 99;
-    return orderA - orderB;
-  });
 
 const LabPage = () => {
   const { profile } = useAuth();
@@ -537,7 +485,12 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
                       <div>
                         <p className="font-medium text-gray-900">{material.name}</p>
                         {material.material_class && (
-                          <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span
+                            className={cn(
+                              'inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium border',
+                              getClassBadgeClasses(material.class_id)
+                            )}
+                          >
                             {material.material_class.name}
                           </span>
                         )}
@@ -1304,11 +1257,16 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                             <td className="px-4 py-3">
                               <div className="font-medium">{ingredient.raw_material?.name || 'Materia'}</div>
                               <div className="text-xs text-gray-500">{ingredient.raw_material?.code}</div>
-                              {ingredient.raw_material?.material_class?.name && (
-                                <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                  {ingredient.raw_material.material_class.name}
-                                </span>
-                              )}
+                        {ingredient.raw_material?.material_class?.name && (
+                          <span
+                            className={cn(
+                              'inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium border',
+                              getClassBadgeClasses(ingredient.raw_material.class_id)
+                            )}
+                          >
+                            {ingredient.raw_material.material_class.name}
+                          </span>
+                        )}
                             </td>
                             <td className="px-4 py-3">{ingredient.percentage}%</td>
                             <td className="px-4 py-3">{(ingredient.phase as LabMixPhase | undefined) ?? 'Acqua'}</td>
@@ -1468,7 +1426,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
 
       {/* Ingredients dialog */}
       <Dialog open={ingredientsDialogOpen} onOpenChange={setIngredientsDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>Ingredienti ricetta</DialogTitle>
           </DialogHeader>
@@ -1478,7 +1436,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
             </div>
           )}
           <form onSubmit={ingredientsForm.handleSubmit(submitIngredients)} className="space-y-4">
-            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
+        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
               {ingredientsArray.fields.map((field, index) => (
                 <div key={field.id} className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
                   <div className="flex items-center justify-between">
@@ -1554,7 +1512,21 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                 </div>
               ))}
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-gray-600">
+                Percentuale totale:{' '}
+                <span
+                  className={cn(
+                    'font-semibold',
+                    totalPercentage > 100
+                      ? 'text-red-600'
+                      : 'text-emerald-600'
+                  )}
+                >
+                  {totalPercentage.toFixed(2)}%
+                </span>
+                {' '} / 100%
+              </div>
               <Button
                 type="button"
                 variant="outline"
@@ -1604,7 +1576,7 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                   Batch {sheetPayload.header.batchSize} {sheetPayload.header.unit} · Versione {sheetPayload.header.version}
                 </p>
               </div>
-              <div className="grid md:grid-cols-3 gap-3">
+              <div className="grid md:grid-cols-3 gap-3 text-sm">
                 <InfoCard label="Costo lotto stimato" value={formatCurrency(sheetPayload.summary.estimatedBatchCost)} />
                 <InfoCard label="Costo unitario" value={formatCurrency(sheetPayload.summary.estimatedUnitCost)} />
                 <InfoCard label="Totale %" value={`${sheetPayload.summary.totalPercentage.toFixed(2)}%`} />
@@ -1621,25 +1593,38 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {sheetPayload.ingredients.map((row) => (
-                      <tr key={row.id}>
-                        <td className="px-3 py-2 font-medium text-gray-900">
-                          {row.name}
-                          <span className="block text-xs text-gray-500">{row.code}</span>
-                          {row.className && (
-                            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
-                              {row.className}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">{row.percentage}%</td>
-                        <td className="px-3 py-2">{row.phase ?? 'Acqua'}</td>
-                        <td className="px-3 py-2">
-                          {row.quantity} {sheetPayload.header.unit}
-                        </td>
-                        <td className="px-3 py-2">{formatCurrency(row.costShare)}</td>
-                      </tr>
-                    ))}
+                    {['Acqua', 'Olio', 'Polveri'].map((phaseKey) => {
+                      const phaseItems = sheetPayload.ingredients.filter(
+                        (ing) => (ing.phase ?? 'Acqua') === phaseKey
+                      );
+                      if (!phaseItems.length) return null;
+                      return (
+                        <Fragment key={phaseKey}>
+                          <tr className="bg-gray-100">
+                            <td colSpan={5} className="px 3 py-2 font-semibold text-gray-700 uppercase text-sm">
+                              Fase {phaseKey}
+                            </td>
+                          </tr>
+                          {phaseItems.map((row, index) => (
+                            <tr key={row.id ?? `${phaseKey}-${index}`}>
+                              <td className="px-3 py-2 font-medium text-gray-900">
+                                {row.name}
+                                <span className="block text-xs text-gray-500">{row.code}</span>
+                                {row.className && (
+                                  <span className="block text-xs text-gray-500">{row.className}</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">{row.percentage}%</td>
+                              <td className="px-3 py-2">{row.phase ?? 'Acqua'}</td>
+                              <td className="px-3 py-2">
+                                {row.quantity} {sheetPayload.header.unit}
+                              </td>
+                              <td className="px-3 py-2">{formatCurrency(row.costShare)}</td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
