@@ -1,4 +1,4 @@
-import { Fragment, Ref, forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, Fragment, Ref, forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
@@ -84,6 +84,36 @@ const getClassBadgeClasses = (classId?: string | null) => {
   if (!classId) return 'bg-gray-100 text-gray-700 border-gray-200';
   const hash = Array.from(classId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return CLASS_BADGE_COLORS[hash % CLASS_BADGE_COLORS.length];
+};
+
+const CLASS_COLOR_PALETTE: Array<{ bg: string; text: string; border: string }> = [
+  { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0' },
+  { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+  { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
+  { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe' },
+  { bg: '#fdf2f8', text: '#be185d', border: '#fbcfe8' },
+  { bg: '#ecfeff', text: '#155e75', border: '#99f6e4' },
+  { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
+  { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
+  { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' },
+  { bg: '#f5f5f4', text: '#44403c', border: '#e7e5e4' }
+] as const;
+
+const DEFAULT_CLASS_COLOR: CSSProperties = {
+  backgroundColor: '#f1f5f9',
+  color: '#0f172a',
+  borderColor: '#cbd5f5'
+};
+
+const getClassColorStyle = (classId?: string | null): CSSProperties => {
+  if (!classId) return DEFAULT_CLASS_COLOR;
+  const hash = Array.from(classId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const palette = CLASS_COLOR_PALETTE[hash % CLASS_COLOR_PALETTE.length];
+  return {
+    backgroundColor: palette.bg,
+    color: palette.text,
+    borderColor: palette.border
+  };
 };
 
 const PRODUCTION_SHEET_STYLES = `
@@ -1107,12 +1137,6 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
       ),
     [watchedItems]
   );
-  const openMaterialPicker = useCallback(() => {
-    if (!materials.length) return;
-    setMaterialSearchTerm('');
-    setMaterialPickerOpen(true);
-  }, [materials.length]);
-
   const ingredientsArray = useFieldArray({
     control: ingredientsForm.control,
     name: 'items'
@@ -1144,6 +1168,11 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
     },
     [ingredientsArray, materials]
   );
+  const openMaterialPicker = useCallback(() => {
+    if (!materials.length) return;
+    setMaterialSearchTerm('');
+    setMaterialPickerOpen(true);
+  }, [materials.length]);
 
   const selectedRecipe = useMemo(() => {
     if (!recipes.length) return null;
