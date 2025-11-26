@@ -244,7 +244,6 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<LabRawMaterialWithClass | null>(null);
   const [newClassName, setNewClassName] = useState('');
-  const [newClassName, setNewClassName] = useState('');
 
   const form = useForm<MaterialFormValues>({
     defaultValues: {
