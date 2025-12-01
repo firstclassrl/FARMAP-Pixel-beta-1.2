@@ -82,8 +82,31 @@ export const exportToCSV = <T extends Record<string, any>>(
   }
 };
 
-export const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString('it-IT');
+export const formatDate = (date: string | Date | null | undefined) => {
+  if (!date) return '';
+
+  // Gestione stringhe nel formato ISO (yyyy-mm-dd) o con time
+  let d: Date;
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string') {
+    // Se è già nel formato gg/mm/aaaa la restituiamo così com'è
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+      return date;
+    }
+    d = new Date(date);
+  } else {
+    return '';
+  }
+
+  if (Number.isNaN(d.getTime())) return '';
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  // Formato italiano richiesto: GG/MM/AAAA
+  return `${day}/${month}/${year}`;
 };
 
 export const formatCurrency = (amount: number) => {

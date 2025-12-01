@@ -13,6 +13,7 @@ import { useNotifications } from '../store/useStore';
 import { supabase } from '../lib/supabase';
 import OrderFormTemplate from './OrderFormTemplate';
 import type { Database } from '../types/database.types';
+import { formatDate } from '../lib/exportUtils';
 
 // Definizione Tipi (dal tuo codice originale)
 type Order = Database['public']['Tables']['orders']['Row'];
@@ -211,8 +212,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
       doc.setFont('helvetica', 'normal');
       
       const orderDetails = [
-        [`Numero Ordine: ${orderData.orderNumber}`, `Data Ordine: ${orderData.orderDate.toLocaleDateString('it-IT')}`],
-        [`Data Consegna: ${orderData.deliveryDate.toLocaleDateString('it-IT')}`, `Rappresentante: ${orderData.salesRepresentative}`]
+        [`Numero Ordine: ${orderData.orderNumber}`, `Data Ordine: ${formatDate(orderData.orderDate)}`],
+        [`Data Consegna: ${formatDate(orderData.deliveryDate)}`, `Rappresentante: ${orderData.salesRepresentative}`]
       ];
 
       orderDetails.forEach(([left, right]) => {
@@ -481,7 +482,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
       doc.setFont('helvetica', 'normal');
       
       doc.text(`Numero Ordine: ${orderData.orderNumber}`, margin, yPosition);
-      doc.text(`Data Ordine: ${new Date(orderData.orderDate).toLocaleDateString('it-IT')}`, margin + contentWidth/2, yPosition);
+      doc.text(`Data Ordine: ${formatDate(orderData.orderDate)}`, margin + contentWidth/2, yPosition);
       yPosition += 6;
       
       doc.text(`Cliente: ${orderData.customerName}`, margin, yPosition);
@@ -581,7 +582,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
 In allegato l'ordine di acquisto n. ${orderData.orderNumber}.
 
 Dettagli ordine:
-- Data: ${new Date(orderData.orderDate).toLocaleDateString('it-IT')}
+- Data: ${formatDate(orderData.orderDate)}
 - Totale: €${orderData.totalAmount?.toFixed(2) || '0.00'}
 
 IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
