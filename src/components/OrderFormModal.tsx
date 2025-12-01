@@ -91,6 +91,27 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
         .single();
       if (customerError) throw new Error(`Impossibile caricare i dati del cliente: ${customerError.message}`);
 
+      // Carica le condizioni di vendita dal listino associato (se presente)
+      let priceListConditions: {
+        payment_conditions?: string | null;
+        shipping_conditions?: string | null;
+        delivery_conditions?: string | null;
+        brand_conditions?: string | null;
+        print_conditions?: boolean;
+      } | null = null;
+
+      if (customerData.price_list_id) {
+        const { data: priceListData, error: priceListError } = await supabase
+          .from('price_lists')
+          .select('payment_conditions, shipping_conditions, delivery_conditions, brand_conditions, print_conditions')
+          .eq('id', customerData.price_list_id)
+          .maybeSingle();
+
+        if (!priceListError && priceListData) {
+          priceListConditions = priceListData;
+        }
+      }
+
       const { data: orderItemsData, error: itemsError } = await supabase
         .from('order_items')
         .select('*, products (*)')
@@ -134,6 +155,15 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
         taxAmount: combinedData.tax_amount,
         totalAmount: combinedData.total_amount + combinedData.tax_amount,
         notes: combinedData.notes || '',
+        salesConditions: priceListConditions
+          ? {
+              payment: priceListConditions.payment_conditions || null,
+              shipping: priceListConditions.shipping_conditions || null,
+              delivery: priceListConditions.delivery_conditions || null,
+              brand: priceListConditions.brand_conditions || null,
+              printConditions: priceListConditions.print_conditions ?? true,
+            }
+          : null,
       };
 
       setOrderData(mappedOrderData);
@@ -370,14 +400,17 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
       const totalAmount = subtotal - totalDiscount;
       const taxAmount = totalAmount * 0.22; // 22% IVA standard
 
-      // Update order with recalculated totals and notes
+      // Update order with recalculated totals, note e nuova data di consegna
       const { error: orderError } = await supabase
         .from('orders')
         .update({
           total_amount: totalAmount,
           tax_amount: taxAmount,
           discount_amount: totalDiscount,
-          notes: updatedData.notes || null
+          notes: updatedData.notes || null,
+          delivery_date: updatedData.deliveryDate
+            ? updatedData.deliveryDate.toISOString().split('T')[0]
+            : null,
         })
         .eq('id', orderId);
 

@@ -38,6 +38,13 @@ interface OrderFormTemplateProps {
     notes?: string;
     trackingNumber?: string;
     termsAndConditions?: string;
+    salesConditions?: {
+      payment?: string | null;
+      shipping?: string | null;
+      delivery?: string | null;
+      brand?: string | null;
+      printConditions?: boolean;
+    } | null;
   };
   mode?: 'view' | 'edit';
   onSave?: (data: any) => Promise<void>;
@@ -91,6 +98,12 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
     setEditableData({ ...editableData, notes: value });
   };
 
+  const handleDeliveryDateChange = (value: string) => {
+    // valore atteso nel formato YYYY-MM-DD dal campo input type="date"
+    const newDate = value ? new Date(`${value}T00:00:00`) : new Date();
+    setEditableData({ ...editableData, deliveryDate: newDate });
+  };
+
   // Get totals - use calculated values in edit mode, original in view mode
   const totals = mode === 'edit' ? calculateTotals() : {
     subtotal: orderData.subtotal,
@@ -123,7 +136,19 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
           <div className="space-y-1 text-xs">
             <div><span className="font-semibold">Numero:</span> {orderData.orderNumber}</div>
             <div><span className="font-semibold">Data:</span> {formatDate(orderData.orderDate)}</div>
-            <div><span className="font-semibold">Tempi di consegna:</span> {formatDate(orderData.deliveryDate)}</div>
+            <div className="flex items-center gap-1">
+              <span className="font-semibold">Tempi di consegna:</span>
+              {mode === 'edit' ? (
+                <Input
+                  type="date"
+                  value={editableData.deliveryDate ? editableData.deliveryDate.toISOString().slice(0, 10) : ''}
+                  onChange={(e) => handleDeliveryDateChange(e.target.value)}
+                  className="h-6 text-xs w-36"
+                />
+              ) : (
+                <span>{formatDate(orderData.deliveryDate)}</span>
+              )}
+            </div>
             <div><span className="font-semibold">Commerciale:</span> {orderData.salesRepresentative}</div>
             {orderData.trackingNumber && (
               <div><span className="font-semibold">Tracking:</span> {orderData.trackingNumber}</div>
@@ -261,6 +286,50 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
           >
             Salva e Chiudi
           </Button>
+        </div>
+      )}
+
+      {/* Condizioni di vendita dal listino e spazio firma */}
+      {orderData.salesConditions && orderData.salesConditions.printConditions !== false && (
+        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+          <div className="flex justify-between gap-4 items-start">
+            <div className="flex-1">
+              <div className="flex items-center mb-1">
+                <AlertCircle className="w-3 h-3 text-orange-600 mr-1" />
+                <h3 className="text-xs font-bold text-orange-800">Condizioni di vendita</h3>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-800">
+                {orderData.salesConditions.payment && (
+                  <div>
+                    <span className="font-semibold">Pagamento:</span>{' '}
+                    <span>{orderData.salesConditions.payment}</span>
+                  </div>
+                )}
+                {orderData.salesConditions.shipping && (
+                  <div>
+                    <span className="font-semibold">Trasporto:</span>{' '}
+                    <span>{orderData.salesConditions.shipping}</span>
+                  </div>
+                )}
+                {orderData.salesConditions.delivery && (
+                  <div>
+                    <span className="font-semibold">Tempi di consegna:</span>{' '}
+                    <span>{orderData.salesConditions.delivery}</span>
+                  </div>
+                )}
+                {orderData.salesConditions.brand && (
+                  <div>
+                    <span className="font-semibold">Marchio:</span>{' '}
+                    <span>{orderData.salesConditions.brand}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="w-40 h-20 border border-gray-400 rounded flex flex-col items-center justify-center text-[10px] text-gray-700">
+              <div className="font-semibold">Per accettazione</div>
+              <div>Timbro e firma</div>
+            </div>
+          </div>
         </div>
       )}
 
