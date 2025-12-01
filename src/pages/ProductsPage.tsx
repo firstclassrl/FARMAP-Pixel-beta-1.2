@@ -274,18 +274,33 @@ export const ProductsPage = () => {
       }
 
       if (activeSearch) {
-        const searchValue = `%${activeSearch}%`;
-        const orFilters = [
-          `code.ilike.${searchValue}`,
-          `name.ilike.${searchValue}`,
-          `description.ilike.${searchValue}`,
-          `category.ilike.${searchValue}`,
-          `brand_name.ilike.${searchValue}`,
-          `client_product_code.ilike.${searchValue}`,
-          `supplier_product_code.ilike.${searchValue}`,
-          `customers.company_name.ilike.${searchValue}`
-        ].join(',');
-        query = query.or(orFilters);
+        // Support multiple parole nella barra di ricerca (es. codice + parte del nome)
+        // Ogni parola deve comparire in almeno uno dei campi indicati.
+        const tokens = activeSearch
+          .split(/\s+/)
+          .map(t => t.trim())
+          .filter(Boolean);
+
+        // Applichiamo un blocco di or() per ogni token.
+        // I diversi or() vengono combinati tra loro con AND, quindi:
+        //  - ogni token deve essere presente in almeno uno dei campi,
+        //  - evitando stringhe or troppo complesse che possono generare 400 dal backend.
+        tokens.forEach(token => {
+          const safeToken = token.replace(/[,%]/g, ' '); // evita caratteri che rompono la logic tree
+          const searchValue = `%${safeToken}%`;
+          const orFilters = [
+            `code.ilike.${searchValue}`,
+            `name.ilike.${searchValue}`,
+            `description.ilike.${searchValue}`,
+            `category.ilike.${searchValue}`,
+            `brand_name.ilike.${searchValue}`,
+            `client_product_code.ilike.${searchValue}`,
+            `supplier_product_code.ilike.${searchValue}`
+            // NB: evitare filtri su tabelle relazionate qui (es. customers.company_name)
+            // perché PostgREST può fallire il parsing della logic tree con errori 400.
+          ].join(',');
+          query = query.or(orFilters);
+        });
       }
 
       const { data, error, count } = await query;

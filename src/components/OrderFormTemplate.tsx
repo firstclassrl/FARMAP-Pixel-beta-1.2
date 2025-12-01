@@ -53,10 +53,12 @@ interface OrderFormTemplateProps {
 const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode = 'view', onSave }) => {
   const [editableData, setEditableData] = useState(orderData);
   const [isEditing, setIsEditing] = useState(false);
+  const [deliveryInput, setDeliveryInput] = useState<string>(formatDate(orderData.deliveryDate));
 
   // Sync editableData with orderData when it changes (e.g., when modal opens or order is refreshed)
   useEffect(() => {
     setEditableData(orderData);
+    setDeliveryInput(formatDate(orderData.deliveryDate));
   }, [orderData]);
 
   const calculateItemTotal = (quantity: number, unitPrice: number, discountPercentage: number = 0) => {
@@ -99,9 +101,20 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
   };
 
   const handleDeliveryDateChange = (value: string) => {
-    // valore atteso nel formato YYYY-MM-DD dal campo input type="date"
-    const newDate = value ? new Date(`${value}T00:00:00`) : new Date();
-    setEditableData({ ...editableData, deliveryDate: newDate });
+    setDeliveryInput(value);
+
+    // Accetta solo formato GG/MM/AAAA
+    const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return;
+
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const year = parseInt(match[3], 10);
+    const newDate = new Date(year, month, day);
+
+    if (!Number.isNaN(newDate.getTime())) {
+      setEditableData({ ...editableData, deliveryDate: newDate });
+    }
   };
 
   // Get totals - use calculated values in edit mode, original in view mode
@@ -140,8 +153,9 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
               <span className="font-semibold">Tempi di consegna:</span>
               {mode === 'edit' ? (
                 <Input
-                  type="date"
-                  value={editableData.deliveryDate ? editableData.deliveryDate.toISOString().slice(0, 10) : ''}
+                  type="text"
+                  placeholder="gg/mm/aaaa"
+                  value={deliveryInput}
                   onChange={(e) => handleDeliveryDateChange(e.target.value)}
                   className="h-6 text-xs w-36"
                 />
