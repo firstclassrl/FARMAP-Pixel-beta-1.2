@@ -628,7 +628,6 @@ export function PriceListDetailPage({
         const { [itemId]: _removed, ...rest } = prev;
         return rest;
       });
-      }
     } catch (error) {
       console.error('Errore nell\'aggiornamento del prezzo:', error);
       addNotification('Errore nell\'aggiornamento del prezzo', 'error');
