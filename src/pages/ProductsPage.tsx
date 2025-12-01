@@ -66,28 +66,10 @@ type ProductWithCustomer = Product & {
   customers?: {
     id: string;
     company_name: string;
-    code_prefix?: string | null;
   } | null;
 };
 
 const PAGE_SIZE = 60;
-const SEARCHABLE_PRODUCT_COLUMNS = [
-  'name',
-  'code',
-  'description',
-  'category',
-  'cartone',
-  'pallet',
-  'ean',
-] as const;
-const normalizePrefix = (value?: string | null) => {
-  if (!value) return '';
-  return value.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 2);
-};
-const normalizeCodeFilter = (value?: string | null) => {
-  if (!value) return '';
-  return value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 12);
-};
 
 // Database categories will be loaded dynamically
 
@@ -141,21 +123,6 @@ export const ProductsPage = () => {
       return acc;
     }, {});
   }, [customers]);
-  const selectedCustomer = useMemo(() => {
-    if (filterCustomer === 'all') return null;
-    return customers.find(customer => customer.id === filterCustomer) || null;
-  }, [customers, filterCustomer]);
-  const manualCodeFilter = useMemo(() => normalizeCodeFilter(codePrefix), [codePrefix]);
-  const customerCodePrefix = useMemo(
-    () => normalizePrefix(selectedCustomer?.code_prefix || ''),
-    [selectedCustomer?.code_prefix]
-  );
-  const effectiveCodePrefix = manualCodeFilter || customerCodePrefix;
-  const prefixSource: 'manual' | 'customer' | null = manualCodeFilter
-    ? 'manual'
-    : customerCodePrefix
-    ? 'customer'
-    : null;
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (codePrefix) count++;
@@ -274,25 +241,8 @@ export const ProductsPage = () => {
 
       const from = pageIndex * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const manualPrefix = normalizeCodeFilter(codePrefix);
-      const customerPrefix = normalizePrefix(selectedCustomer?.code_prefix || '');
-      const prefix = manualPrefix || customerPrefix;
+      const prefix = codePrefix.replace(/[^a-zA-Z]/g, '').toUpperCase();
       const activeSearch = debouncedSearch.trim();
-
-      let matchingCustomerIds: string[] = [];
-      if (activeSearch) {
-        const { data: customerMatches, error: customerSearchError } = await supabase
-          .from('customers')
-          .select('id')
-          .ilike('company_name', `%${activeSearch}%`);
-
-        if (customerSearchError) {
-          console.warn('Customer search failed:', customerSearchError);
-        } else if (customerMatches) {
-          matchingCustomerIds = customerMatches.map(customer => customer.id);
-        }
-      }
-
       let query = supabase
         .from('products')
         .select(`
@@ -313,7 +263,7 @@ export const ProductsPage = () => {
         query = query.eq('category', filterCategory);
       }
 
-      if (filterCustomer !== 'all' && !customerPrefix) {
+      if (filterCustomer !== 'all') {
         query = query.eq('customer_id', filterCustomer);
       }
 
@@ -325,15 +275,17 @@ export const ProductsPage = () => {
 
       if (activeSearch) {
         const searchValue = `%${activeSearch}%`;
-        const orFilters = SEARCHABLE_PRODUCT_COLUMNS.map(
-          column => `${column}.ilike.${searchValue}`
-        );
-
-        if (matchingCustomerIds.length > 0) {
-          orFilters.push(`customer_id.in.(${matchingCustomerIds.join(',')})`);
-        }
-
-        query = query.or(orFilters.join(','));
+        const orFilters = [
+          `code.ilike.${searchValue}`,
+          `name.ilike.${searchValue}`,
+          `description.ilike.${searchValue}`,
+          `category.ilike.${searchValue}`,
+          `brand_name.ilike.${searchValue}`,
+          `client_product_code.ilike.${searchValue}`,
+          `supplier_product_code.ilike.${searchValue}`,
+          `customers.company_name.ilike.${searchValue}`
+        ].join(',');
+        query = query.or(orFilters);
       }
 
       const { data, error, count } = await query;
@@ -362,13 +314,13 @@ export const ProductsPage = () => {
         setLoading(false);
       }
     }
-  }, [addNotification, codePrefix, debouncedSearch, filterCategory, filterCustomer, filterPhoto, selectedCustomer?.code_prefix]);
+  }, [addNotification, codePrefix, debouncedSearch, filterCategory, filterCustomer, filterPhoto]);
 
   const loadCustomers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, company_name, code_prefix')
+        .select('id, company_name')
         .eq('is_active', true)
         .order('company_name');
 
@@ -386,7 +338,7 @@ export const ProductsPage = () => {
 
   useEffect(() => {
     loadProducts({ append: false, pageIndex: 0 });
-  }, [loadProducts, debouncedSearch, codePrefix, filterCategory, filterCustomer, filterPhoto, selectedCustomer?.code_prefix]);
+  }, [loadProducts]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 350);
@@ -872,16 +824,17 @@ export const ProductsPage = () => {
         <CardContent className="pt-6 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Prefisso codice - campo piccolo */}
-            <div className="w-32">
+            <div className="w-20">
               <Input
-                placeholder="Codice"
+                placeholder="AA"
                 value={codePrefix}
                 onChange={(e) => {
-                  const sanitized = normalizeCodeFilter(e.target.value);
-                  setCodePrefix(sanitized);
+                  // Accetta solo lettere, max 2 caratteri
+                  const lettersOnly = e.target.value.replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase();
+                  setCodePrefix(lettersOnly);
                 }}
                 className="text-center font-mono text-sm"
-                maxLength={12}
+                maxLength={2}
               />
             </div>
             {/* Barra di ricerca - campo grande */}
@@ -889,7 +842,7 @@ export const ProductsPage = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Cerca per nome"
+                  placeholder="Cerca per nome, codice, descrizione o categoria..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -934,12 +887,6 @@ export const ProductsPage = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="text-sm text-gray-500">
               Filtri attivi: {activeFiltersCount} / 5
-              {prefixSource === 'customer' && effectiveCodePrefix && (
-                <span className="ml-2 inline-flex items-center gap-1 text-emerald-600">
-                  Prefisso automatico: {effectiveCodePrefix}
-                  {selectedCustomer?.company_name ? ` (${selectedCustomer.company_name})` : ''}
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2 justify-end">
               <span className="text-sm text-gray-500 hidden md:inline">Visualizzazione:</span>

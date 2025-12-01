@@ -335,39 +335,58 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
     try {
       setLoading(true);
       
-      // Update order notes
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({
-          notes: updatedData.notes
-        })
-        .eq('id', orderId);
+      // Calculate totals from items
+      let subtotal = 0;
+      let totalDiscount = 0;
 
-      if (orderError) throw new Error(`Errore nell'aggiornamento dell'ordine: ${orderError.message}`);
-
-      // Update order items
+      // Update order items and calculate totals
       for (const item of updatedData.items) {
         if (item.id) {
+          const itemSubtotal = item.quantity * item.unitPrice;
+          const itemDiscount = item.discountPercentage ? (itemSubtotal * item.discountPercentage) / 100 : 0;
+          const itemTotal = itemSubtotal - itemDiscount;
+
+          subtotal += itemSubtotal;
+          totalDiscount += itemDiscount;
+
           const { error: itemError } = await supabase
             .from('order_items')
             .update({
               quantity: item.quantity,
               unit_price: item.unitPrice,
-              total_price: item.quantity * item.unitPrice,
-              notes: item.notes
+              discount_percentage: item.discountPercentage || 0,
+              total_price: itemTotal,
+              notes: item.notes || null
             })
             .eq('id', item.id);
 
           if (itemError) {
             console.error(`Errore nell'aggiornamento dell'articolo ${item.productCode}:`, itemError);
+            throw new Error(`Errore nell'aggiornamento dell'articolo ${item.productCode}: ${itemError.message}`);
           }
         }
       }
 
+      const totalAmount = subtotal - totalDiscount;
+      const taxAmount = totalAmount * 0.22; // 22% IVA standard
+
+      // Update order with recalculated totals and notes
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          total_amount: totalAmount,
+          tax_amount: taxAmount,
+          discount_amount: totalDiscount,
+          notes: updatedData.notes || null
+        })
+        .eq('id', orderId);
+
+      if (orderError) throw new Error(`Errore nell'aggiornamento dell'ordine: ${orderError.message}`);
+
       addNotification({
         type: 'success',
         title: 'Ordine aggiornato',
-        message: 'Le modifiche sono state salvate con successo.'
+        message: 'Le modifiche sono state salvate con successo. I totali sono stati ricalcolati.'
       });
 
       // Close the modal after successful save

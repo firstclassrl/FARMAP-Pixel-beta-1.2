@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building, Package, AlertCircle } from 'lucide-react';
 import { formatCurrency, formatDate } from '../lib/exportUtils';
 import { Input } from './ui/input';
@@ -18,6 +18,7 @@ interface OrderFormTemplateProps {
     shippingAddress?: string;
     salesRepresentative: string;
     items: Array<{
+      id?: string;
       productCode: string;
       productName: string;
       productDescription?: string;
@@ -46,10 +47,38 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
   const [editableData, setEditableData] = useState(orderData);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Sync editableData with orderData when it changes (e.g., when modal opens or order is refreshed)
+  useEffect(() => {
+    setEditableData(orderData);
+  }, [orderData]);
+
   const calculateItemTotal = (quantity: number, unitPrice: number, discountPercentage: number = 0) => {
     const subtotal = quantity * unitPrice;
     const discountAmount = (subtotal * discountPercentage) / 100;
     return subtotal - discountAmount;
+  };
+
+  // Calculate totals from items
+  const calculateTotals = () => {
+    let subtotal = 0;
+    let totalDiscount = 0;
+
+    editableData.items.forEach(item => {
+      const itemSubtotal = item.quantity * item.unitPrice;
+      const itemDiscount = item.discountPercentage ? (itemSubtotal * item.discountPercentage) / 100 : 0;
+      subtotal += itemSubtotal;
+      totalDiscount += itemDiscount;
+    });
+
+    const totalAmount = subtotal - totalDiscount;
+    const taxAmount = totalAmount * 0.22; // 22% IVA standard
+
+    return {
+      subtotal: totalAmount,
+      discountAmount: totalDiscount,
+      taxAmount,
+      totalAmount: totalAmount + taxAmount
+    };
   };
 
   const handleItemChange = (index: number, field: string, value: string | number) => {
@@ -60,6 +89,14 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
 
   const handleNotesChange = (value: string) => {
     setEditableData({ ...editableData, notes: value });
+  };
+
+  // Get totals - use calculated values in edit mode, original in view mode
+  const totals = mode === 'edit' ? calculateTotals() : {
+    subtotal: orderData.subtotal,
+    discountAmount: orderData.discountAmount || 0,
+    taxAmount: orderData.taxAmount || 0,
+    totalAmount: orderData.totalAmount
   };
 
   return (
@@ -180,9 +217,9 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
       {/* Totals in una riga */}
       <div className="mb-4 p-2 bg-gray-50 rounded border">
         <div className="text-sm font-bold text-center">
-          Subtotale: {formatCurrency(orderData.subtotal)} | 
-          IVA: {formatCurrency(orderData.taxAmount || 0)} | 
-          TOTALE: {formatCurrency(orderData.totalAmount)}
+          Subtotale: {formatCurrency(totals.subtotal)} | 
+          IVA: {formatCurrency(totals.taxAmount)} | 
+          TOTALE: {formatCurrency(totals.totalAmount)}
         </div>
       </div>
 
@@ -212,7 +249,12 @@ const OrderFormTemplate: React.FC<OrderFormTemplateProps> = ({ orderData, mode =
           <Button 
             onClick={async () => {
               if (onSave) {
-                await onSave(editableData);
+                // Include calculated totals in the data to save
+                const dataToSave = {
+                  ...editableData,
+                  ...totals
+                };
+                await onSave(dataToSave);
               }
             }}
             className="text-xs bg-green-600 hover:bg-green-700 text-white"
