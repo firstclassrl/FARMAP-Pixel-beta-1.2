@@ -295,7 +295,7 @@ export const ProductsPage = () => {
             `name.ilike.${searchValue}`,
             `description.ilike.${searchValue}`,
             `category.ilike.${searchValue}`,
-            `brand_name.ilike.${searchValue}`,
+            // brand_name è stato rimosso dal database: evitiamo di usarlo nei filtri
             `client_product_code.ilike.${searchValue}`,
             `supplier_product_code.ilike.${searchValue}`
             // NB: evitare filtri su tabelle relazionate qui (es. customers.company_name)

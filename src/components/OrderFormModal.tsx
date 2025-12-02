@@ -13,7 +13,7 @@ import { useNotifications } from '../store/useStore';
 import { supabase } from '../lib/supabase';
 import OrderFormTemplate from './OrderFormTemplate';
 import type { Database } from '../types/database.types';
-import { formatDate } from '../lib/exportUtils';
+import { formatDate, formatCurrency } from '../lib/exportUtils';
 
 // Definizione Tipi (dal tuo codice originale)
 type Order = Database['public']['Tables']['orders']['Row'];
@@ -177,185 +177,245 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
     }
   };
 
+  /**
+   * Genera un PDF con layout il più possibile identico alla vista HTML di `OrderFormTemplate`.
+   * Usa gli stessi blocchi logici: logo, intestazione, dettagli ordine/cliente, tabella prodotti,
+   * totali compatti, note, condizioni di vendita e riquadro firma.
+   */
+  const generateOrderPdf = (data: any) => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let yPosition = margin;
+
+    // 1) Logo come nella testata del template
+    try {
+      const logoImg = new Image();
+      logoImg.src = '/logo_farmap industry.jpg';
+      doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
+      yPosition += 18;
+    } catch {
+      yPosition += 10;
+    }
+
+    // 2) Titolo "ORDINE DI ACQUISTO" centrato, come nel template
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ORDINE DI ACQUISTO', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 12;
+
+    // 3) Dettagli Ordine (colonna sinistra) + Tempi di consegna / Commerciale / Tracking
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+
+    const leftColX = margin;
+    const rightColX = margin + contentWidth / 2;
+
+    doc.text(`Numero: ${data.orderNumber}`, leftColX, yPosition);
+    doc.text(`Data: ${formatDate(data.orderDate)}`, rightColX, yPosition);
+    yPosition += 5;
+
+    doc.text(`Tempi di consegna: ${formatDate(data.deliveryDate)}`, leftColX, yPosition);
+    doc.text(`Commerciale: ${data.salesRepresentative}`, rightColX, yPosition);
+    yPosition += 5;
+
+    if (data.trackingNumber) {
+      doc.text(`Tracking: ${data.trackingNumber}`, leftColX, yPosition);
+      yPosition += 5;
+    }
+
+    yPosition += 4;
+
+    // 4) Dettagli Cliente (colonna destra nel template, ma in PDF in blocco separato)
+    doc.setFont('helvetica', 'bold');
+    doc.text('Dettagli Cliente', margin, yPosition);
+    yPosition += 6;
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Cliente: ${data.customerName}`, margin, yPosition);
+    yPosition += 4;
+    doc.text(`Codice: ${data.customerCode}`, margin, yPosition);
+    yPosition += 4;
+
+    if (data.customerContact) {
+      doc.text(`Contatto: ${data.customerContact}`, margin, yPosition);
+      yPosition += 4;
+    }
+    if (data.customerPhone) {
+      doc.text(`Telefono: ${data.customerPhone}`, margin, yPosition);
+      yPosition += 4;
+    }
+    if (data.customerAddress) {
+      const addrLines = doc.splitTextToSize(`Indirizzo: ${data.customerAddress}`, contentWidth);
+      doc.text(addrLines, margin, yPosition);
+      yPosition += addrLines.length * 4;
+    }
+
+    yPosition += 6;
+
+    // 5) Tabella prodotti – stessa struttura della tabella HTML (Codice, Prodotto, Quantità, Prezzo, Totale)
+    const tableBody = data.items.map((item: any) => {
+      const descrizione =
+        item.productDescription && item.productDescription.trim().length > 0
+          ? `${item.productName}\n${item.productDescription}`
+          : item.productName;
+
+      const totaleRiga = (item.quantity || 0) * (item.unitPrice || 0);
+
+      return [
+        item.productCode || '',
+        descrizione || '',
+        `${item.quantity} ${item.unit || 'pz'}`,
+        formatCurrency(item.unitPrice || 0),
+        formatCurrency(totaleRiga),
+      ];
+    });
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Codice', 'Prodotto', 'Quantità', 'Prezzo', 'Totale']],
+      body: tableBody,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [0, 0, 0],
+        textColor: [255, 255, 255],
+        fontSize: 9,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fontSize: 8,
+        cellPadding: 3,
+      },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30 },
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    const afterTableY = (doc as any).lastAutoTable.finalY + 6;
+
+    // 6) Totali compatti in una riga, come nel footer del template
+    const subtotal = data.subtotal ?? 0;
+    const tax = data.taxAmount ?? 0;
+    const total = data.totalAmount ?? subtotal + tax;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(
+      `Subtotale: ${formatCurrency(subtotal)} | IVA: ${formatCurrency(tax)} | TOTALE: ${formatCurrency(
+        total
+      )}`,
+      margin,
+      afterTableY
+    );
+
+    let currentY = afterTableY + 8;
+
+    // 7) Note ordine (stesso contenuto del riquadro giallo, senza sfondo)
+    if (data.notes) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('NOTE:', margin, currentY);
+      currentY += 5;
+
+      doc.setFont('helvetica', 'normal');
+      const noteLines = doc.splitTextToSize(String(data.notes), contentWidth);
+      doc.text(noteLines, margin, currentY);
+      currentY += noteLines.length * 4 + 4;
+    }
+
+    // 8) Condizioni di vendita + riquadro firma, come nel blocco finale del template
+    if (data.salesConditions && data.salesConditions.printConditions !== false) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Condizioni di vendita', margin, currentY);
+      currentY += 5;
+
+      doc.setFont('helvetica', 'normal');
+      const condLines: string[] = [];
+      if (data.salesConditions.payment) {
+        condLines.push(`Pagamento: ${data.salesConditions.payment}`);
+      }
+      if (data.salesConditions.shipping) {
+        condLines.push(`Trasporto: ${data.salesConditions.shipping}`);
+      }
+      if (data.salesConditions.delivery) {
+        condLines.push(`Tempi di consegna: ${data.salesConditions.delivery}`);
+      }
+      if (data.salesConditions.brand) {
+        condLines.push(`Marchio: ${data.salesConditions.brand}`);
+      }
+
+      condLines.forEach((line) => {
+        const wrapped = doc.splitTextToSize(line, contentWidth - 60);
+        doc.text(wrapped, margin, currentY);
+        currentY += wrapped.length * 4;
+      });
+
+      // Riquadro firma a destra
+      const boxWidth = 60;
+      const boxHeight = 25;
+      const boxX = pageWidth - margin - boxWidth;
+      const boxY = currentY - 10;
+
+      doc.rect(boxX, boxY, boxWidth, boxHeight);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Per accettazione', boxX + boxWidth / 2, boxY + 10, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.text('Timbro e firma', boxX + boxWidth / 2, boxY + 18, { align: 'center' });
+
+      currentY = boxY + boxHeight + 6;
+    }
+
+    // 9) Footer identico alla vista (data/ora + indirizzo azienda)
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    const footerY = pageHeight - 15;
+
+    doc.text(
+      `Generato il ${new Date().toLocaleDateString('it-IT')} alle ${new Date().toLocaleTimeString('it-IT')}`,
+      margin,
+      footerY
+    );
+    doc.text(
+      'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
+      pageWidth - margin,
+      footerY,
+      { align: 'right' }
+    );
+
+    return doc;
+  };
+
   const handleDownloadPdf = async () => {
     if (!orderData) return;
 
     try {
-      addNotification({ 
-        type: 'info', 
-        title: 'Generazione PDF', 
-        message: 'Il PDF è in fase di creazione...' 
+      addNotification({
+        type: 'info',
+        title: 'Generazione PDF',
+        message: 'Il PDF è in fase di creazione...',
       });
 
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 20;
-      const contentWidth = pageWidth - (margin * 2);
-      let yPosition = margin;
-
-      // Header with logo space and title
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ORDINE DI ACQUISTO', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
-
-      // Company info
-      doc.setFontSize(16);
-      doc.setTextColor(220, 38, 38); // Red color
-      doc.text('FARMAP INDUSTRY S.r.l.', margin, yPosition);
-      doc.setTextColor(0, 0, 0); // Reset to black
-      yPosition += 15;
-
-      // Order details
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      const orderDetails = [
-        [`Numero Ordine: ${orderData.orderNumber}`, `Data Ordine: ${formatDate(orderData.orderDate)}`],
-        [`Data Consegna: ${formatDate(orderData.deliveryDate)}`, `Rappresentante: ${orderData.salesRepresentative}`]
-      ];
-
-      orderDetails.forEach(([left, right]) => {
-        doc.text(left, margin, yPosition);
-        doc.text(right, margin + contentWidth / 2, yPosition);
-        yPosition += 6;
-      });
-
-      yPosition += 5;
-
-      // Customer details
-      doc.setFont('helvetica', 'bold');
-      doc.text('Dettagli Cliente', margin, yPosition);
-      yPosition += 8;
-      
-      doc.setFont('helvetica', 'normal');
-      const customerDetails = [
-        [`Cliente: ${orderData.customerName}`, `Codice: ${orderData.customerCode}`],
-        [`Contatto: ${orderData.customerContact}`, `Email: ${orderData.customerEmail || 'N/A'}`],
-        [`Telefono: ${orderData.customerPhone || 'N/A'}`, '']
-      ];
-
-      customerDetails.forEach(([left, right]) => {
-        doc.text(left, margin, yPosition);
-        if (right) doc.text(right, margin + contentWidth / 2, yPosition);
-        yPosition += 5;
-      });
-
-      if (orderData.customerAddress) {
-        doc.text(`Indirizzo: ${orderData.customerAddress}`, margin, yPosition);
-        yPosition += 5;
-      }
-
-      yPosition += 5;
-
-      // Products table using autoTable
-      const tableData = orderData.items.map((item: any) => [
-        item.productCode,
-        item.productName + (item.productDescription ? `\n${item.productDescription}` : ''),
-        `${item.quantity} ${item.unit || 'pz'}`,
-        `€${item.unitPrice.toFixed(2)}`,
-        item.discountPercentage ? `${item.discountPercentage}%` : '-',
-        `€${(item.quantity * item.unitPrice * (1 - (item.discountPercentage || 0) / 100)).toFixed(2)}`
-      ]);
-
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Codice', 'Prodotto', 'Quantità', 'Prezzo Unit.', 'Sconto', 'Totale']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [220, 38, 38], // Red header
-          textColor: 255,
-          fontSize: 9,
-          fontStyle: 'bold'
-        },
-        bodyStyles: { 
-          fontSize: 8,
-          cellPadding: 3
-        },
-        columnStyles: {
-          0: { cellWidth: 25 }, // Codice
-          1: { cellWidth: 60 }, // Prodotto
-          2: { cellWidth: 25 }, // Quantità
-          3: { cellWidth: 25 }, // Prezzo
-          4: { cellWidth: 20 }, // Sconto
-          5: { cellWidth: 25 }  // Totale
-        },
-        margin: { left: margin, right: margin }
-      });
-
-      // Get position after table
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-
-      // Totals section
-      const totalsX = pageWidth - margin - 60;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      
-      doc.text('Subtotale (Imponibile):', totalsX - 5, finalY, { align: 'right' });
-      doc.text(`€${orderData.subtotal.toFixed(2)}`, totalsX + 35, finalY, { align: 'right' });
-      
-      if (orderData.discountAmount && orderData.discountAmount > 0) {
-        doc.setTextColor(220, 38, 38);
-        doc.text('Sconto Applicato:', totalsX - 5, finalY + 6, { align: 'right' });
-        doc.text(`-€${orderData.discountAmount.toFixed(2)}`, totalsX + 35, finalY + 6, { align: 'right' });
-        doc.setTextColor(0, 0, 0);
-      }
-      
-      doc.text('IVA:', totalsX - 5, finalY + 12, { align: 'right' });
-      doc.text(`€${(orderData.taxAmount || 0).toFixed(2)}`, totalsX + 35, finalY + 12, { align: 'right' });
-      
-      // Total
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(220, 38, 38);
-      doc.text('Totale Ordine:', totalsX - 5, finalY + 20, { align: 'right' });
-      doc.text(`€${orderData.totalAmount.toFixed(2)}`, totalsX + 35, finalY + 20, { align: 'right' });
-      doc.setTextColor(0, 0, 0);
-
-      // Notes if present
-      if (orderData.notes) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.text('Note Ordine:', margin, finalY + 35);
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        const noteLines = doc.splitTextToSize(orderData.notes, contentWidth);
-        doc.text(noteLines, margin, finalY + 42);
-      }
-
-      // Footer
-      doc.setFontSize(8);
-      doc.setTextColor(128, 128, 128);
-      doc.text(
-        `Documento generato il ${new Date().toLocaleDateString('it-IT')} alle ${new Date().toLocaleTimeString('it-IT')}`,
-        margin,
-        pageHeight - 15
-      );
-      doc.text(
-        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
-        pageWidth - margin,
-        pageHeight - 15,
-        { align: 'right' }
-      );
-
-      // Save the PDF
+      const doc = generateOrderPdf(orderData);
       doc.save(`ordine_${orderData.orderNumber}.pdf`);
-      
-      addNotification({ 
-        type: 'success', 
-        title: 'PDF generato', 
-        message: 'Il PDF è stato scaricato con successo.' 
+
+      addNotification({
+        type: 'success',
+        title: 'PDF generato',
+        message: 'Il PDF è stato scaricato con successo.',
       });
-      
     } catch (err) {
       console.error('PDF generation error:', err);
-      addNotification({ 
-        type: 'error', 
-        title: 'Errore PDF', 
-        message: 'Impossibile generare il PDF.' 
+      addNotification({
+        type: 'error',
+        title: 'Errore PDF',
+        message: 'Impossibile generare il PDF.',
       });
     }
   };
@@ -452,115 +512,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({ isOpen, onClose, orderI
     }
 
     try {
-      // Genera il PDF automaticamente usando la funzione esistente
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 20;
-      const contentWidth = pageWidth - (margin * 2);
-      let yPosition = margin;
-
-      // 1. LOGO ORIGINALE FARMAP
-      try {
-        const logoImg = new Image();
-        logoImg.src = '/logo_farmap industry.jpg';
-        doc.addImage(logoImg, 'JPEG', margin, yPosition, 40, 12);
-        yPosition += 20;
-      } catch (logoError) {
-        console.warn('Logo non caricato, continuo senza logo');
-        yPosition += 10;
-      }
-
-      // 2. INTESTAZIONE
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ORDINE DI ACQUISTO', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
-
-      // 3. DETTAGLI ORDINE E CLIENTE
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      doc.text(`Numero Ordine: ${orderData.orderNumber}`, margin, yPosition);
-      doc.text(`Data Ordine: ${formatDate(orderData.orderDate)}`, margin + contentWidth/2, yPosition);
-      yPosition += 6;
-      
-      doc.text(`Cliente: ${orderData.customerName}`, margin, yPosition);
-      doc.text(`Email: ${orderData.customerEmail}`, margin + contentWidth/2, yPosition);
-      yPosition += 6;
-      
-      if (orderData.customerPhone) {
-        doc.text(`Telefono: ${orderData.customerPhone}`, margin, yPosition);
-      }
-      if (orderData.customerAddress) {
-        doc.text(`Indirizzo: ${orderData.customerAddress}`, margin + contentWidth/2, yPosition);
-      }
-      yPosition += 10;
-      
-      // 4. TABELLA PRODOTTI
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Codice', 'Prodotto', 'Quantità', 'Prezzo', 'Totale']],
-        body: orderData.orderItems?.map((item: any) => [
-          item.productCode || '',
-          item.productName || '',
-          `${item.quantity} ${item.unit || 'pz'}`,
-          `€${item.unitPrice?.toFixed(2) || '0.00'}`,
-          `€${item.totalPrice?.toFixed(2) || '0.00'}`
-        ]) || [],
-        theme: 'grid',
-        headStyles: { 
-          fillColor: [0, 0, 0], 
-          textColor: [255, 255, 255],
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5
-        },
-        bodyStyles: { 
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5
-        },
-        columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 30 }
-        }
-      });
-      
-      // 5. TOTALI
-      const finalY = (doc as any).lastAutoTable.finalY + 5;
-      const totalAmount = `€${orderData.totalAmount?.toFixed(2) || '0.00'}`;
-      const taxAmount = `€${orderData.taxAmount?.toFixed(2) || '0.00'}`;
-      const finalTotal = `€${(orderData.totalAmount + orderData.taxAmount)?.toFixed(2) || '0.00'}`;
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Subtotale: ${totalAmount} | IVA: ${taxAmount} | TOTALE: ${finalTotal}`, margin, finalY);
-      
-      // 6. NOTE (se presenti)
-      if (orderData.notes) {
-        yPosition = finalY + 15;
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text('NOTE:', margin, yPosition);
-        yPosition += 5;
-        doc.setFont('helvetica', 'normal');
-        const splitNotes = doc.splitTextToSize(orderData.notes, contentWidth);
-        doc.text(splitNotes, margin, yPosition);
-      }
-
-      // 7. FOOTER
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(
-        'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE)',
-        pageWidth - margin,
-        pageHeight - 15,
-        { align: 'right' }
-      );
-
-      // Salva il PDF temporaneamente
+      // Genera il PDF usando lo stesso layout dell'anteprima
+      const doc = generateOrderPdf(orderData);
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       

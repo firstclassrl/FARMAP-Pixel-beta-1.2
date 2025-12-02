@@ -47,28 +47,14 @@ CREATE POLICY "Users can update own profile" ON profiles
   );
 
 -- ==================
--- 2. ROLES TABLE
+-- 2. CUSTOMER_PRODUCTS TABLE
 -- ==================
--- Contains role definitions
-ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
-
--- Everyone authenticated can read roles
-CREATE POLICY "Authenticated users can view roles" ON roles
-  FOR SELECT 
-  USING (auth.role() = 'authenticated');
-
--- Only admins can modify roles
-CREATE POLICY "Only admins can modify roles" ON roles
-  FOR ALL 
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+-- NOTA: La tabella 'roles' è stata rimossa perché i ruoli
+-- vengono gestiti dall'enum 'user_role' PostgreSQL nella
+-- colonna profiles.role. Non è necessaria una tabella separata.
 
 -- ==========================
--- 3. CUSTOMER_PRODUCTS TABLE
+-- 2. CUSTOMER_PRODUCTS TABLE
 -- ==========================
 -- Links customers to their specific products
 ALTER TABLE customer_products ENABLE ROW LEVEL SECURITY;
@@ -96,7 +82,7 @@ CREATE POLICY "Admin and commerciale can modify customer products" ON customer_p
   );
 
 -- ==========================
--- 4. PRICE_LIST_ITEMS TABLE
+-- 3. PRICE_LIST_ITEMS TABLE
 -- ==========================
 -- Contains pricing information - CRITICAL
 ALTER TABLE price_list_items ENABLE ROW LEVEL SECURITY;
@@ -124,7 +110,7 @@ CREATE POLICY "Admin and commerciale can modify price list items" ON price_list_
   );
 
 -- ============================
--- 5. SAMPLE_REQUESTS TABLE
+-- 4. SAMPLE_REQUESTS TABLE
 -- ============================
 ALTER TABLE sample_requests ENABLE ROW LEVEL SECURITY;
 
@@ -168,7 +154,7 @@ CREATE POLICY "Only admin can delete sample requests" ON sample_requests
   );
 
 -- =================================
--- 6. SAMPLE_REQUEST_ITEMS TABLE
+-- 5. SAMPLE_REQUEST_ITEMS TABLE
 -- =================================
 ALTER TABLE sample_request_items ENABLE ROW LEVEL SECURITY;
 
@@ -213,7 +199,7 @@ CREATE POLICY "Admin and commerciale can modify sample request items" ON sample_
   );
 
 -- ========================================
--- 7. VIEWS - Products by Role
+-- 6. VIEWS - Products by Role
 -- ========================================
 -- Note: Views inherit RLS from underlying tables, 
 -- but we ensure they're protected

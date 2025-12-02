@@ -369,10 +369,22 @@ const editUserSchema = z.object({
 
       if (error) {
         console.error('Error updating user:', error);
+        
+        // Messaggi di errore più specifici
+        let errorMessage = 'Impossibile aggiornare l\'utente. Verifica i permessi.';
+        
+        if (error.message?.includes('invalid input value for enum user_role') || 
+            error.message?.includes('type user_role') ||
+            error.code === '23502') {
+          errorMessage = `Il ruolo "${data.role}" non è valido nel database. Esegui lo script ADD_MISSING_ROLES.sql per aggiungere i ruoli mancanti all'enum user_role.`;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         addNotification({
           type: 'error',
           title: 'Errore aggiornamento',
-          message: 'Impossibile aggiornare l\'utente. Verifica i permessi.'
+          message: errorMessage
         });
         return;
       }

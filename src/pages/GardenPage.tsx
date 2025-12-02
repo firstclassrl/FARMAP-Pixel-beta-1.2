@@ -62,7 +62,7 @@ export default function GardenPage() {
           
           const { data: fallbackData, error: fallbackError } = await supabase
             .from('products')
-            .select('id, name, code, description, category, base_price, unit, photo_url, brand_name, customer_id, cartone, pallet, strati')
+            .select('id, name, code, description, category, base_price, unit, photo_url, customer_id, cartone, pallet, strati')
             .eq('is_active', true);
             
           if (fallbackError) {
