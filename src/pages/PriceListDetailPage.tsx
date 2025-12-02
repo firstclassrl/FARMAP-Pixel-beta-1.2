@@ -92,10 +92,6 @@ export function PriceListDetailPage({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [printByCategory, setPrintByCategory] = useState(false);
   const [pendingMOQValues, setPendingMOQValues] = useState<Record<string, string>>({});
-  const [pendingPriceValues, setPendingPriceValues] = useState<Record<string, string>>({});
-  const [pendingProductFields, setPendingProductFields] = useState<
-    Record<string, { cartone?: string; pallet?: string; scadenza?: string }>
-  >({});
   const conditionsSaveTimerRef = useRef<number | null>(null);
 
   const scheduleSaveConditions = (immediate = false, targetPriceListId?: string) => {
@@ -594,19 +590,6 @@ export function PriceListDetailPage({
 
   const handlePriceChange = async (itemId: string, newPrice: number) => {
     try {
-      const item = currentPriceList?.price_list_items?.find(i => i.id === itemId);
-      if (!item) return;
-
-      // Se il prezzo non è cambiato, non fare nulla
-      if (item.price === newPrice) {
-        setPendingPriceValues(prev => {
-          if (!(itemId in prev)) return prev;
-          const { [itemId]: _removed, ...rest } = prev;
-          return rest;
-        });
-        return;
-      }
-
       const { error } = await supabase
         .from('price_list_items')
         .update({ price: newPrice })
@@ -621,13 +604,6 @@ export function PriceListDetailPage({
         );
         setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
       }
-
-      // Pulisce il valore pending per questo item
-      setPendingPriceValues(prev => {
-        if (!(itemId in prev)) return prev;
-        const { [itemId]: _removed, ...rest } = prev;
-        return rest;
-      });
     } catch (error) {
       console.error('Errore nell\'aggiornamento del prezzo:', error);
       addNotification('Errore nell\'aggiornamento del prezzo', 'error');
@@ -668,11 +644,6 @@ export function PriceListDetailPage({
       const item = currentPriceList?.price_list_items?.find(i => i.id === itemId);
       if (!item?.products?.id) return;
 
-      // Se il valore non è cambiato, non fare nulla
-      if ((item.products as any)[field] === value) {
-        return;
-      }
-
       // Aggiorna il campo nel database
       const { error } = await supabase
         .from('products')
@@ -695,20 +666,6 @@ export function PriceListDetailPage({
         type: 'success',
         title: 'Campo aggiornato',
         message: `${field} aggiornato con successo`
-      });
-
-      // Pulisce il valore pending per questo campo
-      setPendingProductFields(prev => {
-        const itemPending = prev[itemId];
-        if (!itemPending) return prev;
-        const { [field]: _removed, ...restFields } = itemPending;
-        const next = { ...prev };
-        if (Object.keys(restFields).length === 0) {
-          delete next[itemId];
-        } else {
-          next[itemId] = restFields;
-        }
-        return next;
       });
     } catch (error) {
       console.error(`Errore nell'aggiornamento del campo ${field}:`, error);
@@ -747,49 +704,11 @@ export function PriceListDetailPage({
           <span className="text-xs text-gray-600">Prezzo:</span>
           <div className="relative">
             <Input
-              type="text"
-              inputMode="decimal"
-              value={
-                pendingPriceValues[item.id] ??
-                (typeof item.price === 'number'
-                  ? item.price.toFixed(2).replace('.', ',')
-                  : '')
-              }
-              onChange={(e) => {
-                const raw = e.target.value;
-                // Permetti solo numeri, virgola e punto
-                const sanitized = raw.replace(/[^0-9.,]/g, '');
-                setPendingPriceValues(prev => ({
-                  ...prev,
-                  [item.id]: sanitized,
-                }));
-              }}
-              onBlur={(e) => {
-                const raw = e.target.value.trim();
-                if (!raw) {
-                  // Se vuoto, ripristina il valore corrente formattato
-                  setPendingPriceValues(prev => {
-                    const { [item.id]: _removed, ...rest } = prev;
-                    return rest;
-                  });
-                  return;
-                }
-
-                const normalized = raw.replace('.', ',');
-                const asNumber = parseFloat(normalized.replace(',', '.'));
-
-                if (isNaN(asNumber) || asNumber < 0) {
-                  // Se non è un numero valido, ripristina il valore precedente
-                  setPendingPriceValues(prev => {
-                    const { [item.id]: _removed, ...rest } = prev;
-                    return rest;
-                  });
-                  return;
-                }
-
-                const rounded = Math.round(asNumber * 100) / 100;
-                void handlePriceChange(item.id, rounded);
-              }}
+              type="number"
+              step="0.01"
+              min="0"
+              value={item.price}
+              onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
               className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs text-gray-500">€</span>
@@ -833,21 +752,8 @@ export function PriceListDetailPage({
         <div className="flex items-center gap-1 min-w-[140px]">
           <span className="text-xs text-gray-600">Cartone:</span>
           <Input
-            value={pendingProductFields[item.id]?.cartone ?? item.products.cartone ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPendingProductFields(prev => ({
-                ...prev,
-                [item.id]: {
-                  ...prev[item.id],
-                  cartone: value,
-                },
-              }));
-            }}
-            onBlur={(e) => {
-              const value = e.target.value;
-              void handleProductFieldChange(item.id, 'cartone', value);
-            }}
+            value={item.products.cartone || ''}
+            onChange={(e) => handleProductFieldChange(item.id, 'cartone', e.target.value)}
             className="h-5 text-xs w-24"
           />
         </div>
@@ -855,21 +761,8 @@ export function PriceListDetailPage({
         <div className="flex items-center gap-1 min-w-[140px]">
           <span className="text-xs text-gray-600">Pedana:</span>
           <Input
-            value={pendingProductFields[item.id]?.pallet ?? item.products.pallet ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPendingProductFields(prev => ({
-                ...prev,
-                [item.id]: {
-                  ...prev[item.id],
-                  pallet: value,
-                },
-              }));
-            }}
-            onBlur={(e) => {
-              const value = e.target.value;
-              void handleProductFieldChange(item.id, 'pallet', value);
-            }}
+            value={item.products.pallet || ''}
+            onChange={(e) => handleProductFieldChange(item.id, 'pallet', e.target.value)}
             className="h-5 text-xs w-24"
           />
         </div>
@@ -877,21 +770,8 @@ export function PriceListDetailPage({
         <div className="flex items-center gap-1 min-w-[150px]">
           <span className="text-xs text-gray-600">Scadenza:</span>
           <Input
-            value={pendingProductFields[item.id]?.scadenza ?? item.products.scadenza ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPendingProductFields(prev => ({
-                ...prev,
-                [item.id]: {
-                  ...prev[item.id],
-                  scadenza: value,
-                },
-              }));
-            }}
-            onBlur={(e) => {
-              const value = e.target.value;
-              void handleProductFieldChange(item.id, 'scadenza', value);
-            }}
+            value={item.products.scadenza || ''}
+            onChange={(e) => handleProductFieldChange(item.id, 'scadenza', e.target.value)}
             className="h-5 text-xs w-28"
           />
         </div>

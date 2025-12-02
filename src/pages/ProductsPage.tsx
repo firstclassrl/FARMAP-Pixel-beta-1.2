@@ -264,7 +264,9 @@ export const ProductsPage = () => {
       }
 
       if (filterCustomer !== 'all') {
-        query = query.eq('customer_id', filterCustomer);
+        // Qui filterCustomer contiene il prefisso codice cliente (code_prefix),
+        // non l'id. Filtriamo quindi per codice prodotto che inizia con quel prefisso.
+        query = query.ilike('code', `${filterCustomer}%`);
       }
 
       if (filterPhoto === 'with') {
@@ -335,7 +337,9 @@ export const ProductsPage = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, company_name')
+        // Recuperiamo anche il prefisso di codice prodotto, così il filtro cliente
+        // può usare direttamente il prefisso (es. "LA") per filtrare i codici prodotto.
+        .select('id, company_name, code_prefix')
         .eq('is_active', true)
         .order('company_name');
 
@@ -892,9 +896,16 @@ export const ProductsPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tutti i clienti</SelectItem>
-                  {customers.map(customer => (
-                    <SelectItem key={customer.id} value={customer.id}>{customer.company_name}</SelectItem>
-                  ))}
+                  {customers
+                    .filter(customer => customer.code_prefix) // solo clienti con prefisso definito
+                    .map(customer => (
+                      <SelectItem
+                        key={customer.id}
+                        value={customer.code_prefix || ''}
+                      >
+                        {customer.company_name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
