@@ -389,11 +389,23 @@ const editUserSchema = z.object({
         return;
       }
 
-      addNotification({
-        type: 'success',
-        title: 'Utente aggiornato',
-        message: `${data.full_name} è stato aggiornato con successo`
-      });
+      // Check if role was changed
+      const roleChanged = data.role !== editingUser.role;
+      
+      // Inform that user needs to logout/login if role changed
+      if (roleChanged) {
+        addNotification({
+          type: 'success',
+          title: 'Utente aggiornato',
+          message: `${data.full_name} è stato aggiornato. L'utente deve effettuare logout e login per vedere il nuovo ruolo.`
+        });
+      } else {
+        addNotification({
+          type: 'success',
+          title: 'Utente aggiornato',
+          message: `${data.full_name} è stato aggiornato con successo`
+        });
+      }
 
       setShowEditDialog(false);
       setEditingUser(null);

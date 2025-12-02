@@ -36,6 +36,7 @@ export function useAuth(): {
   error: string | null;
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 } {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -266,12 +267,46 @@ export function useAuth(): {
     }
   };
 
+  const refreshProfile = async () => {
+    const currentUser = authState.user;
+    if (!currentUser) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Error refreshing profile:', error);
+        return;
+      }
+
+      if (data) {
+        const mustBeAdmin = currentUser.email === 'antonio.pasetti@farmapindustry.it';
+        const effectiveProfile: Profile = {
+          ...data,
+          role: (mustBeAdmin ? 'admin' : (data.role as UserRole)),
+        };
+        
+        setAuthState(prev => ({
+          ...prev,
+          profile: effectiveProfile
+        }));
+      }
+    } catch (error: any) {
+      console.warn('Error refreshing profile:', error);
+    }
+  };
+
   return {
     user: authState.user,
     profile: authState.profile,
     loading: authState.loading,
     error: authState.error,
     signIn,
-    signOut
+    signOut,
+    refreshProfile
   };
 }

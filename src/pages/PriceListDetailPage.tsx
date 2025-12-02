@@ -540,6 +540,43 @@ export function PriceListDetailPage({
     try {
       // Usa handleSubmit per validare e salvare i dati del form
       await handleSubmit(handleMainFormSubmit)();
+
+      // Dopo aver salvato il listino, salva anche i campi prodotto (cartone, pallet, scadenza)
+      if (currentPriceList?.price_list_items?.length) {
+        // Raggruppa per prodotto per evitare update duplicati
+        const productUpdatesMap = new Map<
+          string,
+          { cartone: string | null; pallet: string | null; scadenza: string | null }
+        >();
+
+        currentPriceList.price_list_items.forEach((item) => {
+          const product = item.products;
+          if (!product?.id) return;
+
+          productUpdatesMap.set(product.id, {
+            cartone: (product as any).cartone ?? null,
+            pallet: (product as any).pallet ?? null,
+            scadenza: (product as any).scadenza ?? null,
+          });
+        });
+
+        for (const [productId, fields] of productUpdatesMap.entries()) {
+          const { error } = await supabase
+            .from('products')
+            .update(fields)
+            .eq('id', productId);
+
+          if (error) {
+            console.error('Errore nel salvataggio dei campi prodotto:', error);
+            addNotification({
+              type: 'error',
+              title: 'Errore',
+              message: 'Errore nel salvataggio dei dati prodotto (cartone/pedana/scadenza)',
+            });
+            // Non rilanciamo l'errore: continuiamo a chiudere la modale per non bloccare l’utente
+          }
+        }
+      }
       
       // Se arriviamo qui, il salvataggio è andato a buon fine
       addNotification({
@@ -590,9 +627,14 @@ export function PriceListDetailPage({
 
   const handlePriceChange = async (itemId: string, newPrice: number) => {
     try {
+      // Normalizza sempre a 2 decimali
+      const normalizedPrice = Number.isFinite(newPrice)
+        ? Number(newPrice.toFixed(2))
+        : 0;
+
       const { error } = await supabase
         .from('price_list_items')
-        .update({ price: newPrice })
+        .update({ price: normalizedPrice })
         .eq('id', itemId);
 
       if (error) throw error;
@@ -600,7 +642,7 @@ export function PriceListDetailPage({
       // Aggiorna lo stato locale
       if (currentPriceList) {
         const updatedItems = currentPriceList.price_list_items.map(item =>
-          item.id === itemId ? { ...item, price: newPrice } : item
+          item.id === itemId ? { ...item, price: normalizedPrice } : item
         );
         setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
       }
@@ -638,43 +680,23 @@ export function PriceListDetailPage({
     }
   };
 
-  const handleProductFieldChange = async (itemId: string, field: 'cartone' | 'pallet' | 'scadenza', value: string) => {
-    try {
-      // Trova il prodotto associato a questo item
-      const item = currentPriceList?.price_list_items?.find(i => i.id === itemId);
-      if (!item?.products?.id) return;
+  /**
+   * Aggiorna solo lo stato locale dei campi legati al prodotto (cartone, pallet, scadenza).
+   * Il salvataggio su database viene eseguito solo quando si clicca su "Salva e Chiudi".
+   */
+  const handleProductFieldChange = (itemId: string, field: 'cartone' | 'pallet' | 'scadenza', value: string) => {
+    if (!currentPriceList) return;
 
-      // Aggiorna il campo nel database
-      const { error } = await supabase
-        .from('products')
-        .update({ [field]: value })
-        .eq('id', item.products.id);
+    const updatedItems = currentPriceList.price_list_items.map(i =>
+      i.id === itemId
+        ? { ...i, products: { ...i.products, [field]: value } }
+        : i
+    );
 
-      if (error) throw error;
-
-      // Aggiorna lo stato locale
-      if (currentPriceList) {
-        const updatedItems = currentPriceList.price_list_items.map(i => 
-          i.id === itemId 
-            ? { ...i, products: { ...i.products, [field]: value } }
-            : i
-        );
-        setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
-      }
-
-      addNotification({
-        type: 'success',
-        title: 'Campo aggiornato',
-        message: `${field} aggiornato con successo`
-      });
-    } catch (error) {
-      console.error(`Errore nell'aggiornamento del campo ${field}:`, error);
-      addNotification({
-        type: 'error',
-        title: 'Errore',
-        message: `Errore nell'aggiornamento del campo ${field}`
-      });
-    }
+    setCurrentPriceList({
+      ...currentPriceList,
+      price_list_items: updatedItems,
+    });
   };
 
   const renderProductCard = (item: PriceListItemWithProduct) => (
@@ -707,7 +729,11 @@ export function PriceListDetailPage({
               type="number"
               step="0.01"
               min="0"
-              value={item.price}
+              value={
+                item.price !== null && item.price !== undefined
+                  ? Number(item.price).toFixed(2)
+                  : ''
+              }
               onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
               className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
