@@ -39,12 +39,24 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Handle all OPTIONS requests explicitly before other routes
-app.options('*', (req, res) => {
+// This MUST be before any route definitions
+app.options('*', (req, res, next) => {
+  console.log('🔵 OPTIONS request received for:', req.path);
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  res.sendStatus(200);
+  return res.status(200).end();
+});
+
+// Also handle OPTIONS specifically for the upload endpoint (before POST route)
+app.options('/api/generate-price-list-pdf-upload', (req, res) => {
+  console.log('🔵 OPTIONS preflight for /api/generate-price-list-pdf-upload');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Max-Age', '86400');
+  return res.status(200).end();
 });
 
 app.use(express.json({ limit: '10mb' }));
@@ -820,15 +832,8 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
   }
 });
 
-// Handle OPTIONS request for the new endpoint explicitly
-app.options('/api/generate-price-list-pdf-upload', cors(corsOptions), (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.sendStatus(200);
-});
-
 // New endpoint: Generate PDF and upload to Supabase Storage bucket
+// OPTIONS handler is already defined above in the global handler
 app.post('/api/generate-price-list-pdf-upload', cors(corsOptions), async (req, res) => {
   try {
     console.log('🔵 PDF Upload Request received');
@@ -1059,6 +1064,23 @@ app.post('/api/generate-price-list-pdf-upload', cors(corsOptions), async (req, r
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'pdf-generator' });
+});
+
+// Test CORS endpoint
+app.get('/api/test-cors', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.json({ 
+    message: 'CORS test successful',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin 
+  });
+});
+
+app.options('/api/test-cors', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.status(200).end();
 });
 
 // Debug endpoint per testare PDF semplice senza immagini

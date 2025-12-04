@@ -6,9 +6,28 @@ Configurare il webhook N8N per l'invio automatico delle email con allegato PDF d
 
 ## 🔧 Configurazione Variabili Ambiente
 
-### **Backend PDF Generator (Railway o servizio deployato)**
+### **Frontend (Netlify)**
 
-Il backend PDF generator deve avere configurata la seguente variabile d'ambiente:
+Il frontend deve avere configurata la seguente variabile d'ambiente in Netlify:
+
+**Nome variabile:** `VITE_N8N_PRICELIST_WEBHOOK_URL`  
+**Valore:** `https://thermostatically-proliferous-doyle.ngrok-free.dev/webhook/pixel`
+
+⚠️ **IMPORTANTE**: Le variabili d'ambiente in Vite devono avere il prefisso `VITE_` per essere accessibili nel frontend.
+
+#### **Come Configurare in Netlify:**
+
+1. **Accedere a Netlify Dashboard**
+2. **Selezionare il sito** (pixel.farmap.it)
+3. **Andare su Site settings → Environment variables**
+4. **Aggiungere variabile d'ambiente:**
+   - **Key**: `VITE_N8N_PRICELIST_WEBHOOK_URL`
+   - **Value**: `https://thermostatically-proliferous-doyle.ngrok-free.dev/webhook/pixel`
+5. **Salvare e fare redeploy** del sito
+
+### **Backend PDF Generator (Railway) - Opzionale**
+
+Il backend PDF generator può anche avere questa variabile (se si vuole chiamare il webhook dal backend):
 
 ```
 N8N_PRICELIST_WEBHOOK_URL=https://thermostatically-proliferous-doyle.ngrok-free.dev/webhook/pixel

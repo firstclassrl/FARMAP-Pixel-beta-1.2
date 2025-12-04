@@ -275,23 +275,16 @@ export function PriceListPrintView({
       }
       const cleanBackendUrl = backendUrl.replace(/\/$/, '');
       
-      // Chiama il nuovo endpoint che genera PDF, lo carica nel bucket e chiama il webhook N8N
-      const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf-upload`;
+      // SOLUZIONE ALTERNATIVA: Genera PDF e carica dal frontend (evita problemi CORS)
+      // Usa l'endpoint esistente per generare il PDF
+      const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
       
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...requestBody,
-          uploadToBucket: true,
-          bucketName: 'order-pdfs',
-          // Pass email data to backend for webhook call
-          email: emailData.email,
-          subject: emailData.subject,
-          body: emailData.body
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -299,10 +292,76 @@ export function PriceListPrintView({
         throw new Error(errorData.message || errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
+      // Ottieni il PDF come blob
+      const pdfBlob = await response.blob();
       
-      if (!result.success) {
-        throw new Error('Il backend non ha completato l\'operazione con successo');
+      // Carica PDF su Supabase Storage
+      const priceListId = priceList.id;
+      const timestamp = Date.now();
+      const fileName = `listino_${priceListId}_${timestamp}.pdf`;
+
+      addNotification({
+        type: 'info',
+        title: 'Upload PDF in corso',
+        message: 'Sto caricando il PDF nel bucket...'
+      } as any);
+
+      const { error: uploadError } = await supabase.storage
+        .from('order-pdfs')
+        .upload(fileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`Errore nel caricamento del PDF: ${uploadError.message}`);
+      }
+
+      // Ottieni URL pubblico
+      const { data: urlData } = supabase.storage
+        .from('order-pdfs')
+        .getPublicUrl(fileName);
+
+      const pdfUrl = urlData?.publicUrl;
+      if (!pdfUrl) {
+        throw new Error('Impossibile ottenere l\'URL pubblico del PDF');
+      }
+
+      // Chiama webhook N8N
+      const webhookUrl = import.meta.env.VITE_N8N_PRICELIST_WEBHOOK_URL;
+      if (!webhookUrl) {
+        throw new Error('URL webhook N8N non configurato. Configurare VITE_N8N_PRICELIST_WEBHOOK_URL');
+      }
+
+      addNotification({
+        type: 'info',
+        title: 'Invio email in corso',
+        message: 'Sto chiamando il webhook N8N...'
+      } as any);
+
+      const webhookPayload = {
+        email: emailData.email,
+        subject: emailData.subject,
+        body: emailData.body,
+        pdfUrl: pdfUrl,
+        priceListId: priceList.id,
+        priceListName: priceList.name,
+        customerName: priceList.customer?.company_name || 'Cliente',
+        customerEmail: priceList.customer?.email || emailData.email,
+        fileName: fileName
+      };
+
+      const webhookResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookPayload)
+      });
+
+      if (!webhookResponse.ok) {
+        const errorText = await webhookResponse.text();
+        throw new Error(`Errore nella chiamata al webhook N8N: ${errorText}`);
       }
 
       addNotification({

@@ -14,7 +14,8 @@ import {
   Plus,
   AlertTriangle,
   Printer,
-  X
+  X,
+  Target
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -1082,6 +1083,28 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
       ),
     [watchedItems]
   );
+  
+  // Helper per identificare se un ingrediente è acqua (per classe "ACQUA")
+  const isWaterIngredient = useCallback((materialId: string) => {
+    const material = materials.find((m) => m.id === materialId);
+    return material?.material_class?.name?.toUpperCase() === 'ACQUA';
+  }, [materials]);
+  
+  // Calcola la percentuale totale degli altri ingredienti (escludendo l'acqua)
+  const calculateOtherIngredientsTotal = useCallback((excludeIndex: number) => {
+    return watchedItems.reduce((sum, item, idx) => {
+      if (idx === excludeIndex) return sum;
+      return sum + (Number.isFinite(item.percentage) ? Number(item.percentage) : 0);
+    }, 0);
+  }, [watchedItems]);
+  
+  // Completa automaticamente la percentuale dell'acqua fino al 100%
+  const autoCompleteWaterPercentage = useCallback((waterIndex: number) => {
+    const otherTotal = calculateOtherIngredientsTotal(waterIndex);
+    const waterPercentage = Math.max(0, 100 - otherTotal);
+    ingredientsForm.setValue(`items.${waterIndex}.percentage`, waterPercentage);
+  }, [calculateOtherIngredientsTotal, ingredientsForm]);
+  
   const ingredientsArray = useFieldArray({
     control: ingredientsForm.control,
     name: 'items'
@@ -1819,11 +1842,30 @@ const RecipesTab = ({ hook, materials, materialsLoading, profileId, notify }: Re
                       />
                     </FormField>
                     <FormField label="Percentuale (%)" required>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...ingredientsForm.register(`items.${index}.percentage`, { valueAsNumber: true, required: true })}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="flex-1"
+                          {...ingredientsForm.register(`items.${index}.percentage`, { valueAsNumber: true, required: true })}
+                        />
+                        {(() => {
+                          const currentMaterialId = ingredientsForm.watch(`items.${index}.raw_material_id`);
+                          const isWater = currentMaterialId && isWaterIngredient(currentMaterialId);
+                          return isWater ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => autoCompleteWaterPercentage(index)}
+                              title="Completa automaticamente fino al 100%"
+                              className="shrink-0"
+                            >
+                              <Target className="w-4 h-4" />
+                            </Button>
+                          ) : null;
+                        })()}
+                      </div>
                     </FormField>
                     <FormField label="Note">
                       <Input {...ingredientsForm.register(`items.${index}.notes`)} />
