@@ -88,11 +88,7 @@ Team FARMAP`;
     try {
       setIsSending(true);
       await onSend(data);
-      addNotification({
-        type: 'success',
-        title: 'Email inviata',
-        message: `Email inviata con successo a ${data.email}`,
-      });
+      // La notifica di successo viene gestita in PriceListPrintView
       reset();
       onClose();
     } catch (error) {

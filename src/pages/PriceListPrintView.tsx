@@ -256,11 +256,6 @@ export function PriceListPrintView({
     
     try {
       setIsGeneratingPDF(true);
-      addNotification({
-        type: 'info',
-        title: 'Generazione PDF in corso',
-        message: 'Sto creando il PDF e preparando l\'invio email...'
-      } as any);
 
       // Prepara il requestBody usando la funzione helper
       const requestBody = preparePdfRequestBody();
@@ -300,12 +295,6 @@ export function PriceListPrintView({
       const timestamp = Date.now();
       const fileName = `listino_${priceListId}_${timestamp}.pdf`;
 
-      addNotification({
-        type: 'info',
-        title: 'Upload PDF in corso',
-        message: 'Sto caricando il PDF nel bucket...'
-      } as any);
-
       const { error: uploadError } = await supabase.storage
         .from('order-pdfs')
         .upload(fileName, pdfBlob, {
@@ -333,12 +322,6 @@ export function PriceListPrintView({
         throw new Error('URL webhook N8N non configurato. Configurare VITE_N8N_PRICELIST_WEBHOOK_URL');
       }
 
-      addNotification({
-        type: 'info',
-        title: 'Invio email in corso',
-        message: 'Sto chiamando il webhook N8N...'
-      } as any);
-
       const webhookPayload = {
         email: emailData.email,
         subject: emailData.subject,
@@ -364,10 +347,11 @@ export function PriceListPrintView({
         throw new Error(`Errore nella chiamata al webhook N8N: ${errorText}`);
       }
 
+      // Solo una notifica finale di successo
       addNotification({
         type: 'success',
         title: 'Email inviata',
-        message: `Email inviata con successo a ${emailData.email}. Il PDF è stato allegato automaticamente.`
+        message: `Email inviata con successo a: ${emailData.email}`
       } as any);
       
     } catch (error) {
