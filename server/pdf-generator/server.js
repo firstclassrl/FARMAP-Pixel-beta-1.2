@@ -544,8 +544,18 @@ const generateHTML = (priceList, options = {}) => {
   `;
 };
 
+// Handle OPTIONS for existing PDF endpoint
+app.options('/api/generate-price-list-pdf', (req, res) => {
+  console.log('🔵 OPTIONS preflight for /api/generate-price-list-pdf');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Max-Age', '86400');
+  return res.status(200).end();
+});
+
 // Endpoint to generate PDF
-app.post('/api/generate-price-list-pdf', async (req, res) => {
+app.post('/api/generate-price-list-pdf', cors(corsOptions), async (req, res) => {
   try {
     console.log('🔵 PDF Request received');
     console.log('🔵 Request body keys:', Object.keys(req.body));
@@ -793,6 +803,11 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       // pdfBuffer già creato sopra durante la verifica header
       // Non serve ricrearlo
       
+      // Set CORS headers explicitly
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+      
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Length', pdfBuffer.length.toString());
       res.setHeader('Content-Disposition', 'attachment; filename="listino.pdf"');
@@ -821,6 +836,11 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       message: error.message,
       code: error.code
     });
+    
+    // Set CORS headers in error response too
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     
     res.status(500).json({ 
       error: 'Error generating PDF', 
