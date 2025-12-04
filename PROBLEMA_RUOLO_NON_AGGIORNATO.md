@@ -51,3 +51,4 @@ Se il ruolo è corretto nel database ma l'utente vede ancora il vecchio ruolo, s
 - Il logout/login risolve sempre il problema
 - In futuro si potrebbe aggiungere un listener Supabase Realtime per aggiornare automaticamente il profilo quando viene modificato
 
+

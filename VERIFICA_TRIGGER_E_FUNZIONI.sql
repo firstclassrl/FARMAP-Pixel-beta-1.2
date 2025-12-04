@@ -70,3 +70,4 @@ WHERE table_schema = 'public'
 -- - Si attivano su eventi di autenticazione
 -- =====================================================
 
+

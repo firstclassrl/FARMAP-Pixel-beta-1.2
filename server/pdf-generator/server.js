@@ -4,6 +4,7 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -65,6 +66,33 @@ const resolveStorageBaseUrl = () => {
 
 const STORAGE_BASE_URL = resolveStorageBaseUrl();
 console.log('🔵 Storage base URL:', STORAGE_BASE_URL);
+
+// Configure Supabase client for storage uploads
+const resolveSupabaseConfig = () => {
+  const supabaseUrl = process.env.SUPABASE_URL || 
+                      process.env.VITE_SUPABASE_URL || 
+                      DEFAULT_SUPABASE_URL;
+  
+  // Use service role key for backend operations (bypasses RLS)
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
+                      process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseKey) {
+    console.warn('⚠️ Supabase service role key not found. PDF upload to bucket will not work.');
+    return null;
+  }
+  
+  return { url: supabaseUrl, key: supabaseKey };
+};
+
+const supabaseConfig = resolveSupabaseConfig();
+const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
+
+if (supabase) {
+  console.log('🔵 Supabase client configured for storage uploads');
+} else {
+  console.warn('⚠️ Supabase client not configured. Set SUPABASE_SERVICE_ROLE_KEY environment variable.');
+}
 
 // Generate HTML template from price list data
 const generateHTML = (priceList, options = {}) => {
@@ -772,6 +800,227 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
       stack: error.stack,
       name: error.name,
       code: error.code
+    });
+  }
+});
+
+// New endpoint: Generate PDF and upload to Supabase Storage bucket
+app.post('/api/generate-price-list-pdf-upload', async (req, res) => {
+  try {
+    console.log('🔵 PDF Upload Request received');
+    const { 
+      priceListData, 
+      printByCategory, 
+      groupedByCategory, 
+      categoryOrder, 
+      uploadToBucket, 
+      bucketName,
+      // Email data for webhook
+      email,
+      subject,
+      body
+    } = req.body;
+
+    if (!priceListData) {
+      return res.status(400).json({ error: 'priceListData is required' });
+    }
+
+    if (!priceListData.price_list_items || priceListData.price_list_items.length === 0) {
+      return res.status(400).json({ error: 'priceListData must contain price_list_items' });
+    }
+
+    if (!supabase) {
+      return res.status(500).json({ error: 'Supabase client not configured. Set SUPABASE_SERVICE_ROLE_KEY environment variable.' });
+    }
+
+    // Generate PDF (same logic as existing endpoint)
+    const html = generateHTML(priceListData, {
+      printByCategory: printByCategory || false,
+      groupedByCategory: groupedByCategory || null,
+      categoryOrder: categoryOrder || [],
+      storageBaseUrl: STORAGE_BASE_URL
+    });
+
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--disable-extensions',
+          '--single-process',
+          '--no-zygote'
+        ],
+        timeout: 30000
+      });
+
+      const page = await browser.newPage();
+      await page.setContent(html, {
+        waitUntil: 'networkidle0',
+        timeout: 15000
+      });
+
+      // Wait for images to load (same logic as existing endpoint)
+      await page.evaluate(async () => {
+        const images = Array.from(document.querySelectorAll('img.product-image'));
+        const loadPromises = images.map((img) => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            setTimeout(resolve, 8000); // timeout per immagine
+          });
+        });
+        await Promise.all(loadPromises);
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const pdf = await page.pdf({
+        format: 'A4',
+        landscape: true,
+        printBackground: false,
+        preferCSSPageSize: true,
+        margin: {
+          top: '10mm',
+          right: '10mm',
+          bottom: '10mm',
+          left: '10mm'
+        },
+        displayHeaderFooter: false
+      });
+
+      await browser.close();
+
+      // Verify PDF is valid
+      const pdfBuffer = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+      if (pdfBuffer.length === 0) {
+        throw new Error('PDF generato è vuoto!');
+      }
+
+      const pdfHeader = pdfBuffer.slice(0, 4).toString('latin1');
+      if (pdfHeader !== '%PDF') {
+        throw new Error('PDF generato non è valido!');
+      }
+
+      console.log('🔵 PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+
+      // Upload to Supabase Storage if requested
+      if (uploadToBucket && bucketName) {
+        const targetBucket = bucketName || 'order-pdfs';
+        const priceListId = priceListData.id || 'unknown';
+        const timestamp = Date.now();
+        const fileName = `listino_${priceListId}_${timestamp}.pdf`;
+        const filePath = fileName;
+
+        console.log(`🔵 Uploading PDF to bucket: ${targetBucket}, path: ${filePath}`);
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from(targetBucket)
+          .upload(filePath, pdfBuffer, {
+            contentType: 'application/pdf',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('🔴 Error uploading PDF to bucket:', uploadError);
+          throw new Error(`Failed to upload PDF to bucket: ${uploadError.message}`);
+        }
+
+        console.log('🔵 PDF uploaded successfully to bucket');
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from(targetBucket)
+          .getPublicUrl(filePath);
+
+        const publicUrl = urlData?.publicUrl;
+
+        if (!publicUrl) {
+          throw new Error('Failed to get public URL for uploaded PDF');
+        }
+
+        console.log('🔵 PDF public URL:', publicUrl);
+
+        // Call N8N webhook if email data is provided
+        if (email && subject && body) {
+          const webhookUrl = process.env.N8N_PRICELIST_WEBHOOK_URL;
+          if (webhookUrl) {
+            try {
+              console.log('🔵 Calling N8N webhook for email delivery');
+              
+              const webhookPayload = {
+                email: email,
+                subject: subject,
+                body: body,
+                pdfUrl: publicUrl,
+                priceListId: priceListData.id,
+                priceListName: priceListData.name,
+                customerName: priceListData.customer?.company_name || 'Cliente',
+                customerEmail: priceListData.customer?.email || email,
+                fileName: fileName
+              };
+
+              const webhookResponse = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(webhookPayload)
+              });
+
+              if (!webhookResponse.ok) {
+                const errorText = await webhookResponse.text();
+                console.error('🔴 N8N webhook error:', errorText);
+                // Don't fail the request if webhook fails, just log it
+                // The PDF is already uploaded successfully
+              } else {
+                console.log('🔵 N8N webhook called successfully');
+              }
+            } catch (webhookError) {
+              console.error('🔴 Error calling N8N webhook:', webhookError);
+              // Don't fail the request if webhook fails
+            }
+          } else {
+            console.warn('⚠️ N8N_PRICELIST_WEBHOOK_URL not configured. Skipping webhook call.');
+          }
+        }
+
+        // Return JSON response with PDF URL and metadata
+        return res.json({
+          success: true,
+          pdfUrl: publicUrl,
+          fileName: fileName,
+          fileSize: pdfBuffer.length,
+          bucketName: targetBucket
+        });
+      } else {
+        // If upload not requested, return PDF as blob (for backward compatibility)
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Length', pdfBuffer.length.toString());
+        res.setHeader('Content-Disposition', 'attachment; filename="listino.pdf"');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.send(pdfBuffer);
+      }
+    } catch (innerError) {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error('🔴 Error closing browser:', closeError);
+        }
+      }
+      throw innerError;
+    }
+  } catch (error) {
+    console.error('🔴 Error in PDF upload endpoint:', error);
+    res.status(500).json({
+      error: 'Error generating or uploading PDF',
+      message: error.message
     });
   }
 });

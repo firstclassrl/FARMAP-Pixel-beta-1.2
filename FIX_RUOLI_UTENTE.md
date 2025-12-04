@@ -99,3 +99,4 @@ In caso di problemi:
 2. Verifica che l'enum `user_role` esista nel database
 3. Assicurati di avere i permessi necessari per modificare gli enum (richiede privilegi di superuser o ownership del tipo)
 
+

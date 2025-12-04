@@ -97,3 +97,4 @@ RAISE NOTICE 'Tabella "roles" rimossa con successo (se esisteva).';
 -- - La tabella 'roles' (se esiste) è RIDONDANTE e può essere rimossa
 -- =====================================================
 
+

@@ -14,7 +14,8 @@
     "cors": "^2.8.5",
     "sharp": "^0.34.4",
     "p-limit": "^4.0.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "@supabase/supabase-js": "^2.39.3"
   },
   "engines": {
     "node": ">=18.0.0"

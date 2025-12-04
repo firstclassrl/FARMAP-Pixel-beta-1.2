@@ -64,6 +64,14 @@ const RECIPE_STATUSES = ['draft', 'testing', 'approved', 'archived'] as const;
 const formatCurrency = (value: number | null | undefined) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
 
+const formatCurrency4 = (value: number | null | undefined) =>
+  new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4
+  }).format(value || 0);
+
 const formatQuantity = (value: number | null | undefined) =>
   new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(value || 0);
 
@@ -145,7 +153,6 @@ body.production-sheet-print {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  max-height: 100vh;
   box-sizing: border-box;
 }
 
@@ -773,7 +780,7 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{material.supplier || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {formatCurrency(material.cost_per_unit)} / {material.unit}
+                      {formatCurrency4(material.cost_per_unit)} / {material.unit}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex gap-2">
@@ -839,7 +846,11 @@ const MaterialsTab = ({ hook, profileId, notify }: MaterialsTabProps) => {
             </FormField>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="Costo unitario (€)" required>
-                <Input type="number" step="0.01" {...form.register('cost_per_unit', { valueAsNumber: true })} />
+                <Input
+                  type="number"
+                  step="0.0001"
+                  {...form.register('cost_per_unit', { valueAsNumber: true })}
+                />
               </FormField>
               <FormField label="Lead time (giorni)">
                 <Input type="number" {...form.register('lead_time_days', { valueAsNumber: true })} />

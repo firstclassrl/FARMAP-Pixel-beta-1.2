@@ -49,3 +49,4 @@ WHERE u.email = 'email_utente@farmapindustry.it';  -- CAMBIA QUI l'email
 -- 3. Esegui tutto lo script
 -- =====================================================
 
+

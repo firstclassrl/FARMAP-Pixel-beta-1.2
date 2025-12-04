@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/exportUtils';
 import { useNotifications } from '../store/useStore';
 import type { Database } from '../types/database.types';
+import { SendPriceListEmailModal } from '../components/SendPriceListEmailModal';
 // PDF generation now handled by backend service
 
 type PriceList = Database['public']['Tables']['price_lists']['Row'];
@@ -68,6 +69,7 @@ export function PriceListPrintView({
   const [priceList, setPriceList] = useState<PriceListWithItems | null>(null);
   const [loading, setLoading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const { addNotification } = useNotifications();
   const printContentRef = useRef<HTMLDivElement>(null);
 
@@ -156,95 +158,29 @@ export function PriceListPrintView({
     return 'https://pdf-generator-farmap-production.up.railway.app';
   };
 
-  const handleSendEmail = async () => {
-    if (!priceList || !priceList.customer?.email) {
-      addNotification({
-        type: 'warning',
-        title: 'Email non disponibile',
-        message: 'Il cliente non ha un indirizzo email configurato'
-      } as any);
-      return;
-    }
-    
-    try {
-      addNotification({
-        type: 'info',
-        title: 'Generazione PDF in corso',
-        message: 'Sto creando il PDF...'
-      } as any);
+  // Helper function per preparare il requestBody del PDF
+  const preparePdfRequestBody = () => {
+    if (!priceList) return null;
 
-      // Get backend URL from environment variable, localhost fallback or production default
-      let backendUrl = resolveBackendUrl();
+    const filteredItems = [...priceList.price_list_items].filter(item => {
+      if (selectedCategory === 'all') return true;
+      return item.products.category === selectedCategory;
+    });
+
+    if (printByCategory) {
+      const groupedByCategory = filteredItems.reduce((acc, item) => {
+        const category = item.products.category || 'Senza categoria';
+        if (!acc[category]) {
+          acc[category] = [];
+        }
+        acc[category].push(item);
+        return acc;
+      }, {} as Record<string, typeof filteredItems>);
+
+      const sortedCategories = Object.keys(groupedByCategory).sort();
       
-      // Assicurati che l'URL abbia il protocollo
-      if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
-        backendUrl = 'https://' + backendUrl;
-      }
-      
-      // Assicurati che l'URL non finisca con /
-      const cleanBackendUrl = backendUrl.replace(/\/$/, '');
-      const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
-      
-      // Applica filtro categoria ai prodotti
-      const filteredItems = [...priceList.price_list_items].filter(item => {
-        if (selectedCategory === 'all') return true;
-        return item.products.category === selectedCategory;
-      });
-
-      let requestBody: any;
-      
-      if (printByCategory) {
-        // Raggruppa i prodotti per categoria
-        const groupedByCategory = filteredItems.reduce((acc, item) => {
-          const category = item.products.category || 'Senza categoria';
-          if (!acc[category]) {
-            acc[category] = [];
-          }
-          acc[category].push(item);
-          return acc;
-        }, {} as Record<string, typeof filteredItems>);
-
-        // Ordina le categorie alfabeticamente
-        const sortedCategories = Object.keys(groupedByCategory).sort();
-        
-        // Ordina i prodotti all'interno di ogni categoria
-        sortedCategories.forEach(category => {
-          groupedByCategory[category] = groupedByCategory[category].sort((a, b) => {
-            let comparison = 0;
-            if (sortField === 'code') {
-              comparison = (a.products.code || '').localeCompare(b.products.code || '');
-            } else {
-              comparison = (a.products.name || '').localeCompare(b.products.name || '');
-            }
-            return sortDirection === 'asc' ? comparison : -comparison;
-          });
-        });
-
-        // Crea una lista piatta ordinata per categoria (per compatibilità)
-        const flatItems = sortedCategories.flatMap(category => groupedByCategory[category]);
-        
-        // Aggiungi un campo _category_group a ogni prodotto per aiutare il backend
-        const itemsWithCategoryGroup = flatItems.map(item => ({
-          ...item,
-          _category_group: item.products.category || 'Senza categoria',
-          _is_category_header: false
-        }));
-
-        requestBody = {
-          priceListData: {
-            ...priceList,
-            price_list_items: itemsWithCategoryGroup
-          },
-          printByCategory: true,
-          groupedByCategory: groupedByCategory,
-          categoryOrder: sortedCategories,
-          sortField: sortField,
-          sortDirection: sortDirection,
-          selectedCategory: selectedCategory
-        };
-      } else {
-        // Comportamento normale: ordina i prodotti
-        const itemsToSend = filteredItems.sort((a, b) => {
+      sortedCategories.forEach(category => {
+        groupedByCategory[category] = groupedByCategory[category].sort((a, b) => {
           let comparison = 0;
           if (sortField === 'code') {
             comparison = (a.products.code || '').localeCompare(b.products.code || '');
@@ -253,90 +189,133 @@ export function PriceListPrintView({
           }
           return sortDirection === 'asc' ? comparison : -comparison;
         });
+      });
 
-        requestBody = {
-          priceListData: {
-            ...priceList,
-            price_list_items: itemsToSend
-          },
-          printByCategory: false,
-          sortField: sortField,
-          sortDirection: sortDirection,
-          selectedCategory: selectedCategory
-        };
-      }
+      const flatItems = sortedCategories.flatMap(category => groupedByCategory[category]);
       
-      // Call backend to generate PDF
+      const itemsWithCategoryGroup = flatItems.map(item => ({
+        ...item,
+        _category_group: item.products.category || 'Senza categoria',
+        _is_category_header: false
+      }));
+
+      return {
+        priceListData: {
+          ...priceList,
+          price_list_items: itemsWithCategoryGroup
+        },
+        printByCategory: true,
+        groupedByCategory: groupedByCategory,
+        categoryOrder: sortedCategories,
+        sortField: sortField,
+        sortDirection: sortDirection,
+        selectedCategory: selectedCategory
+      };
+    } else {
+      const itemsToSend = filteredItems.sort((a, b) => {
+        let comparison = 0;
+        if (sortField === 'code') {
+          comparison = (a.products.code || '').localeCompare(b.products.code || '');
+        } else {
+          comparison = (a.products.name || '').localeCompare(b.products.name || '');
+        }
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+
+      return {
+        priceListData: {
+          ...priceList,
+          price_list_items: itemsToSend
+        },
+        printByCategory: false,
+        sortField: sortField,
+        sortDirection: sortDirection,
+        selectedCategory: selectedCategory
+      };
+    }
+  };
+
+  // Apre la modale email
+  const handleSendEmail = () => {
+    if (!priceList) {
+      addNotification({
+        type: 'warning',
+        title: 'Listino non disponibile',
+        message: 'Impossibile aprire la modale di invio email'
+      } as any);
+      return;
+    }
+    setIsEmailModalOpen(true);
+  };
+
+  // Gestisce l'invio completo dell'email (genera PDF, carica in bucket, chiama webhook)
+  const handleSendEmailComplete = async (emailData: { email: string; subject: string; body: string }) => {
+    if (!priceList) {
+      throw new Error('Listino non disponibile');
+    }
+    
+    try {
+      setIsGeneratingPDF(true);
+      addNotification({
+        type: 'info',
+        title: 'Generazione PDF in corso',
+        message: 'Sto creando il PDF e preparando l\'invio email...'
+      } as any);
+
+      // Prepara il requestBody usando la funzione helper
+      const requestBody = preparePdfRequestBody();
+      if (!requestBody) {
+        throw new Error('Impossibile preparare i dati del listino');
+      }
+
+      // Get backend URL
+      let backendUrl = resolveBackendUrl();
+      if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
+        backendUrl = 'https://' + backendUrl;
+      }
+      const cleanBackendUrl = backendUrl.replace(/\/$/, '');
+      
+      // Chiama il nuovo endpoint che genera PDF, lo carica nel bucket e chiama il webhook N8N
+      const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf-upload`;
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          ...requestBody,
+          uploadToBucket: true,
+          bucketName: 'order-pdfs',
+          // Pass email data to backend for webhook call
+          email: emailData.email,
+          subject: emailData.subject,
+          body: emailData.body
+        })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.message || errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      // Get PDF blob
-      const pdfBlob = await response.blob();
-      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const result = await response.json();
       
-      // Download PDF with proper filename
-      const today = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
-      const customerName = priceList.customer?.company_name || 'Cliente';
-      const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`;
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up URL
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
-      
-      // Open email client
-      const subject = `Listino Prezzi FARMAP - ${priceList.name}`;
-      const body = `Gentile ${priceList.customer.company_name},
+      if (!result.success) {
+        throw new Error('Il backend non ha completato l\'operazione con successo');
+      }
 
-In allegato troverete il vostro listino prezzi personalizzato.
-
-Listino: ${priceList.name}
-Data: ${new Date().toLocaleDateString('it-IT')}
-Prodotti inclusi: ${printByCategory ? Object.values(requestBody.groupedByCategory).flat().length : requestBody.priceListData.price_list_items.length}
-
-IMPORTANTE: Il PDF è stato scaricato nella cartella Downloads.
-Per allegarlo:
-1. Clicca sull'icona graffetta (📎) in questa email
-2. Seleziona il file "${fileName}" dalla cartella Downloads
-3. Il file verrà allegato automaticamente
-4. Invia l'email
-
-Per qualsiasi domanda o chiarimento, non esitate a contattarci.
-
-Cordiali saluti,
-Team FARMAP`;
-
-      const mailtoUrl = `mailto:${priceList.customer.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      
-      window.location.href = mailtoUrl;
-      
       addNotification({
         type: 'success',
-        title: 'PDF generato e email preparata',
-        message: `PDF scaricato automaticamente. Email preparata per ${priceList.customer.email}`
+        title: 'Email inviata',
+        message: `Email inviata con successo a ${emailData.email}. Il PDF è stato allegato automaticamente.`
       } as any);
       
     } catch (error) {
-      console.error('Error generating PDF for email:', error);
-      addNotification({
-        type: 'error',
-        title: 'Errore',
-        message: error instanceof Error ? error.message : 'Impossibile generare il PDF per l\'email'
-      } as any);
+      console.error('Error sending email:', error);
+      throw error; // Rilancia l'errore per essere gestito dalla modale
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -1037,6 +1016,19 @@ Team FARMAP`;
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Modale invio email */}
+      {priceList && (
+        <SendPriceListEmailModal
+          isOpen={isEmailModalOpen}
+          onClose={() => setIsEmailModalOpen(false)}
+          priceListId={priceList.id}
+          priceListName={priceList.name}
+          customerEmail={priceList.customer?.email}
+          customerName={priceList.customer?.company_name}
+          onSend={handleSendEmailComplete}
+        />
       )}
     </>
   );

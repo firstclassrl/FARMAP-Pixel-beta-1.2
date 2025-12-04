@@ -56,3 +56,4 @@ JOIN public.profiles p ON u.id = p.id
 WHERE u.email LIKE '%farmapindustry.it%'
 ORDER BY u.email;
 
+

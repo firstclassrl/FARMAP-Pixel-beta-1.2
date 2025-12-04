@@ -77,3 +77,4 @@ Se questa query non restituisce risultati, tutto è sincronizzato.
 2. `auth.users.raw_user_meta_data` è solo metadata, non la fonte di verità
 3. Evita conflitti e problemi di sincronizzazione
 
+

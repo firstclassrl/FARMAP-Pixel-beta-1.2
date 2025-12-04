@@ -39,3 +39,4 @@ SELECT
 -- 3. Non è più necessario sincronizzare auth.users.raw_user_meta_data
 -- =====================================================
 
+
