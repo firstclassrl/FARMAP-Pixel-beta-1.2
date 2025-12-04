@@ -25,12 +25,28 @@ try {
   LOGO_BASE64 = null;
 }
 
-app.use(cors({
+// CORS configuration - più permissiva
+const corsOptions = {
   origin: '*', // Permetti tutte le origini
   credentials: false,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type'],
+  optionsSuccessStatus: 200 // Support legacy browsers
+};
+
+// Apply CORS to all routes
+app.use(cors(corsOptions));
+
+// Handle all OPTIONS requests explicitly before other routes
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  res.sendStatus(200);
+});
+
 app.use(express.json({ limit: '10mb' }));
 
 // Helper functions
@@ -804,10 +820,23 @@ app.post('/api/generate-price-list-pdf', async (req, res) => {
   }
 });
 
+// Handle OPTIONS request for the new endpoint explicitly
+app.options('/api/generate-price-list-pdf-upload', cors(corsOptions), (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.sendStatus(200);
+});
+
 // New endpoint: Generate PDF and upload to Supabase Storage bucket
-app.post('/api/generate-price-list-pdf-upload', async (req, res) => {
+app.post('/api/generate-price-list-pdf-upload', cors(corsOptions), async (req, res) => {
   try {
     console.log('🔵 PDF Upload Request received');
+    
+    // Set CORS headers explicitly
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     const { 
       priceListData, 
       printByCategory, 
@@ -991,6 +1020,7 @@ app.post('/api/generate-price-list-pdf-upload', async (req, res) => {
         }
 
         // Return JSON response with PDF URL and metadata
+        res.header('Access-Control-Allow-Origin', '*');
         return res.json({
           success: true,
           pdfUrl: publicUrl,
@@ -1018,6 +1048,7 @@ app.post('/api/generate-price-list-pdf-upload', async (req, res) => {
     }
   } catch (error) {
     console.error('🔴 Error in PDF upload endpoint:', error);
+    res.header('Access-Control-Allow-Origin', '*');
     res.status(500).json({
       error: 'Error generating or uploading PDF',
       message: error.message
