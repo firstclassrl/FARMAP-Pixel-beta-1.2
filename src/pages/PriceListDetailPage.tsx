@@ -403,6 +403,9 @@ export function PriceListDetailPage({
 
         // Refresh the price list data
         await fetchPriceListDetails(currentPriceList.id);
+
+        // Call success callback when updating existing price list
+        onSaveSuccess();
       } else {
         // Create new price list
         const newPriceListPayload = {
@@ -479,9 +482,6 @@ export function PriceListDetailPage({
         }, 500);
 
         // Call success callback to refresh the list when creating a new price list
-        onSaveSuccess();
-      } else {
-        // Call success callback when updating existing price list
         onSaveSuccess();
       }
     } catch (error: any) {
