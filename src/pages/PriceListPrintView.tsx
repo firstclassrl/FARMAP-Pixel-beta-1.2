@@ -334,14 +334,19 @@ export function PriceListPrintView({
       const webhookPayload = {
         email: emailData.email,
         subject: emailData.subject,
-        body: emailData.body, // Testo semplice per client email che non supportano HTML
-        htmlBody: htmlBody, // HTML formattato con colori FARMAP
+        body: emailData.body, // Testo semplice per client email che non supportano HTML (fallback)
+        htmlBody: htmlBody, // HTML formattato con colori FARMAP - USA QUESTO per l'email!
+        html: htmlBody, // Alias per maggiore chiarezza - contiene l'HTML completo formattato
+        emailHtml: htmlBody, // Altro alias - contenuto HTML dell'email
         pdfUrl: pdfUrl,
         priceListId: priceList.id,
         priceListName: priceList.name,
         customerName: priceList.customer?.company_name || 'Cliente',
         customerEmail: priceList.customer?.email || emailData.email,
-        fileName: fileName
+        fileName: fileName,
+        // Flag per indicare che l'HTML è disponibile
+        hasHtml: true,
+        emailFormat: 'html'
       };
 
       const webhookResponse = await fetch(webhookUrl, {

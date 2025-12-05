@@ -477,10 +477,11 @@ export function PriceListDetailPage({
             block: 'start' 
           });
         }, 500);
-      }
 
-      // Only call success callback if updating existing price list
-      if (currentPriceList && !isNewPriceListCreated) {
+        // Call success callback to refresh the list when creating a new price list
+        onSaveSuccess();
+      } else {
+        // Call success callback when updating existing price list
         onSaveSuccess();
       }
     } catch (error: any) {
