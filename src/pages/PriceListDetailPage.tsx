@@ -371,12 +371,32 @@ export function PriceListDetailPage({
         });
 
         // Gestione associazione cliente <-> listino (versione semplice, uguale al flusso massivo)
+        console.log('🔗 effectiveCustomerId BEFORE customer update:', effectiveCustomerId);
+
+        // 1) scollega eventuali clienti che hanno già questo listino
+        const { error: detachError } = await supabase
+          .from('customers')
+          .update({ price_list_id: null })
+          .eq('price_list_id', currentPriceList.id);
+
+        if (detachError) {
+          console.error('Error detaching price list from customers:', detachError);
+          addNotification({
+            type: 'warning',
+            title: 'Attenzione',
+            message: 'Listino aggiornato ma impossibile rimuovere il collegamento cliente',
+          });
+        }
+
+        // 2) se è stato selezionato un cliente, collega il listino a quel cliente
         if (effectiveCustomerId) {
-          // Assegna (o riassegna) il listino al cliente scelto
-          const { error: customerError } = await supabase
+          const { error: customerError, data: updatedRows } = await supabase
             .from('customers')
             .update({ price_list_id: currentPriceList.id })
-            .eq('id', effectiveCustomerId);
+            .eq('id', effectiveCustomerId)
+            .select('id, price_list_id');
+
+          console.log('🔗 customer update result:', { customerError, updatedRows });
 
           if (customerError) {
             console.error('Error assigning customer to price list:', customerError);
@@ -387,23 +407,12 @@ export function PriceListDetailPage({
             });
           } else {
             setSelectedCustomerId(effectiveCustomerId);
+            setSelectedCustomer(
+              customers.find(c => c.id === effectiveCustomerId) || null
+            );
           }
         } else {
-          // Nessun cliente selezionato: rimuovi il collegamento da eventuali clienti che usano questo listino
-          const { error: detachError } = await supabase
-            .from('customers')
-            .update({ price_list_id: null })
-            .eq('price_list_id', currentPriceList.id);
-
-          if (detachError) {
-            console.error('Error detaching price list from customers:', detachError);
-            addNotification({
-              type: 'warning',
-              title: 'Attenzione',
-              message: 'Listino aggiornato ma impossibile rimuovere il collegamento cliente',
-            });
-          }
-
+          // Nessun cliente selezionato ora
           setSelectedCustomerId('');
           setSelectedCustomer(null);
         }
