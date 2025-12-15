@@ -22,6 +22,7 @@ export const UserProfile = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [invoicesEnabled, setInvoicesEnabled] = useState(false);
+  const [warehouseEnabled, setWarehouseEnabled] = useState(false);
   const isAdmin = profile?.role === 'admin';
 
   const handleSignOut = async () => {
@@ -46,11 +47,13 @@ export const UserProfile = () => {
     const labels = {
       admin: 'Amministratore',
       commerciale: 'Commerciale',
+      amministrazione: 'Amministrazione',
       lettore: 'Lettore',
       production: 'Produzione',
       sales: 'Vendite',
       customer_user: 'Cliente',
-      lab: 'Laboratorio'
+      lab: 'Laboratorio',
+      warehouse: 'Magazzino'
     };
     return labels[role as keyof typeof labels] || role;
   };
@@ -59,11 +62,13 @@ export const UserProfile = () => {
     const colors = {
       admin: 'text-red-600',
       commerciale: 'text-blue-600',
+      amministrazione: 'text-indigo-600',
       lettore: 'text-gray-600',
       production: 'text-orange-600',
       sales: 'text-teal-600',
       customer_user: 'text-yellow-600',
-      lab: 'text-pink-600'
+      lab: 'text-pink-600',
+      warehouse: 'text-emerald-600'
     };
     return colors[role as keyof typeof colors] || 'text-gray-600';
   };
@@ -88,26 +93,28 @@ export const UserProfile = () => {
     return colors[index];
   };
 
-  // Carica il flag invoices_enabled quando l'admin apre le impostazioni
+  // Carica i flag dei moduli quando l'admin apre le impostazioni
   useEffect(() => {
     const loadSettings = async () => {
       if (!settingsOpen || !isAdmin) return;
       setLoadingSettings(true);
       const { data, error } = await supabase
         .from('app_settings')
-        .select('value')
-        .eq('key', 'invoices_enabled')
-        .maybeSingle();
+        .select('key, value')
+        .in('key', ['invoices_enabled', 'warehouse_enabled']);
 
       if (error) {
-        console.error('Errore caricamento impostazioni fatturazione:', error);
+        console.error('Errore caricamento impostazioni applicazione:', error);
         addNotification({
           type: 'error',
           title: 'Errore impostazioni',
-          message: 'Impossibile caricare lo stato del modulo fatturazione.'
+          message: 'Impossibile caricare le impostazioni applicazione.'
         });
-      } else {
-        setInvoicesEnabled(Boolean((data as any)?.value?.enabled));
+      } else if (data) {
+        const invoicesSetting = data.find((row: any) => row.key === 'invoices_enabled');
+        const warehouseSetting = data.find((row: any) => row.key === 'warehouse_enabled');
+        setInvoicesEnabled(Boolean(invoicesSetting?.value?.enabled));
+        setWarehouseEnabled(Boolean(warehouseSetting?.value?.enabled));
       }
       setLoadingSettings(false);
     };
@@ -141,6 +148,36 @@ export const UserProfile = () => {
         message: enabled
           ? 'Modulo fatturazione attivato.'
           : 'Modulo fatturazione disattivato.'
+      });
+    }
+  };
+
+  const handleToggleWarehouse = async (enabled: boolean) => {
+    setWarehouseEnabled(enabled);
+
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(
+        { key: 'warehouse_enabled', value: { enabled } },
+        { onConflict: 'key' }
+      );
+
+    if (error) {
+      console.error('Errore aggiornamento impostazioni magazzino:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore impostazioni',
+        message: 'Impossibile aggiornare il modulo magazzino.'
+      });
+      // rollback visuale
+      setWarehouseEnabled(!enabled);
+    } else {
+      addNotification({
+        type: 'success',
+        title: 'Impostazioni salvate',
+        message: enabled
+          ? 'Modulo magazzino attivato.'
+          : 'Modulo magazzino disattivato.'
       });
     }
   };
@@ -253,6 +290,32 @@ export const UserProfile = () => {
                   />
                   <span className="text-sm">
                     {invoicesEnabled ? 'Attivo' : 'Disattivo'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-start justify-between gap-4 border-t pt-4 mt-2">
+                <div>
+                  <p className="font-medium">Modulo magazzino</p>
+                  <p className="text-sm text-gray-500">
+                    Quando attivo, mostra giacenze e movimenti di magazzino
+                    per i ruoli{' '}
+                    <span className="font-semibold">
+                      admin, commerciale, sales, amministrazione, magazzino
+                    </span>
+                    .
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="checkbox"
+                    checked={warehouseEnabled}
+                    disabled={loadingSettings}
+                    onChange={(e) => handleToggleWarehouse(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">
+                    {warehouseEnabled ? 'Attivo' : 'Disattivo'}
                   </span>
                 </div>
               </div>

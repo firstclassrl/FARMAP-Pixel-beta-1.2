@@ -12,6 +12,7 @@ import OrdersPage from './pages/OrdersPage';
 import CalendarPage from './pages/CalendarPage';
 import SampleRequestsPage from './pages/SampleRequestsPage';
 import ReportsPage from './pages/ReportsPage';
+import InvoicesPage from './pages/InvoicesPage';
 import NotificationsPage from './pages/NotificationsPage';
 import UserManagementPage from './pages/UserManagementPage';
 import LoginPage from './pages/auth/LoginPage';
@@ -91,16 +92,17 @@ function App() {
                   element={
                     profile?.role === 'lab'
                       ? <Navigate to="/lab" replace />
-                      : renderWithRoles(['admin', 'sales', 'commerciale', 'lettore'], <Dashboard />)
+                      : renderWithRoles(['admin', 'sales', 'commerciale', 'amministrazione', 'lettore'], <Dashboard />)
                   }
                 />
-                <Route path="customers" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lab'], <CustomersPage />)} />
-                <Route path="products" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lettore', 'lab'], <ProductsPage />)} />
-                <Route path="price-lists" element={renderWithRoles(['admin', 'sales', 'commerciale'], <PriceListsPage />)} />
-                <Route path="orders" element={renderWithRoles(['admin', 'sales', 'commerciale'], <OrdersPage />)} />
-                <Route path="calendar" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lab'], <CalendarPage />)} />
+                <Route path="customers" element={renderWithRoles(['admin', 'sales', 'commerciale', 'amministrazione', 'lab'], <CustomersPage />)} />
+                <Route path="products" element={renderWithRoles(['admin', 'sales', 'commerciale', 'amministrazione', 'lettore', 'lab'], <ProductsPage />)} />
+                <Route path="price-lists" element={renderWithRoles(['admin', 'sales', 'commerciale', 'amministrazione'], <PriceListsPage />)} />
+                <Route path="orders" element={renderWithRoles(['admin', 'sales', 'commerciale', 'amministrazione'], <OrdersPage />)} />
+                <Route path="invoices" element={renderWithRoles(['admin', 'commerciale', 'amministrazione'], <InvoicesPage />)} />
+                <Route path="calendar" element={renderWithRoles(['admin', 'sales', 'commerciale', 'amministrazione', 'lab'], <CalendarPage />)} />
                 <Route path="sample-requests" element={renderWithRoles(['admin', 'sales', 'commerciale'], <SampleRequestsPage />)} />
-                <Route path="reports" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lettore'], <ReportsPage />)} />
+                <Route path="reports" element={renderWithRoles(['admin', 'sales', 'commerciale', 'amministrazione', 'lettore'], <ReportsPage />)} />
                 <Route path="lab" element={renderWithRoles(['admin', 'lab'], <LabPage />)} />
                 <Route path="notifications" element={renderWithRoles(['admin', 'sales', 'commerciale', 'lettore'], <NotificationsPage />)} />
                 <Route

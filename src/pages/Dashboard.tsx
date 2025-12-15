@@ -29,6 +29,17 @@ const quickActions = [
     roles: ['admin', 'commerciale', 'sales']
   },
   {
+    title: 'Fatture',
+    description: 'Crea e gestisci le fatture clienti',
+    icon: FileText,
+    href: '/invoices',
+    color: 'bg-slate-700',
+    hoverColor: 'hover:bg-slate-800',
+    borderHover: 'hover:border-slate-600',
+    textHover: 'group-hover:text-slate-700',
+    roles: ['admin', 'commerciale', 'amministrazione']
+  },
+  {
     title: 'Prodotti',
     description: 'Gestisci il catalogo prodotti e il magazzino',
     icon: Package,

@@ -15,7 +15,7 @@ export interface Database {
           email: string
           full_name: string | null
           avatar_url: string | null
-          role: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione'
+          role: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione' | 'warehouse'
           created_at: string
           updated_at: string
         }
@@ -24,7 +24,7 @@ export interface Database {
           email: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione'
+          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione' | 'warehouse'
           created_at?: string
           updated_at?: string
         }
@@ -33,7 +33,7 @@ export interface Database {
           email?: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione'
+          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione' | 'warehouse'
           created_at?: string
           updated_at?: string
         }
@@ -900,7 +900,7 @@ export interface Database {
       [_ in never]: never
     }
     Enums: {
-      user_role: 'admin' | 'commerciale' | 'lettore' | 'label_user' | 'production' | 'sales' | 'customer_user' | 'lab'
+      user_role: 'admin' | 'commerciale' | 'lettore' | 'label_user' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione' | 'warehouse'
       order_status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
       quote_status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
       lab_sample_status: 'draft' | 'pending' | 'in_progress' | 'ready' | 'sent' | 'approved' | 'rejected' | 'archived'

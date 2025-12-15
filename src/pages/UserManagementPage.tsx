@@ -48,9 +48,22 @@ const createUserSchema = z.object({
   email: z.string().email('Email non valida').min(1, 'Email richiesta'),
   password: z.string().min(6, 'Password deve essere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user', 'sales', 'lab'], {
-    required_error: 'Ruolo richiesto'
-  })
+  role: z.enum(
+    [
+      'admin',
+      'commerciale',
+      'amministrazione',
+      'lettore',
+      'production',
+      'customer_user',
+      'sales',
+      'lab',
+      'warehouse'
+    ],
+    {
+      required_error: 'Ruolo richiesto'
+    }
+  )
 });
 
 type CreateUserForm = z.infer<typeof createUserSchema>;
@@ -58,32 +71,38 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 const roleLabels = {
   admin: 'Amministratore',
   commerciale: 'Commerciale (Vendite)',
+  amministrazione: 'Amministrazione',
   lettore: 'Lettore',
   production: 'Produzione',
   customer_user: 'Utente Cliente',
   sales: 'Vendite (Esteso)',
-  lab: 'Laboratorio'
+  lab: 'Laboratorio',
+  warehouse: 'Magazzino'
 };
 
 const roleDescriptions = {
   admin: 'Accesso completo a tutte le funzionalità',
   commerciale: 'Gestione vendite e clienti (tutte le funzioni tranne gestione utenti)',
+  amministrazione: 'Amministrazione e gestione contabile/amministrativa',
   lettore: 'Solo visualizzazione dati',
   production: 'Gestione produzione e magazzino',
   customer_user: 'Accesso limitato per clienti',
   sales: 'Vendite avanzate (report + listini)',
-  lab: 'Accesso alla sezione LAB e insight qualità'
+  lab: 'Accesso alla sezione LAB e insight qualità',
+  warehouse: 'Gestione operativa del magazzino (carichi/scarichi)'
 };
 
 const getRoleBadge = (role: string) => {
   const styles = {
     admin: 'bg-red-100 text-red-800 border-red-200',
     commerciale: 'bg-blue-100 text-blue-800 border-blue-200',
+    amministrazione: 'bg-indigo-100 text-indigo-800 border-indigo-200',
     lettore: 'bg-gray-100 text-gray-800 border-gray-200',
     production: 'bg-orange-100 text-orange-800 border-orange-200',
     customer_user: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     sales: 'bg-teal-100 text-teal-800 border-teal-200',
-    lab: 'bg-pink-100 text-pink-800 border-pink-200'
+    lab: 'bg-pink-100 text-pink-800 border-pink-200',
+    warehouse: 'bg-emerald-100 text-emerald-800 border-emerald-200'
   };
 
   return (
@@ -119,9 +138,22 @@ export const UserManagementPage = () => {
 
 const editUserSchema = z.object({
   full_name: z.string().min(2, 'Nome completo richiesto'),
-  role: z.enum(['admin', 'commerciale', 'lettore', 'production', 'customer_user', 'sales', 'lab'], {
-    required_error: 'Ruolo richiesto'
-  })
+  role: z.enum(
+    [
+      'admin',
+      'commerciale',
+      'amministrazione',
+      'lettore',
+      'production',
+      'customer_user',
+      'sales',
+      'lab',
+      'warehouse'
+    ],
+    {
+      required_error: 'Ruolo richiesto'
+    }
+  )
 });
 
   type EditUserForm = z.infer<typeof editUserSchema>;
@@ -590,6 +622,12 @@ const editUserSchema = z.object({
                         <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
                       </div>
                     </SelectItem>
+                    <SelectItem value="amministrazione">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Amministrazione</span>
+                        <span className="text-xs text-gray-500">Gestione amministrativa e fatturazione</span>
+                      </div>
+                    </SelectItem>
                     <SelectItem value="lettore">
                       <div className="flex flex-col">
                         <span className="font-medium">Lettore</span>
@@ -618,6 +656,12 @@ const editUserSchema = z.object({
                       <div className="flex flex-col">
                         <span className="font-medium">Laboratorio</span>
                         <span className="text-xs text-gray-500">Accesso alla sezione LAB</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="warehouse">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Magazzino</span>
+                        <span className="text-xs text-gray-500">Gestione operativa magazzino</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -781,6 +825,12 @@ const editUserSchema = z.object({
                       <span className="text-xs text-gray-500">Gestione vendite e clienti</span>
                     </div>
                   </SelectItem>
+                  <SelectItem value="amministrazione">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Amministrazione</span>
+                      <span className="text-xs text-gray-500">Gestione amministrativa e fatturazione</span>
+                    </div>
+                  </SelectItem>
                   <SelectItem value="lettore">
                     <div className="flex flex-col">
                       <span className="font-medium">Lettore</span>
@@ -809,6 +859,12 @@ const editUserSchema = z.object({
                     <div className="flex flex-col">
                       <span className="font-medium">Laboratorio</span>
                       <span className="text-xs text-gray-500">Accesso alla sezione LAB</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="warehouse">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Magazzino</span>
+                      <span className="text-xs text-gray-500">Gestione operativa magazzino</span>
                     </div>
                   </SelectItem>
                 </SelectContent>

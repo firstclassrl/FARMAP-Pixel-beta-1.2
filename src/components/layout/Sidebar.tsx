@@ -5,6 +5,7 @@ import {
   Users,
   Package,
   FileText,
+  ReceiptIndianRupee,
   ShoppingCart,
   BarChart3,
   ChevronLeft,
@@ -23,11 +24,12 @@ import { useAuth } from '../../hooks/useAuth';
 
 // Definiamo la lista completa di tutte le possibili voci del menu con i colori specifici
 const allNavigationItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lettore'], color: 'neutral' },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lettore', 'warehouse'], color: 'neutral' },
   { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lab'], color: 'blue' },
-  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lettore', 'lab'], color: 'green' },
+  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lettore', 'lab', 'warehouse'], color: 'green' },
   { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales', 'commerciale', 'amministrazione'], color: 'purple' },
   { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales', 'commerciale', 'amministrazione'], color: 'orange' },
+  { name: 'Fatture', href: '/invoices', icon: ReceiptIndianRupee, roles: ['admin', 'commerciale', 'amministrazione'], color: 'indigo' },
   { name: 'Calendario', href: '/calendar', icon: Calendar, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lab'], color: 'yellow' },
   { 
     name: 'Garden',
