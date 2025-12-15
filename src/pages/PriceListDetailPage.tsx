@@ -82,6 +82,8 @@ export function PriceListDetailPage({
   const [currentPriceList, setCurrentPriceList] = useState<PriceListWithItems | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  // Tiene traccia del cliente associato PRIMA delle modifiche, per capire se è cambiato
+  const [initialCustomerId, setInitialCustomerId] = useState<string>('');
   const [isNewPriceListCreated, setIsNewPriceListCreated] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -92,6 +94,7 @@ export function PriceListDetailPage({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [printByCategory, setPrintByCategory] = useState(false);
   const [pendingMOQValues, setPendingMOQValues] = useState<Record<string, string>>({});
+  const [pendingPriceValues, setPendingPriceValues] = useState<Record<string, string>>({});
   const conditionsSaveTimerRef = useRef<number | null>(null);
 
   const scheduleSaveConditions = (immediate = false, targetPriceListId?: string) => {
@@ -260,7 +263,9 @@ export function PriceListDetailPage({
         brand_conditions: data.brand_conditions || '',
       });
 
-      setSelectedCustomerId(customerData?.id || '');
+      const resolvedCustomerId = customerData?.id || '';
+      setSelectedCustomerId(resolvedCustomerId);
+      setInitialCustomerId(resolvedCustomerId);
       setSelectedCustomer(customerData || null);
 
       if ((!data.payment_conditions || data.payment_conditions.trim() === '') && customerData?.payment_terms) {
@@ -366,17 +371,17 @@ export function PriceListDetailPage({
           message: `${data.name} è stato aggiornato con successo`,
         });
 
-        // Handle customer assignment
-        if (customer_id && customer_id !== selectedCustomerId) {
-          // Remove price list from previous customer if any
-          if (selectedCustomerId) {
+        // Handle customer assignment (anche per listini che prima non avevano cliente)
+        if (customer_id && customer_id !== initialCustomerId) {
+          // Rimuovi il listino dal cliente precedente se esisteva
+          if (initialCustomerId) {
             await supabase
               .from('customers')
               .update({ price_list_id: null })
-              .eq('id', selectedCustomerId);
+              .eq('id', initialCustomerId);
           }
 
-          // Assign price list to new customer
+          // Assegna il listino al nuovo cliente
           const { error: customerError } = await supabase
             .from('customers')
             .update({ price_list_id: currentPriceList.id })
@@ -391,14 +396,16 @@ export function PriceListDetailPage({
             });
           } else {
             setSelectedCustomerId(customer_id);
+            setInitialCustomerId(customer_id);
           }
-        } else if (!customer_id && selectedCustomerId) {
-          // Remove customer assignment
+        } else if (!customer_id && initialCustomerId) {
+          // Nessun cliente selezionato ora, ma prima c'era: rimuovi l'associazione
           await supabase
             .from('customers')
             .update({ price_list_id: null })
-            .eq('id', selectedCustomerId);
+            .eq('id', initialCustomerId);
           setSelectedCustomerId('');
+          setInitialCustomerId('');
         }
 
         // Refresh the price list data
@@ -533,6 +540,7 @@ export function PriceListDetailPage({
     reset();
     setCurrentPriceList(null);
     setSelectedCustomerId('');
+    setInitialCustomerId('');
     setIsNewPriceListCreated(false);
     onClose();
   };
@@ -647,9 +655,20 @@ export function PriceListDetailPage({
         );
         setCurrentPriceList({ ...currentPriceList, price_list_items: updatedItems });
       }
+
+      // Pulisci il valore temporaneo per questo item
+      setPendingPriceValues(prev => {
+        if (!(itemId in prev)) return prev;
+        const { [itemId]: _removed, ...rest } = prev;
+        return rest;
+      });
     } catch (error) {
       console.error('Errore nell\'aggiornamento del prezzo:', error);
-      addNotification('Errore nell\'aggiornamento del prezzo', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: 'Errore nell\'aggiornamento del prezzo'
+      });
     }
   };
 
@@ -727,15 +746,64 @@ export function PriceListDetailPage({
           <span className="text-xs text-gray-600">Prezzo:</span>
           <div className="relative">
             <Input
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputMode="decimal"
               value={
-                item.price !== null && item.price !== undefined
-                  ? Number(item.price).toFixed(2)
-                  : ''
+                pendingPriceValues[item.id] ??
+                (item.price !== null && item.price !== undefined
+                  ? String(item.price)
+                  : '')
               }
-              onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
+              onChange={(e) => {
+                const value = e.target.value;
+                // permettiamo numeri, virgola, punto e stringa vuota
+                if (/^[0-9]*[.,]?[0-9]*$/.test(value) || value === '') {
+                  setPendingPriceValues(prev => ({
+                    ...prev,
+                    [item.id]: value,
+                  }));
+                }
+              }}
+              onBlur={async () => {
+                const raw =
+                  pendingPriceValues[item.id] ??
+                  (item.price !== null && item.price !== undefined
+                    ? String(item.price)
+                    : '');
+
+                if (raw === '') {
+                  // campo vuoto: non forziamo a 0, semplicemente ripristiniamo il valore precedente
+                  setPendingPriceValues(prev => {
+                    if (!(item.id in prev)) return prev;
+                    const { [item.id]: _removed, ...rest } = prev;
+                    return rest;
+                  });
+                  return;
+                }
+
+                const parsed = parseFloat(raw.replace(',', '.'));
+                if (isNaN(parsed)) {
+                  // valore non valido: ripristina
+                  setPendingPriceValues(prev => {
+                    if (!(item.id in prev)) return prev;
+                    const { [item.id]: _removed, ...rest } = prev;
+                    return rest;
+                  });
+                  return;
+                }
+
+                const normalized = Number(parsed.toFixed(2));
+                if (normalized !== Number(item.price ?? 0)) {
+                  await handlePriceChange(item.id, normalized);
+                } else {
+                  // se non è cambiato, pulisci solo il valore temporaneo
+                  setPendingPriceValues(prev => {
+                    if (!(item.id in prev)) return prev;
+                    const { [item.id]: _removed, ...rest } = prev;
+                    return rest;
+                  });
+                }
+              }}
               className="h-5 text-xs w-16 pr-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs text-gray-500">€</span>
