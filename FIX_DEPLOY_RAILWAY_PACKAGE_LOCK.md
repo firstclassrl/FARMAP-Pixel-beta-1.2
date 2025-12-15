@@ -54,3 +54,5 @@ Il `package-lock.json` ora include tutte le dipendenze di `@supabase/supabase-js
 
 Tutte queste dipendenze sono ora nel lock file e il deploy su Railway dovrebbe funzionare.
 
+
+

@@ -78,3 +78,5 @@ Questa soluzione è migliore della soluzione backend perché:
 
 Il backend può essere aggiornato in futuro per gestire tutto lì, ma questa soluzione funziona perfettamente così.
 
+
+

@@ -60,3 +60,5 @@ Dopo il push:
 - ✅ Endpoint CORS funzionanti
 - ✅ Nessun errore "Failed to fetch"
 
+
+

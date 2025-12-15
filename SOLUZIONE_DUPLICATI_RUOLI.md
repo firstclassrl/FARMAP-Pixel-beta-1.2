@@ -111,3 +111,5 @@ ALTER TYPE user_role ADD VALUE 'nuovo_ruolo';
 A: In `src/types/roles.ts` (costante TypeScript) e nell'enum PostgreSQL (validazione database).
 
 
+
+

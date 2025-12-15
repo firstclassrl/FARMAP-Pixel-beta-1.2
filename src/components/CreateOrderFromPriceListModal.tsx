@@ -8,7 +8,8 @@ import {
   Package,
   Building,
   Calendar,
-  Euro
+  Euro,
+  Search,
 } from 'lucide-react';
 import {
   Dialog,
@@ -60,6 +61,9 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
   const [creating, setCreating] = useState(false);
   const [validating, setValidating] = useState(false);
   const [selectedPriceListValid, setSelectedPriceListValid] = useState<boolean | null>(null);
+  const [searchName, setSearchName] = useState('');
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>('all');
+  const [selectedCreatorFilter, setSelectedCreatorFilter] = useState<string>('all');
 
   const { user } = useAuth();
   const { addNotification } = useNotifications();
@@ -72,6 +76,9 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
       // Reset state when modal closes
       setSelectedPriceListId('');
       setSelectedPriceListValid(null);
+      setSearchName('');
+      setSelectedCustomerFilter('all');
+      setSelectedCreatorFilter('all');
     }
   }, [isOpen]);
 
@@ -88,7 +95,7 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
     try {
       setLoading(true);
 
-      // Load active price lists with customer and item count
+      // Load active price lists with customer and item count (di tutti gli utenti)
       const { data: priceListsData, error: priceListsError } = await supabase
         .from('price_lists')
         .select(`
@@ -109,10 +116,38 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
 
       if (customersError) throw customersError;
 
-      // Combine price lists with customer data and calculate totals
+      // Fetch creator profiles per creatore del listino
+      const creatorIds = Array.from(
+        new Set(
+          (priceListsData || [])
+            .map((pl: any) => pl.created_by)
+            .filter(Boolean)
+        )
+      );
+
+      let profilesData: Array<{ id: string; full_name: string | null; email?: string | null }> = [];
+      if (creatorIds.length > 0) {
+        try {
+          const { data, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', creatorIds);
+
+          if (profilesError) {
+            console.warn('Error fetching creator profiles (CreateOrderFromPriceListModal):', profilesError);
+          } else {
+            profilesData = data || [];
+          }
+        } catch (error) {
+          console.warn('Error fetching creator profiles (CreateOrderFromPriceListModal):', error);
+        }
+      }
+
+      // Combine price lists with customer and creator data and calculate totals
       const priceListsWithDetails = await Promise.all(
         (priceListsData || []).map(async (priceList) => {
           const customer = customersData?.find(c => c.price_list_id === priceList.id);
+          const creator = profilesData.find(p => p.id === priceList.created_by);
           const productCount = (priceList.price_list_items as any)[0]?.count || 0;
 
           // Calculate total value of price list
@@ -132,6 +167,18 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
             }
           }
 
+          // Calcola un nome leggibile per il creatore
+          let creatorDisplayName: string | null = null;
+          if (creator?.full_name) {
+            creatorDisplayName = creator.full_name;
+          } else if (creator?.email) {
+            const emailParts = creator.email.split('@')[0];
+            const nameParts = emailParts.split(/[._-]/);
+            creatorDisplayName = nameParts
+              .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+              .join(' ');
+          }
+
           return {
             ...priceList,
             customer: customer ? {
@@ -140,7 +187,9 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
               contact_person: customer.contact_person
             } as Customer : undefined,
             product_count: productCount,
-            total_value: totalValue
+            total_value: totalValue,
+            // @ts-ignore - estensione del tipo per aggiungere il creatore
+            creator_name: creatorDisplayName
           };
         })
       );
@@ -150,7 +199,7 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
         pl => pl.customer && pl.product_count > 0
       );
 
-      setPriceLists(validPriceLists);
+      setPriceLists(validPriceLists as any);
 
     } catch (error) {
       console.error('Error loading price lists:', error);
@@ -240,6 +289,37 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
 
   const selectedPriceList = priceLists.find(pl => pl.id === selectedPriceListId);
 
+  // Opzioni uniche per filtri cliente e creatore
+  const uniqueCustomers = Array.from(
+    new Set(
+      priceLists
+        .map(pl => pl.customer?.company_name)
+        .filter(Boolean) as string[]
+    )
+  ).sort();
+
+  const uniqueCreators = Array.from(
+    new Set(
+      // @ts-ignore - creator_name aggiunto dinamicamente
+      priceLists.map(pl => pl.creator_name).filter(Boolean) as string[]
+    )
+  ).sort();
+
+  const filteredPriceLists = priceLists.filter((pl: any) => {
+    const searchLower = searchName.toLowerCase();
+    const matchesName = !searchLower || pl.name.toLowerCase().includes(searchLower);
+
+    const matchesCustomer =
+      selectedCustomerFilter === 'all' ||
+      pl.customer?.company_name === selectedCustomerFilter;
+
+    const matchesCreator =
+      selectedCreatorFilter === 'all' ||
+      pl.creator_name === selectedCreatorFilter;
+
+    return matchesName && matchesCustomer && matchesCreator;
+  });
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
@@ -261,36 +341,99 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
             </div>
           ) : (
             <>
-              {/* Price List Selection */}
-              <div className="space-y-3">
-                <Label htmlFor="price-list-select">Seleziona Listino Cliente</Label>
-                <Select value={selectedPriceListId} onValueChange={setSelectedPriceListId}>
-                  <SelectTrigger id="price-list-select">
-                    <SelectValue placeholder="Scegli un listino da cui creare l'ordine" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priceLists.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">
-                        <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                        <p className="font-medium">Nessun listino disponibile</p>
-                        <p className="text-xs mt-1">
-                          Crea prima un listino con prodotti e assegnalo a un cliente
-                        </p>
-                      </div>
-                    ) : (
-                      priceLists.map((priceList) => (
-                        <SelectItem key={priceList.id} value={priceList.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{priceList.name}</span>
-                            <span className="text-xs text-gray-500">
-                              {priceList.customer?.company_name} • {priceList.product_count} prodotti
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+              {/* Filtri di ricerca listini */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Filtro per nome listino */}
+                  <div className="md:col-span-1">
+                    <Label className="mb-1 block">Cerca per nome listino</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={searchName}
+                        onChange={(e) => setSearchName(e.target.value)}
+                        placeholder="Digita il nome del listino..."
+                        className="w-full pl-9 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filtro per cliente */}
+                  <div>
+                    <Label className="mb-1 block">Filtra per cliente</Label>
+                    <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tutti i clienti" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tutti i clienti</SelectItem>
+                        {uniqueCustomers.map((customer) => (
+                          <SelectItem key={customer} value={customer}>
+                            {customer}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Filtro per creatore */}
+                  <div>
+                    <Label className="mb-1 block">Filtra per creatore</Label>
+                    <Select value={selectedCreatorFilter} onValueChange={setSelectedCreatorFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tutti i creatori" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tutti i creatori</SelectItem>
+                        {uniqueCreators.map((creator) => (
+                          <SelectItem key={creator} value={creator}>
+                            {creator}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Price List Selection */}
+                <div className="space-y-3">
+                  <Label htmlFor="price-list-select">Seleziona Listino Cliente</Label>
+                  <Select value={selectedPriceListId} onValueChange={setSelectedPriceListId}>
+                    <SelectTrigger id="price-list-select">
+                      <SelectValue placeholder="Scegli un listino da cui creare l'ordine" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredPriceLists.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500">
+                          <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                          <p className="font-medium">Nessun listino trovato</p>
+                          <p className="text-xs mt-1">
+                            Modifica i filtri di ricerca o crea un nuovo listino
+                          </p>
+                        </div>
+                      ) : (
+                        filteredPriceLists.map((priceList: any) => (
+                          <SelectItem key={priceList.id} value={priceList.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{priceList.name}</span>
+                              <span className="text-xs text-gray-500">
+                                {priceList.customer?.company_name || 'Senza cliente'} •{' '}
+                                {priceList.product_count} prodotti
+                              </span>
+                              {/* Creatore listino */}
+                              {priceList.creator_name && (
+                                <span className="text-[11px] text-gray-400">
+                                  Creato da {priceList.creator_name}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Validation Status */}
                 {validating && (

@@ -100,3 +100,5 @@ In caso di problemi:
 3. Assicurati di avere i permessi necessari per modificare gli enum (richiede privilegi di superuser o ownership del tipo)
 
 
+
+

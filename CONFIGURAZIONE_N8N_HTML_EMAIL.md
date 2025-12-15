@@ -116,3 +116,5 @@ Se hai problemi, verifica:
 2. Il nodo email è configurato per HTML (non testo)
 3. Il campo HTML nel nodo usa `{{ $json.htmlBody }}`
 
+
+

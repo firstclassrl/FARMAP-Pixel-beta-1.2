@@ -143,3 +143,5 @@ const handleSendEmailComplete = async (emailData: { email: string; subject: stri
 
 Questa è una soluzione temporanea fino a quando il problema CORS su Railway non sarà risolto. Una volta risolto, possiamo tornare alla soluzione backend se preferisci.
 
+
+

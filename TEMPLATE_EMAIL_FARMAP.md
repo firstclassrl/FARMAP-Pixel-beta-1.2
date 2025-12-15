@@ -84,3 +84,5 @@ Nel node "Send Email":
 
 Se vuoi modificare il template HTML, edita la funzione `generateEmailHTML` in `src/pages/PriceListPrintView.tsx`.
 
+
+

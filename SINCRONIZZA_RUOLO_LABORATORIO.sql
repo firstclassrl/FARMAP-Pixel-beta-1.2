@@ -57,3 +57,5 @@ WHERE u.email LIKE '%farmapindustry.it%'
 ORDER BY u.email;
 
 
+
+

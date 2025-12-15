@@ -64,3 +64,5 @@ Dopo il deploy, testa dal browser:
 2. Clicca "Invia Email"
 3. Verifica che non ci siano più errori CORS nella console
 
+
+

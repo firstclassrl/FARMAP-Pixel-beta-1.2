@@ -47,3 +47,5 @@ Aggiungi questa variabile d'ambiente in Netlify:
 
 Sistema completamente funzionante senza problemi CORS! 🚀
 
+
+

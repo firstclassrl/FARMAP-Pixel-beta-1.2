@@ -113,3 +113,5 @@ Dovresti vedere:
 
 Se Railway continua a dare problemi CORS anche dopo il deploy, la **soluzione alternativa già implementata** (upload PDF dal frontend) funziona comunque e bypassa completamente il problema CORS.
 
+
+

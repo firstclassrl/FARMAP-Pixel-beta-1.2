@@ -301,3 +301,5 @@ Per aggiungere nuovi permessi o modificare ruoli esistenti, aggiornare:
 5. `ENABLE_RLS_SECURITY.sql` - Policy RLS nel database
 
 
+
+

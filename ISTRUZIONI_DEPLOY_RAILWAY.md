@@ -80,3 +80,5 @@ Dopo il deploy riuscito:
 - ✅ Endpoint con CORS configurato correttamente
 - ✅ Nessun errore "Failed to fetch"
 
+
+
