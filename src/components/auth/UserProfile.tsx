@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { User, LogOut, Settings, Shield, UserCog } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/button';
@@ -8,13 +9,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Input } from '../ui/input';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../store/useStore';
- 
+import { supabase } from '../../lib/supabase';
 
 export const UserProfile = () => {
   const { user, profile, signOut } = useAuth();
   const { addNotification } = useNotifications();
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [invoicesEnabled, setInvoicesEnabled] = useState(false);
+  const isAdmin = profile?.role === 'admin';
 
   const handleSignOut = async () => {
     try {
@@ -79,6 +87,63 @@ export const UserProfile = () => {
     const index = email.charCodeAt(0) % colors.length;
     return colors[index];
   };
+
+  // Carica il flag invoices_enabled quando l'admin apre le impostazioni
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!settingsOpen || !isAdmin) return;
+      setLoadingSettings(true);
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'invoices_enabled')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Errore caricamento impostazioni fatturazione:', error);
+        addNotification({
+          type: 'error',
+          title: 'Errore impostazioni',
+          message: 'Impossibile caricare lo stato del modulo fatturazione.'
+        });
+      } else {
+        setInvoicesEnabled(Boolean((data as any)?.value?.enabled));
+      }
+      setLoadingSettings(false);
+    };
+
+    loadSettings();
+  }, [settingsOpen, isAdmin, addNotification]);
+
+  const handleToggleInvoices = async (enabled: boolean) => {
+    setInvoicesEnabled(enabled);
+
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(
+        { key: 'invoices_enabled', value: { enabled } },
+        { onConflict: 'key' }
+      );
+
+    if (error) {
+      console.error('Errore aggiornamento impostazioni fatturazione:', error);
+      addNotification({
+        type: 'error',
+        title: 'Errore impostazioni',
+        message: 'Impossibile aggiornare il modulo fatturazione.'
+      });
+      // rollback visuale
+      setInvoicesEnabled(!enabled);
+    } else {
+      addNotification({
+        type: 'success',
+        title: 'Impostazioni salvate',
+        message: enabled
+          ? 'Modulo fatturazione attivato.'
+          : 'Modulo fatturazione disattivato.'
+      });
+    }
+  };
   if (!user) {
     return (
       <Button variant="outline" asChild>
@@ -138,7 +203,14 @@ export const UserProfile = () => {
           </>
         )}
         
-        <DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            if (isAdmin) {
+              setSettingsOpen(true);
+            }
+          }}
+          className={isAdmin ? '' : 'opacity-50 cursor-not-allowed'}
+        >
           <Settings className="w-4 h-4 mr-2" />
           Impostazioni
         </DropdownMenuItem>
@@ -150,6 +222,50 @@ export const UserProfile = () => {
           Logout
         </DropdownMenuItem>
       </DropdownMenuContent>
+
+      {/* Modale impostazioni applicazione (solo admin) */}
+      {isAdmin && (
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Impostazioni applicazione</DialogTitle>
+              <DialogDescription>
+                Configura le funzioni avanzate disponibili per tutti gli utenti.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-medium">Modulo fatturazione</p>
+                  <p className="text-sm text-gray-500">
+                    Quando attivo, il modulo di fatturazione è visibile per ruoli
+                    <span className="font-semibold"> admin, commerciale, amministrazione</span>.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="checkbox"
+                    checked={invoicesEnabled}
+                    disabled={loadingSettings}
+                    onChange={(e) => handleToggleInvoices(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">
+                    {invoicesEnabled ? 'Attivo' : 'Disattivo'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+                Chiudi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </DropdownMenu>
   );
 };
