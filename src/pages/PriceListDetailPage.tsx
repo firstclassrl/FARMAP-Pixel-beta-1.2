@@ -312,6 +312,9 @@ export function PriceListDetailPage({
     try {
       // Extract customer_id from form data - it doesn't belong in price_lists table
       const { customer_id, ...priceListData } = data;
+      // Usa sempre un ID cliente "effettivo", cadendo sullo stato locale se per qualche motivo
+      // il campo del form non venisse popolato correttamente
+      const effectiveCustomerId = customer_id || selectedCustomerId || '';
       
       // Converti date dal formato italiano (dd/mm/yyyy) al formato ISO (yyyy-mm-dd)
       const convertDateToISO = (dateStr: string | undefined): string | null => {
@@ -384,12 +387,12 @@ export function PriceListDetailPage({
           });
         }
 
-        // 2) Se nel form è stato selezionato un cliente, collega il listino a quel cliente
-        if (customer_id) {
+        // 2) Se è stato selezionato un cliente, collega il listino a quel cliente
+        if (effectiveCustomerId) {
           const { error: customerError } = await supabase
             .from('customers')
             .update({ price_list_id: currentPriceList.id })
-            .eq('id', customer_id);
+            .eq('id', effectiveCustomerId);
 
           if (customerError) {
             console.error('Error assigning customer to price list:', customerError);
@@ -399,7 +402,7 @@ export function PriceListDetailPage({
               message: 'Listino salvato ma errore nell\'assegnazione del cliente',
             });
           } else {
-            setSelectedCustomerId(customer_id);
+            setSelectedCustomerId(effectiveCustomerId);
           }
         } else {
           setSelectedCustomerId('');
@@ -444,11 +447,11 @@ export function PriceListDetailPage({
         const newPriceList = insertResult.data!;
 
         // Handle customer assignment for new price list
-        if (customer_id) {
+        if (effectiveCustomerId) {
           const { error: customerError } = await supabase
             .from('customers')
             .update({ price_list_id: newPriceList.id })
-            .eq('id', customer_id);
+            .eq('id', effectiveCustomerId);
 
           if (customerError) {
             console.error('Error assigning customer to new price list:', customerError);
@@ -458,7 +461,7 @@ export function PriceListDetailPage({
               message: 'Listino creato ma errore nell\'assegnazione del cliente',
             });
           } else {
-            setSelectedCustomerId(customer_id);
+            setSelectedCustomerId(effectiveCustomerId);
           }
         }
 
