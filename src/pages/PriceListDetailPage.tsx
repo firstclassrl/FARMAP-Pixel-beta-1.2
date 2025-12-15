@@ -537,7 +537,6 @@ export function PriceListDetailPage({
     reset();
     setCurrentPriceList(null);
     setSelectedCustomerId('');
-    setInitialCustomerId('');
     setIsNewPriceListCreated(false);
     onClose();
   };
