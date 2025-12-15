@@ -82,8 +82,6 @@ export function PriceListDetailPage({
   const [currentPriceList, setCurrentPriceList] = useState<PriceListWithItems | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
-  // ID del cliente originariamente collegato al listino (prima delle modifiche)
-  const [originalCustomerId, setOriginalCustomerId] = useState<string>('');
   const [isNewPriceListCreated, setIsNewPriceListCreated] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -265,7 +263,6 @@ export function PriceListDetailPage({
 
       const resolvedCustomerId = customerData?.id || '';
       setSelectedCustomerId(resolvedCustomerId);
-      setOriginalCustomerId(resolvedCustomerId);
       setSelectedCustomer(customerData || null);
 
       if ((!data.payment_conditions || data.payment_conditions.trim() === '') && customerData?.payment_terms) {
@@ -373,49 +370,42 @@ export function PriceListDetailPage({
           message: `${data.name} è stato aggiornato con successo`,
         });
 
-        // Gestione associazione cliente <-> listino
-        // Se l'ID cliente è cambiato rispetto a quello originale, aggiorniamo i collegamenti
-        if (effectiveCustomerId !== originalCustomerId) {
-          // 1) Se esisteva un cliente originario, scollega il listino da quel cliente
-          if (originalCustomerId) {
-            const { error: detachError } = await supabase
-              .from('customers')
-              .update({ price_list_id: null })
-              .eq('id', originalCustomerId);
+        // Gestione associazione cliente <-> listino (versione semplice, uguale al flusso massivo)
+        if (effectiveCustomerId) {
+          // Assegna (o riassegna) il listino al cliente scelto
+          const { error: customerError } = await supabase
+            .from('customers')
+            .update({ price_list_id: currentPriceList.id })
+            .eq('id', effectiveCustomerId);
 
-            if (detachError) {
-              console.error('Error detaching price list from original customer:', detachError);
-              addNotification({
-                type: 'warning',
-                title: 'Attenzione',
-                message: 'Listino aggiornato ma impossibile rimuovere il collegamento dal vecchio cliente',
-              });
-            }
-          }
-
-          // 2) Se abbiamo un nuovo cliente selezionato, collega il listino a quel cliente
-          if (effectiveCustomerId) {
-            const { error: customerError } = await supabase
-              .from('customers')
-              .update({ price_list_id: currentPriceList.id })
-              .eq('id', effectiveCustomerId);
-
-            if (customerError) {
-              console.error('Error assigning customer to price list:', customerError);
-              addNotification({
-                type: 'warning',
-                title: 'Attenzione',
-                message: 'Listino salvato ma errore nell\'assegnazione del nuovo cliente',
-              });
-            } else {
-              setSelectedCustomerId(effectiveCustomerId);
-              setOriginalCustomerId(effectiveCustomerId);
-            }
+          if (customerError) {
+            console.error('Error assigning customer to price list:', customerError);
+            addNotification({
+              type: 'warning',
+              title: 'Attenzione',
+              message: 'Listino salvato ma errore nell\'assegnazione del cliente',
+            });
           } else {
-            // Nessun cliente selezionato ora
-            setSelectedCustomerId('');
-            setOriginalCustomerId('');
+            setSelectedCustomerId(effectiveCustomerId);
           }
+        } else {
+          // Nessun cliente selezionato: rimuovi il collegamento da eventuali clienti che usano questo listino
+          const { error: detachError } = await supabase
+            .from('customers')
+            .update({ price_list_id: null })
+            .eq('price_list_id', currentPriceList.id);
+
+          if (detachError) {
+            console.error('Error detaching price list from customers:', detachError);
+            addNotification({
+              type: 'warning',
+              title: 'Attenzione',
+              message: 'Listino aggiornato ma impossibile rimuovere il collegamento cliente',
+            });
+          }
+
+          setSelectedCustomerId('');
+          setSelectedCustomer(null);
         }
 
         // Refresh the price list data
@@ -456,7 +446,7 @@ export function PriceListDetailPage({
         }
         const newPriceList = insertResult.data!;
 
-        // Handle customer assignment for new price list
+        // Handle customer assignment for new price list (stessa logica del bulk)
         if (effectiveCustomerId) {
           const { error: customerError } = await supabase
             .from('customers')
@@ -472,7 +462,9 @@ export function PriceListDetailPage({
             });
           } else {
             setSelectedCustomerId(effectiveCustomerId);
-            setOriginalCustomerId(effectiveCustomerId);
+            setSelectedCustomer(
+              customers.find(c => c.id === effectiveCustomerId) || null
+            );
           }
         }
 
@@ -551,7 +543,6 @@ export function PriceListDetailPage({
     reset();
     setCurrentPriceList(null);
     setSelectedCustomerId('');
-    setOriginalCustomerId('');
     setIsNewPriceListCreated(false);
     onClose();
   };
