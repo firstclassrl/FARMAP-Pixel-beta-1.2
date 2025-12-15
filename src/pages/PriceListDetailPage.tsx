@@ -82,8 +82,6 @@ export function PriceListDetailPage({
   const [currentPriceList, setCurrentPriceList] = useState<PriceListWithItems | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
-  // Tiene traccia del cliente associato PRIMA delle modifiche, per capire se è cambiato
-  const [initialCustomerId, setInitialCustomerId] = useState<string>('');
   const [isNewPriceListCreated, setIsNewPriceListCreated] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -265,7 +263,6 @@ export function PriceListDetailPage({
 
       const resolvedCustomerId = customerData?.id || '';
       setSelectedCustomerId(resolvedCustomerId);
-      setInitialCustomerId(resolvedCustomerId);
       setSelectedCustomer(customerData || null);
 
       if ((!data.payment_conditions || data.payment_conditions.trim() === '') && customerData?.payment_terms) {
@@ -371,17 +368,24 @@ export function PriceListDetailPage({
           message: `${data.name} è stato aggiornato con successo`,
         });
 
-        // Handle customer assignment (anche per listini che prima non avevano cliente)
-        if (customer_id && customer_id !== initialCustomerId) {
-          // Rimuovi il listino dal cliente precedente se esisteva
-          if (initialCustomerId) {
-            await supabase
-              .from('customers')
-              .update({ price_list_id: null })
-              .eq('id', initialCustomerId);
-          }
+        // Gestione associazione cliente <-> listino
+        // 1) Scollega il listino da QUALSIASI cliente che lo stia usando
+        const { error: detachError } = await supabase
+          .from('customers')
+          .update({ price_list_id: null })
+          .eq('price_list_id', currentPriceList.id);
 
-          // Assegna il listino al nuovo cliente
+        if (detachError) {
+          console.error('Error detaching price list from customers:', detachError);
+          addNotification({
+            type: 'warning',
+            title: 'Attenzione',
+            message: 'Listino aggiornato ma impossibile aggiornare correttamente il cliente collegato',
+          });
+        }
+
+        // 2) Se nel form è stato selezionato un cliente, collega il listino a quel cliente
+        if (customer_id) {
           const { error: customerError } = await supabase
             .from('customers')
             .update({ price_list_id: currentPriceList.id })
@@ -396,16 +400,9 @@ export function PriceListDetailPage({
             });
           } else {
             setSelectedCustomerId(customer_id);
-            setInitialCustomerId(customer_id);
           }
-        } else if (!customer_id && initialCustomerId) {
-          // Nessun cliente selezionato ora, ma prima c'era: rimuovi l'associazione
-          await supabase
-            .from('customers')
-            .update({ price_list_id: null })
-            .eq('id', initialCustomerId);
+        } else {
           setSelectedCustomerId('');
-          setInitialCustomerId('');
         }
 
         // Refresh the price list data
