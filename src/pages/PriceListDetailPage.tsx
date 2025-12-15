@@ -225,14 +225,23 @@ export function PriceListDetailPage({
 
       if (error) throw error;
 
-      // Find customer associated with this price list
-      const { data: customerData } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('price_list_id', id)
-        .maybeSingle();
+      const priceList = data as PriceListWithItems;
 
-      setCurrentPriceList(data as PriceListWithItems);
+      // Find customer associated with this price list via price_lists.customer_id
+      let customerData: Customer | null = null;
+      if ((priceList as any).customer_id) {
+        const { data: c } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('id', (priceList as any).customer_id)
+          .maybeSingle();
+        customerData = c || null;
+      }
+
+      setCurrentPriceList({
+        ...priceList,
+        customer: customerData || undefined,
+      } as PriceListWithItems);
 
       // Converti date dal formato ISO (yyyy-mm-dd) al formato italiano (dd/mm/yyyy)
       const convertDateToItalian = (dateStr: string | null): string => {
@@ -247,18 +256,18 @@ export function PriceListDetailPage({
 
       // Pre-fill form
       reset({
-        name: data.name,
-        description: data.description || '',
-        valid_from: convertDateToItalian(data.valid_from),
-        valid_until: convertDateToItalian(data.valid_until),
-        currency: data.currency,
-        is_default: data.is_default,
-        print_conditions: (data as any).print_conditions ?? true,
+        name: priceList.name,
+        description: priceList.description || '',
+        valid_from: convertDateToItalian(priceList.valid_from),
+        valid_until: convertDateToItalian(priceList.valid_until),
+        currency: priceList.currency,
+        is_default: priceList.is_default,
+        print_conditions: (priceList as any).print_conditions ?? true,
         customer_id: customerData?.id || '',
-        payment_conditions: data.payment_conditions || '',
-        shipping_conditions: data.shipping_conditions || '',
-        delivery_conditions: data.delivery_conditions || '',
-        brand_conditions: data.brand_conditions || '',
+        payment_conditions: priceList.payment_conditions || '',
+        shipping_conditions: priceList.shipping_conditions || '',
+        delivery_conditions: priceList.delivery_conditions || '',
+        brand_conditions: priceList.brand_conditions || '',
       });
 
       const resolvedCustomerId = customerData?.id || '';
@@ -338,6 +347,7 @@ export function PriceListDetailPage({
         shipping_conditions: data.shipping_conditions || null,
         delivery_conditions: data.delivery_conditions || null,
         brand_conditions: data.brand_conditions || null,
+        customer_id: effectiveCustomerId || null,
       };
 
       if (currentPriceList) {
@@ -370,49 +380,17 @@ export function PriceListDetailPage({
           message: `${data.name} è stato aggiornato con successo`,
         });
 
-        // Gestione associazione cliente <-> listino (versione semplice, uguale al flusso massivo)
-        console.log('🔗 effectiveCustomerId BEFORE customer update:', effectiveCustomerId);
+        // Gestione associazione cliente <-> listino
+        // Ora è tutta gestita tramite la colonna price_lists.customer_id,
+        // quindi qui ci limitiamo ad aggiornare lo stato locale in base a effectiveCustomerId
+        console.log('🔗 effectiveCustomerId (saved in price_lists.customer_id):', effectiveCustomerId);
 
-        // 1) scollega eventuali clienti che hanno già questo listino
-        const { error: detachError } = await supabase
-          .from('customers')
-          .update({ price_list_id: null })
-          .eq('price_list_id', currentPriceList.id);
-
-        if (detachError) {
-          console.error('Error detaching price list from customers:', detachError);
-          addNotification({
-            type: 'warning',
-            title: 'Attenzione',
-            message: 'Listino aggiornato ma impossibile rimuovere il collegamento cliente',
-          });
-        }
-
-        // 2) se è stato selezionato un cliente, collega il listino a quel cliente
         if (effectiveCustomerId) {
-          const { error: customerError, data: updatedRows } = await supabase
-            .from('customers')
-            .update({ price_list_id: currentPriceList.id })
-            .eq('id', effectiveCustomerId)
-            .select('id, price_list_id');
-
-          console.log('🔗 customer update result:', { customerError, updatedRows });
-
-          if (customerError) {
-            console.error('Error assigning customer to price list:', customerError);
-            addNotification({
-              type: 'warning',
-              title: 'Attenzione',
-              message: 'Listino salvato ma errore nell\'assegnazione del cliente',
-            });
-          } else {
-            setSelectedCustomerId(effectiveCustomerId);
-            setSelectedCustomer(
-              customers.find(c => c.id === effectiveCustomerId) || null
-            );
-          }
+          setSelectedCustomerId(effectiveCustomerId);
+          setSelectedCustomer(
+            customers.find(c => c.id === effectiveCustomerId) || null
+          );
         } else {
-          // Nessun cliente selezionato ora
           setSelectedCustomerId('');
           setSelectedCustomer(null);
         }
@@ -455,12 +433,13 @@ export function PriceListDetailPage({
         }
         const newPriceList = insertResult.data!;
 
-        // Handle customer assignment for new price list (stessa logica del bulk)
+        // Handle customer assignment for new price list:
+        // impostiamo direttamente customer_id sul nuovo listino
         if (effectiveCustomerId) {
           const { error: customerError } = await supabase
-            .from('customers')
-            .update({ price_list_id: newPriceList.id })
-            .eq('id', effectiveCustomerId);
+            .from('price_lists')
+            .update({ customer_id: effectiveCustomerId })
+            .eq('id', newPriceList.id);
 
           if (customerError) {
             console.error('Error assigning customer to new price list:', customerError);

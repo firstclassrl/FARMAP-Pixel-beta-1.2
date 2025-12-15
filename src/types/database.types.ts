@@ -269,6 +269,7 @@ export interface Database {
           shipping_conditions: string | null
           delivery_conditions: string | null
           brand_conditions: string | null
+          customer_id: string | null
           created_at: string
           updated_at: string
           created_by: string
@@ -287,6 +288,7 @@ export interface Database {
           shipping_conditions?: string | null
           delivery_conditions?: string | null
           brand_conditions?: string | null
+          customer_id?: string | null
           created_at?: string
           updated_at?: string
           created_by: string
@@ -305,6 +307,7 @@ export interface Database {
           shipping_conditions?: string | null
           delivery_conditions?: string | null
           brand_conditions?: string | null
+          customer_id?: string | null
           created_at?: string
           updated_at?: string
           created_by?: string

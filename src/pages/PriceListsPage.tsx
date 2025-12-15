@@ -127,8 +127,8 @@ export const PriceListsPage = () => {
 
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
-        .select('id, company_name, price_list_id')
-        .not('price_list_id', 'is', null);
+        .select('id, company_name')
+        .eq('is_active', true);
 
       if (customersError) throw customersError;
 
@@ -180,7 +180,7 @@ export const PriceListsPage = () => {
       console.log('Final profilesData:', profilesData);
 
       const processedPriceLists: PriceListWithDetails[] = priceListsData.map((priceList: any) => {
-        const customer = (customersData as any[])?.find((c: any) => c.price_list_id === priceList.id);
+        const customer = (customersData as any[])?.find((c: any) => c.id === priceList.customer_id);
         const creator = profilesData.find(p => p.id === priceList.created_by);
         const productCount = (priceList.price_list_items as any)[0]?.count || 0;
         const now = new Date();

@@ -110,9 +110,8 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
       // Load customers to match with price lists
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
-        .select('id, company_name, contact_person, price_list_id')
-        .eq('is_active', true)
-        .not('price_list_id', 'is', null);
+        .select('id, company_name, contact_person')
+        .eq('is_active', true);
 
       if (customersError) throw customersError;
 
@@ -146,7 +145,7 @@ export const CreateOrderFromPriceListModal: React.FC<CreateOrderFromPriceListMod
       // Combine price lists with customer and creator data and calculate totals
       const priceListsWithDetails = await Promise.all(
         (priceListsData || []).map(async (priceList) => {
-          const customer = customersData?.find(c => c.price_list_id === priceList.id);
+          const customer = customersData?.find(c => c.id === priceList.customer_id);
           const creator = profilesData.find(p => p.id === priceList.created_by);
           const productCount = (priceList.price_list_items as any)[0]?.count || 0;
 
