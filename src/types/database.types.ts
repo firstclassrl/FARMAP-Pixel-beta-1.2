@@ -15,7 +15,7 @@ export interface Database {
           email: string
           full_name: string | null
           avatar_url: string | null
-          role: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab'
+          role: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione'
           created_at: string
           updated_at: string
         }
@@ -24,7 +24,7 @@ export interface Database {
           email: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab'
+          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione'
           created_at?: string
           updated_at?: string
         }
@@ -33,7 +33,7 @@ export interface Database {
           email?: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab'
+          role?: 'admin' | 'commerciale' | 'lettore' | 'production' | 'sales' | 'customer_user' | 'lab' | 'amministrazione'
           created_at?: string
           updated_at?: string
         }
@@ -461,6 +461,8 @@ export interface Database {
           total_price: number
           notes: string | null
           created_at: string
+          invoiced_quantity: number
+          last_invoiced_at: string | null
         }
         Insert: {
           id?: string
@@ -472,6 +474,8 @@ export interface Database {
           total_price: number
           notes?: string | null
           created_at?: string
+          invoiced_quantity?: number
+          last_invoiced_at?: string | null
         }
         Update: {
           id?: string
@@ -483,6 +487,8 @@ export interface Database {
           total_price?: number
           notes?: string | null
           created_at?: string
+          invoiced_quantity?: number
+          last_invoiced_at?: string | null
         }
       }
       activities: {

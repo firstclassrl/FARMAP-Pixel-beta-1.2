@@ -120,7 +120,6 @@ export const PriceListsPage = () => {
       
       // Ensure we have valid data
       if (!priceListsData) {
-        console.warn('No price lists data returned');
         setPriceLists([]);
         return;
       }
@@ -134,7 +133,6 @@ export const PriceListsPage = () => {
 
       // Fetch creator profiles - try to get all profiles, fallback to individual queries if RLS blocks
       const creatorIds = [...new Set(priceListsData.map((pl: any) => pl.created_by).filter(Boolean))];
-      console.log('Creator IDs to fetch:', creatorIds);
       let profilesData: Array<{ id: string; full_name: string | null; email?: string | null }> = [];
       if (creatorIds.length > 0) {
         try {
@@ -146,7 +144,6 @@ export const PriceListsPage = () => {
             .in('id', creatorIds);
 
           if (profilesError) {
-            console.warn('Error fetching creator profiles (batch):', profilesError);
             // If batch query fails due to RLS, try fetching individually
             // This is a fallback - ideally RLS should allow reading profiles for list creators
             for (const creatorId of creatorIds) {
@@ -158,26 +155,20 @@ export const PriceListsPage = () => {
                   .single();
                 if (singleProfile) {
                   profilesData.push(singleProfile as { id: string; full_name: string | null; email?: string | null });
-                  console.log(`Retrieved profile for ${creatorId}:`, { full_name: (singleProfile as any).full_name, email: (singleProfile as any).email });
                 } else if (singleError) {
-                  console.warn(`Cannot access profile ${creatorId}:`, singleError);
+                  // Skip profiles that can't be accessed
                 }
               } catch (err) {
                 // Skip profiles that can't be accessed
-                console.warn(`Cannot access profile ${creatorId}:`, err);
               }
             }
           } else {
             profilesData = data || [];
-            console.log('Retrieved profiles (batch):', profilesData.map(p => ({ id: p.id, full_name: p.full_name, email: p.email })));
           }
         } catch (error) {
-          console.warn('Error fetching creator profiles:', error);
           profilesData = [];
         }
       }
-      
-      console.log('Final profilesData:', profilesData);
 
       const processedPriceLists: PriceListWithDetails[] = priceListsData.map((priceList: any) => {
         const customer = (customersData as any[])?.find((c: any) => c.id === priceList.customer_id);
@@ -207,21 +198,6 @@ export const PriceListsPage = () => {
             .join(' ');
         }
         
-        // Debug log to see what we're getting
-        if (priceList.created_by) {
-          if (!creator) {
-            console.warn(`No profile found for creator ${priceList.created_by} (price list: ${priceList.name})`);
-          } else {
-            console.log(`Matched creator for ${priceList.name}:`, { 
-              created_by: priceList.created_by, 
-              creator_id: creator.id, 
-              full_name: creator.full_name, 
-              email: creator.email,
-              display_name: creatorDisplayName 
-            });
-          }
-        }
-
         return {
           ...priceList,
           customer: customer ? { 
@@ -234,12 +210,6 @@ export const PriceListsPage = () => {
         };
       });
       
-      console.log('Processed price lists with creators:', processedPriceLists.map(pl => ({ 
-        name: pl.name, 
-        creator_name: pl.creator_name,
-        created_by: pl.created_by 
-      })));
-
       setPriceLists(processedPriceLists);
 
       // Calcola i KPI solo sui listini dell'utente corrente (default)

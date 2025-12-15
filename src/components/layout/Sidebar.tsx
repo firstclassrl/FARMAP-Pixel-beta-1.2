@@ -23,12 +23,12 @@ import { useAuth } from '../../hooks/useAuth';
 
 // Definiamo la lista completa di tutte le possibili voci del menu con i colori specifici
 const allNavigationItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'commerciale', 'lettore'], color: 'neutral' },
-  { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales', 'commerciale', 'lab'], color: 'blue' },
-  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'commerciale', 'lettore', 'lab'], color: 'green' },
-  { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales', 'commerciale'], color: 'purple' },
-  { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales', 'commerciale'], color: 'orange' },
-  { name: 'Calendario', href: '/calendar', icon: Calendar, roles: ['admin', 'sales', 'commerciale', 'lab'], color: 'yellow' },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lettore'], color: 'neutral' },
+  { name: 'Clienti', href: '/customers', icon: Users, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lab'], color: 'blue' },
+  { name: 'Prodotti', href: '/products', icon: Package, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lettore', 'lab'], color: 'green' },
+  { name: 'Listini', href: '/price-lists', icon: FileText, roles: ['admin', 'sales', 'commerciale', 'amministrazione'], color: 'purple' },
+  { name: 'Ordini', href: '/orders', icon: ShoppingCart, roles: ['admin', 'sales', 'commerciale', 'amministrazione'], color: 'orange' },
+  { name: 'Calendario', href: '/calendar', icon: Calendar, roles: ['admin', 'sales', 'commerciale', 'amministrazione', 'lab'], color: 'yellow' },
   { 
     name: 'Garden',
     href: '/garden',

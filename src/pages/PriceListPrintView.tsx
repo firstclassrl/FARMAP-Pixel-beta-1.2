@@ -78,7 +78,7 @@ export function PriceListPrintView({
     if (isOpen && priceListId) {
       loadPriceListData();
     }
-  }, [isOpen, priceListId, sortField, sortDirection, selectedCategory]);
+  }, [isOpen, priceListId]);
 
   const loadPriceListData = async () => {
     try {
@@ -98,7 +98,7 @@ export function PriceListPrintView({
         .single();
 
       if (priceListError) {
-        console.error('🔴 Error loading price list:', priceListError);
+        console.error('Error loading price list:', priceListError);
         throw priceListError;
       }
       if (!priceListData) throw new Error('Price list not found');
@@ -379,7 +379,7 @@ export function PriceListPrintView({
 
   const handleDownloadPDF = async () => {
     if (!priceList) {
-      console.error('🔴 handleDownloadPDF: priceList is null');
+      console.error('handleDownloadPDF: priceList is null');
       return;
     }
 
@@ -403,11 +403,6 @@ export function PriceListPrintView({
       // Assicurati che l'URL non finisca con /
       const cleanBackendUrl = backendUrl.replace(/\/$/, '');
       const endpoint = `${cleanBackendUrl}/api/generate-price-list-pdf`;
-      
-      console.log('🔵 PDF Generation - Raw backendUrl:', backendUrl);
-      console.log('🔵 PDF Generation - Clean backendUrl:', cleanBackendUrl);
-      console.log('🔵 PDF Generation - Env var exists:', !!import.meta.env.VITE_PDF_GENERATOR_URL);
-      console.log('🔵 PDF Generation - Env var value:', import.meta.env.VITE_PDF_GENERATOR_URL || 'NOT SET');
       
       // Applica filtro categoria ai prodotti
       const filteredItems = [...priceList.price_list_items].filter(item => {
@@ -489,11 +484,6 @@ export function PriceListPrintView({
           selectedCategory: selectedCategory
         };
       }
-      
-      console.log('🔵 PDF Generation - Price list items:', printByCategory ? Object.values(requestBody.groupedByCategory).flat().length : requestBody.priceListData.price_list_items.length);
-      console.log('🔵 PDF Generation - Full endpoint:', endpoint);
-      console.log('🔵 PDF Generation - Print by category:', printByCategory);
-      console.log('🔵 PDF Generation - Categories:', printByCategory ? requestBody.categoryOrder : 'N/A');
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -501,9 +491,6 @@ export function PriceListPrintView({
         },
         body: JSON.stringify(requestBody)
       });
-
-      console.log('🔵 PDF Response status:', response.status, response.statusText);
-      console.log('🔵 PDF Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -513,7 +500,7 @@ export function PriceListPrintView({
         } catch {
           errorData = { message: errorText || `HTTP error! status: ${response.status}` };
         }
-        console.error('🔴 PDF Generation Error:', {
+        console.error('PDF Generation Error:', {
           status: response.status,
           statusText: response.statusText,
           error: errorData,
@@ -529,24 +516,17 @@ export function PriceListPrintView({
 
       // Get PDF blob
       const pdfBlob = await response.blob();
-      const fileSizeMB = (pdfBlob.size / (1024 * 1024)).toFixed(2);
-      console.log('🔵 PDF Generated - File size:', fileSizeMB, 'MB');
-      console.log('🔵 PDF Blob type:', pdfBlob.type);
-      console.log('🔵 PDF Blob size:', pdfBlob.size, 'bytes');
       
       if (pdfBlob.size === 0) {
         throw new Error('Il PDF generato è vuoto. Controlla i log del servizio.');
       }
       
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      console.log('🔵 PDF URL created');
       
       // Download PDF with proper filename
       const today = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
       const customerName = priceList.customer?.company_name || 'Cliente';
       const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`;
-      
-      console.log('🔵 Starting download:', fileName);
       const link = document.createElement('a');
       link.href = pdfUrl;
       link.download = fileName;
@@ -556,13 +536,11 @@ export function PriceListPrintView({
       // Usa requestAnimationFrame per assicurarsi che il DOM sia aggiornato
       requestAnimationFrame(() => {
         link.click();
-        console.log('🔵 Download link clicked');
         
         // Clean up after download (più tempo per assicurarsi che il download inizi)
         setTimeout(() => {
           document.body.removeChild(link);
           URL.revokeObjectURL(pdfUrl);
-          console.log('🔵 Cleanup completed');
         }, 2000);
       });
 
@@ -573,7 +551,7 @@ export function PriceListPrintView({
       } as any);
 
     } catch (error) {
-      console.error('🔴 Error generating PDF:', error);
+      console.error('Error generating PDF:', error);
       const errorMessage = error instanceof Error ? error.message : 'Errore nella generazione del PDF';
       addNotification({
         type: 'error',

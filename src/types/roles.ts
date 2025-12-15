@@ -1,6 +1,7 @@
 export const USER_ROLES = [
   'admin',
   'commerciale',
+  'amministrazione',
   'lettore',
   'production',
   'sales',
@@ -11,5 +12,8 @@ export const USER_ROLES = [
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const ADMIN_OR_LAB: UserRole[] = ['admin', 'lab'];
+
+// Ruoli che possono gestire vendite (ordini, listini, fatture)
+export const SALES_ROLES: UserRole[] = ['admin', 'commerciale', 'amministrazione'];
 
 

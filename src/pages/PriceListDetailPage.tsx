@@ -305,9 +305,6 @@ export function PriceListDetailPage({
   }, [isOpen, priceListId]);
 
   const handleMainFormSubmit = async (data: PriceListFormData) => {
-    console.log('🔍 Form submit data:', data);
-    console.log('🔍 User:', user);
-    
     if (!user?.id) {
       addNotification({
         type: 'error',
@@ -383,8 +380,6 @@ export function PriceListDetailPage({
         // Gestione associazione cliente <-> listino
         // Ora è tutta gestita tramite la colonna price_lists.customer_id,
         // quindi qui ci limitiamo ad aggiornare lo stato locale in base a effectiveCustomerId
-        console.log('🔗 effectiveCustomerId (saved in price_lists.customer_id):', effectiveCustomerId);
-
         if (effectiveCustomerId) {
           setSelectedCustomerId(effectiveCustomerId);
           setSelectedCustomer(
