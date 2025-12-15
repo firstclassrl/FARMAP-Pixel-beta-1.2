@@ -82,6 +82,8 @@ export function PriceListDetailPage({
   const [currentPriceList, setCurrentPriceList] = useState<PriceListWithItems | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  // ID del cliente originariamente collegato al listino (prima delle modifiche)
+  const [originalCustomerId, setOriginalCustomerId] = useState<string>('');
   const [isNewPriceListCreated, setIsNewPriceListCreated] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -263,6 +265,7 @@ export function PriceListDetailPage({
 
       const resolvedCustomerId = customerData?.id || '';
       setSelectedCustomerId(resolvedCustomerId);
+      setOriginalCustomerId(resolvedCustomerId);
       setSelectedCustomer(customerData || null);
 
       if ((!data.payment_conditions || data.payment_conditions.trim() === '') && customerData?.payment_terms) {
@@ -312,8 +315,7 @@ export function PriceListDetailPage({
     try {
       // Extract customer_id from form data - it doesn't belong in price_lists table
       const { customer_id, ...priceListData } = data;
-      // Usa sempre un ID cliente "effettivo", cadendo sullo stato locale se per qualche motivo
-      // il campo del form non venisse popolato correttamente
+      // ID cliente che vogliamo associare dopo il salvataggio
       const effectiveCustomerId = customer_id || selectedCustomerId || '';
       
       // Converti date dal formato italiano (dd/mm/yyyy) al formato ISO (yyyy-mm-dd)
@@ -372,40 +374,48 @@ export function PriceListDetailPage({
         });
 
         // Gestione associazione cliente <-> listino
-        // 1) Scollega il listino da QUALSIASI cliente che lo stia usando
-        const { error: detachError } = await supabase
-          .from('customers')
-          .update({ price_list_id: null })
-          .eq('price_list_id', currentPriceList.id);
+        // Se l'ID cliente è cambiato rispetto a quello originale, aggiorniamo i collegamenti
+        if (effectiveCustomerId !== originalCustomerId) {
+          // 1) Se esisteva un cliente originario, scollega il listino da quel cliente
+          if (originalCustomerId) {
+            const { error: detachError } = await supabase
+              .from('customers')
+              .update({ price_list_id: null })
+              .eq('id', originalCustomerId);
 
-        if (detachError) {
-          console.error('Error detaching price list from customers:', detachError);
-          addNotification({
-            type: 'warning',
-            title: 'Attenzione',
-            message: 'Listino aggiornato ma impossibile aggiornare correttamente il cliente collegato',
-          });
-        }
-
-        // 2) Se è stato selezionato un cliente, collega il listino a quel cliente
-        if (effectiveCustomerId) {
-          const { error: customerError } = await supabase
-            .from('customers')
-            .update({ price_list_id: currentPriceList.id })
-            .eq('id', effectiveCustomerId);
-
-          if (customerError) {
-            console.error('Error assigning customer to price list:', customerError);
-            addNotification({
-              type: 'warning',
-              title: 'Attenzione',
-              message: 'Listino salvato ma errore nell\'assegnazione del cliente',
-            });
-          } else {
-            setSelectedCustomerId(effectiveCustomerId);
+            if (detachError) {
+              console.error('Error detaching price list from original customer:', detachError);
+              addNotification({
+                type: 'warning',
+                title: 'Attenzione',
+                message: 'Listino aggiornato ma impossibile rimuovere il collegamento dal vecchio cliente',
+              });
+            }
           }
-        } else {
-          setSelectedCustomerId('');
+
+          // 2) Se abbiamo un nuovo cliente selezionato, collega il listino a quel cliente
+          if (effectiveCustomerId) {
+            const { error: customerError } = await supabase
+              .from('customers')
+              .update({ price_list_id: currentPriceList.id })
+              .eq('id', effectiveCustomerId);
+
+            if (customerError) {
+              console.error('Error assigning customer to price list:', customerError);
+              addNotification({
+                type: 'warning',
+                title: 'Attenzione',
+                message: 'Listino salvato ma errore nell\'assegnazione del nuovo cliente',
+              });
+            } else {
+              setSelectedCustomerId(effectiveCustomerId);
+              setOriginalCustomerId(effectiveCustomerId);
+            }
+          } else {
+            // Nessun cliente selezionato ora
+            setSelectedCustomerId('');
+            setOriginalCustomerId('');
+          }
         }
 
         // Refresh the price list data
@@ -462,6 +472,7 @@ export function PriceListDetailPage({
             });
           } else {
             setSelectedCustomerId(effectiveCustomerId);
+            setOriginalCustomerId(effectiveCustomerId);
           }
         }
 
@@ -540,6 +551,7 @@ export function PriceListDetailPage({
     reset();
     setCurrentPriceList(null);
     setSelectedCustomerId('');
+    setOriginalCustomerId('');
     setIsNewPriceListCreated(false);
     onClose();
   };
