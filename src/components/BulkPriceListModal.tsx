@@ -73,16 +73,23 @@ const BulkPriceListModal: React.FC<BulkPriceListModalProps> = ({ isOpen, onClose
     [name, selectedCustomer, category, prefix, previewCount]
   );
 
+  const isAllCategories = category === 'ALL';
+
   const handlePreview = async () => {
     if (!canPreview) return;
     try {
       setLoadingPreview(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('id')
         .eq('is_active', true)
-        .eq('category', category)
         .ilike('code', `${prefix}%`);
+      
+      if (!isAllCategories) {
+        query = query.eq('category', category);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       setPreviewCount((data || []).length);
       addNotification({ type: 'info', title: 'Anteprima', message: `${(data || []).length} prodotti trovati` });
@@ -99,12 +106,17 @@ const BulkPriceListModal: React.FC<BulkPriceListModalProps> = ({ isOpen, onClose
     setCreating(true);
     try {
       // 1) fetch products with prices
-      const { data: products, error: prodErr } = await supabase
+      let productsQuery = supabase
         .from('products')
         .select('id, base_price')
         .eq('is_active', true)
-        .eq('category', category)
         .ilike('code', `${prefix}%`);
+      
+      if (!isAllCategories) {
+        productsQuery = productsQuery.eq('category', category);
+      }
+      
+      const { data: products, error: prodErr } = await productsQuery;
       if (prodErr) throw prodErr;
       const list = (products || []) as Pick<Product, 'id' | 'base_price'>[];
       if (list.length === 0) {
@@ -172,7 +184,7 @@ const BulkPriceListModal: React.FC<BulkPriceListModalProps> = ({ isOpen, onClose
             <span>Crea listino massivo</span>
           </DialogTitle>
           <DialogDescription>
-            Seleziona cliente, categoria e prefisso codice per includere i prodotti corrispondenti. I prezzi usano il prezzo base del prodotto.
+            Seleziona cliente, categoria (o tutte le categorie) e prefisso codice per includere i prodotti corrispondenti. I prezzi usano il prezzo base del prodotto.
           </DialogDescription>
         </DialogHeader>
 
@@ -213,6 +225,7 @@ const BulkPriceListModal: React.FC<BulkPriceListModalProps> = ({ isOpen, onClose
                     className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="">Seleziona categoria</option>
+                    <option value="ALL">TUTTE LE CATEGORIE DI PRODOTTI</option>
                     {categories.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
