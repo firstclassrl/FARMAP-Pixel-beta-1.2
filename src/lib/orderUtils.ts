@@ -175,21 +175,25 @@ export const validatePriceListForOrder = async (priceListId: string): Promise<bo
     // Check if price list exists and is active
     const { data: priceList, error: priceListError } = await supabase
       .from('price_lists')
-      .select('id, valid_from, valid_until, is_active')
+      .select('id, valid_from, valid_until, is_active, customer_id')
       .eq('id', priceListId)
       .eq('is_active', true)
       .single();
 
     if (priceListError || !priceList) {
+      console.error('Price list validation failed - price list not found or inactive:', priceListError);
       return false;
     }
 
-    // Check if price list is currently valid
+    // Check if price list is currently valid (valid_from must be <= now, valid_until must be >= now or null)
     const now = new Date();
     const validFrom = new Date(priceList.valid_from);
     const validUntil = priceList.valid_until ? new Date(priceList.valid_until) : null;
 
-    if (validFrom > now || (validUntil && validUntil < now)) {
+    // Allow price lists that start in the future or have no expiration date
+    // Only reject if valid_until is set and has passed
+    if (validUntil && validUntil < now) {
+      console.error('Price list validation failed - expired:', { validUntil, now });
       return false;
     }
 
@@ -200,19 +204,37 @@ export const validatePriceListForOrder = async (priceListId: string): Promise<bo
       .eq('price_list_id', priceListId);
 
     if (countError || !count || count === 0) {
+      console.error('Price list validation failed - no items:', { countError, count });
       return false;
     }
 
     // Check if there's a customer associated
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('price_list_id', priceListId)
-      .eq('is_active', true)
-      .maybeSingle();
+    // First try using customer_id from price list
+    if (priceList.customer_id) {
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('id', priceList.customer_id)
+        .eq('is_active', true)
+        .maybeSingle();
 
-    if (customerError || !customer) {
-      return false;
+      if (customerError || !customer) {
+        console.error('Price list validation failed - customer not found or inactive (by customer_id):', { customerError, customer_id: priceList.customer_id });
+        return false;
+      }
+    } else {
+      // Fallback: try finding customer by price_list_id (backward compatibility)
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('price_list_id', priceListId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (customerError || !customer) {
+        console.error('Price list validation failed - no customer associated:', { customerError, customer_id: priceList.customer_id });
+        return false;
+      }
     }
 
     return true;

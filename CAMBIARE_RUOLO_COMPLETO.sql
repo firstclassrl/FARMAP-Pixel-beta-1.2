@@ -52,3 +52,4 @@ WHERE u.email = 'email_utente@farmapindustry.it';  -- CAMBIA QUI l'email
 
 
 
+
