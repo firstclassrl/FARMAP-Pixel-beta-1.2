@@ -109,10 +109,15 @@ export const formatDate = (date: string | Date | null | undefined) => {
   return `${day}/${month}/${year}`;
 };
 
-export const formatCurrency = (amount: number) => {
+export const formatCurrency = (amount: number | null | undefined) => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '€0,00';
+  }
   return new Intl.NumberFormat('it-IT', {
     style: 'currency',
-    currency: 'EUR'
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(amount);
 };
 
