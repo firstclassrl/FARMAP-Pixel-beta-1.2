@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mail, Download, Loader2 } from 'lucide-react';
+import { Mail, Download, Loader2, FileSpreadsheet } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { supabase } from '../lib/supabase';
-import { formatCurrency } from '../lib/exportUtils';
+import { exportPriceListToXlsHtml, formatCurrency } from '../lib/exportUtils';
 import { useNotifications } from '../store/useStore';
 import type { Database } from '../types/database.types';
 import { SendPriceListEmailModal } from '../components/SendPriceListEmailModal';
@@ -70,6 +70,7 @@ export function PriceListPrintView({
   const [priceList, setPriceList] = useState<PriceListWithItems | null>(null);
   const [loading, setLoading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const { addNotification } = useNotifications();
   const printContentRef = useRef<HTMLDivElement>(null);
@@ -563,6 +564,56 @@ export function PriceListPrintView({
     }
   };
 
+  const handleDownloadExcel = async () => {
+    if (!priceList) {
+      addNotification({
+        type: 'warning',
+        title: 'Listino non disponibile',
+        message: 'Impossibile esportare il listino in Excel'
+      } as any);
+      return;
+    }
+
+    // Previeni click multipli
+    if (isGeneratingExcel || isGeneratingPDF) return;
+
+    setIsGeneratingExcel(true);
+    try {
+      const today = new Date().toLocaleDateString('it-IT').replace(/\//g, '-');
+      const customerName = priceList.customer?.company_name || 'Cliente';
+      const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}`;
+
+      const ok = await exportPriceListToXlsHtml({
+        priceList,
+        filename: fileName,
+        sortField,
+        sortDirection,
+        selectedCategory,
+        printByCategory,
+      });
+
+      if (!ok) {
+        throw new Error('Esportazione Excel fallita');
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'EXCEL Generato',
+        message: 'Il listino è stato scaricato come Excel'
+      } as any);
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Errore nella generazione dell\'Excel';
+      addNotification({
+        type: 'error',
+        title: 'Errore',
+        message: errorMessage
+      } as any);
+    } finally {
+      setIsGeneratingExcel(false);
+    }
+  };
+
   const calculateFinalPrice = (basePrice: number, discount: number) => {
     return basePrice * (1 - discount / 100);
   };
@@ -992,9 +1043,9 @@ export function PriceListPrintView({
                 onClick={handleSendEmail} 
                 variant="outline" 
                 className="flex items-center space-x-2"
-                disabled={!priceList?.customer?.email || isGeneratingPDF}
+                disabled={!priceList?.customer?.email || isGeneratingPDF || isGeneratingExcel}
               >
-                {isGeneratingPDF ? (
+                {isGeneratingPDF || isGeneratingExcel ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Generazione in corso...</span>
@@ -1006,10 +1057,28 @@ export function PriceListPrintView({
                   </>
                 )}
               </Button>
+              <Button
+                onClick={handleDownloadExcel}
+                variant="outline"
+                className="flex items-center space-x-2"
+                disabled={isGeneratingPDF || isGeneratingExcel}
+              >
+                {isGeneratingExcel ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Generazione in corso...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Download EXCEL</span>
+                  </>
+                )}
+              </Button>
               <Button 
                 onClick={handleDownloadPDF} 
                 className="flex items-center space-x-2"
-                disabled={isGeneratingPDF}
+                disabled={isGeneratingPDF || isGeneratingExcel}
               >
                 {isGeneratingPDF ? (
                   <>
