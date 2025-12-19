@@ -542,29 +542,46 @@ export async function exportPriceListToXlsHtml(args: {
       </table>
     `;
 
-    const html = `\ufeff
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-          <style>
-            table { border-collapse: collapse; }
-          </style>
-        </head>
-        <body>
-          ${headerHtml}
-          <table border="0" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse;">
-            ${tableHeader}
-            ${bodyRows}
-          </table>
-          ${conditionsHtml}
-          ${noteHtml}
-          ${footerHtml}
-        </body>
-      </html>
-    `;
+    // IMPORTANT: for Excel to recognize HTML-as-XLS, the document must:
+    // - start at byte 0 with <html ...> (no indentation/newlines before it)
+    // - include Excel namespaces + the MSO conditional XML workbook block
+    const worksheetName = 'Listino';
+    const html =
+      '\ufeff' +
+      `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:x="urn:schemas-microsoft-com:office:excel"
+xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<!--[if gte mso 9]><xml>
+<x:ExcelWorkbook>
+  <x:ExcelWorksheets>
+    <x:ExcelWorksheet>
+      <x:Name>${escapeHtml(worksheetName)}</x:Name>
+      <x:WorksheetOptions>
+        <x:DisplayGridlines/>
+      </x:WorksheetOptions>
+    </x:ExcelWorksheet>
+  </x:ExcelWorksheets>
+</x:ExcelWorkbook>
+</xml><![endif]-->
+<style>
+table { border-collapse: collapse; }
+</style>
+</head>
+<body>
+${headerHtml}
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse;">
+${tableHeader}
+${bodyRows}
+</table>
+${conditionsHtml}
+${noteHtml}
+${footerHtml}
+</body>
+</html>`;
 
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     saveAs(blob, `${filename}.xls`);
     return true;
   } catch (error) {
