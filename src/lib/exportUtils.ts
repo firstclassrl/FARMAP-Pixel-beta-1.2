@@ -621,22 +621,22 @@ export async function exportPriceListToXlsx(args: {
     // Build sheet rows (AOA)
     const rows: any[][] = [];
     rows.push([`Listino ${customerName}`]);
-    rows.push(['Listino:', priceList.name, '', '', 'Data Creazione:', createdAt]);
+    rows.push(['Listino:', priceList.name, '', '', '', 'Data Creazione:', createdAt]);
     rows.push([]); // spacer
 
     // Table header
-    rows.push(['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']);
+    const tableHeaderRowIndex = rows.length;
+    rows.push(['Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']);
 
     const pushItemRow = (item: PriceListExcelItem) => {
       const p = item.products || ({} as PriceListExcelProduct);
-      const finalPrice = computeFinalPrice(item.price, item.discount_percentage);
+      const rawFinalPrice = computeFinalPrice(Number(item.price ?? 0), Number(item.discount_percentage ?? 0));
+      const finalPrice = Number.isFinite(rawFinalPrice) ? Number(rawFinalPrice.toFixed(2)) : 0;
       const vatRate = (p.category || '') === 'Farmaci' ? '10%' : '22%';
-      const photo = p.photo_thumb_url || p.photo_url || 'N/A';
       const productText = `${p.name || ''}${p.description ? `\n${p.description}` : ''}`.trim();
       const moq = `${item.min_quantity} ${p.unit || ''}`.trim();
 
       rows.push([
-        photo,
         p.code || '',
         productText,
         moq,
@@ -700,7 +700,6 @@ export async function exportPriceListToXlsx(args: {
 
     // Column widths (approx)
     ws['!cols'] = [
-      { wch: 24 }, // Foto (URL/N/A)
       { wch: 12 }, // Codice
       { wch: 45 }, // Prodotto
       { wch: 12 }, // MOQ
@@ -712,17 +711,70 @@ export async function exportPriceListToXlsx(args: {
       { wch: 12 }, // Prezzo
     ];
 
-    // Apply number format for price column where possible
-    // Price column is index 9, starting from the first table row at rows index 3 (0-based)
-    for (let r = 0; r < rows.length; r++) {
-      const isTableDataRow = r >= 4; // after header rows (0..3) where row 3 is table header
-      if (!isTableDataRow) continue;
-      const cellAddress = XLSX.utils.encode_cell({ r, c: 9 });
+    // Merge title row across the table width (A1:I1)
+    ws['!merges'] = ws['!merges'] || [];
+    ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } });
+    // Merge the "Listino:" value row to look cleaner (B2:E2)
+    ws['!merges'].push({ s: { r: 1, c: 1 }, e: { r: 1, c: 4 } });
+    // Merge the "Data Creazione" value cell (G2:I2) if present
+    ws['!merges'].push({ s: { r: 1, c: 6 }, e: { r: 1, c: 8 } });
+
+    // Freeze rows above table header (so header stays visible)
+    (ws as any)['!sheetViews'] = [{ state: 'frozen', ySplit: tableHeaderRowIndex + 1 }];
+
+    // Basic styling (best-effort; depends on viewer support)
+    const applyCellStyle = (r: number, c: number, s: any) => {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr];
+      if (!cell) return;
+      (cell as any).s = { ...(cell as any).s, ...s };
+    };
+
+    // Title style
+    applyCellStyle(0, 0, {
+      font: { bold: true, sz: 16 },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    });
+
+    // Header row style
+    for (let c = 0; c <= 8; c++) {
+      applyCellStyle(tableHeaderRowIndex, c, {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { patternType: 'solid', fgColor: { rgb: 'DC2626' } },
+        alignment: { horizontal: c === 1 ? 'left' : c === 8 ? 'right' : 'center', vertical: 'center', wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        },
+      });
+    }
+
+    // Apply number format for price column where possible (column index 8)
+    const priceColIndex = 8;
+    for (let r = tableHeaderRowIndex + 1; r < rows.length; r++) {
+      const cellAddress = XLSX.utils.encode_cell({ r, c: priceColIndex });
       const cell = ws[cellAddress];
-      if (cell && typeof cell.v === 'number') {
-        cell.t = 'n';
-        cell.z = '€ #,##0.00';
-      }
+      if (!cell) continue;
+
+      // Skip non-table rows (blank rows, category rows, footer rows) where price isn't numeric
+      const num =
+        typeof cell.v === 'number'
+          ? cell.v
+          : parseFloat(String(cell.v ?? '').replace(',', '.'));
+      if (!Number.isFinite(num)) continue;
+
+      cell.v = Number(num.toFixed(2));
+      cell.t = 'n';
+      // Use a safe numeric format that always shows 2 decimals (localized separators handled by Excel)
+      cell.z = '#,##0.00';
+
+      // Align + keep borders on numeric cells (best-effort)
+      (cell as any).s = {
+        ...(cell as any).s,
+        alignment: { horizontal: 'right', vertical: 'top' },
+      };
     }
 
     const wb = XLSX.utils.book_new();
