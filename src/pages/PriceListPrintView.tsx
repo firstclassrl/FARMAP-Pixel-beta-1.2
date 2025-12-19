@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { supabase } from '../lib/supabase';
-import { exportPriceListToXlsHtml, formatCurrency } from '../lib/exportUtils';
+import { exportPriceListToXlsx, formatCurrency } from '../lib/exportUtils';
 import { useNotifications } from '../store/useStore';
 import type { Database } from '../types/database.types';
 import { SendPriceListEmailModal } from '../components/SendPriceListEmailModal';
@@ -583,7 +583,7 @@ export function PriceListPrintView({
       const customerName = priceList.customer?.company_name || 'Cliente';
       const fileName = `listino_${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}`;
 
-      const ok = await exportPriceListToXlsHtml({
+      const ok = await exportPriceListToXlsx({
         priceList,
         filename: fileName,
         sortField,
@@ -598,7 +598,7 @@ export function PriceListPrintView({
 
       addNotification({
         type: 'success',
-        title: 'EXCEL Generato',
+        title: 'Excel Generato',
         message: 'Il listino è stato scaricato come Excel'
       } as any);
     } catch (error) {

@@ -590,6 +590,155 @@ ${footerHtml}
   }
 }
 
+export async function exportPriceListToXlsx(args: {
+  priceList: PriceListExcelData;
+  filename: string;
+  sortField?: SortField;
+  sortDirection?: SortDirection;
+  selectedCategory?: string;
+  printByCategory?: boolean;
+}): Promise<boolean> {
+  try {
+    const {
+      priceList,
+      filename,
+      sortField = 'name',
+      sortDirection = 'asc',
+      selectedCategory = 'all',
+      printByCategory = false,
+    } = args;
+
+    const items = Array.isArray(priceList.price_list_items) ? priceList.price_list_items : [];
+
+    const filteredItems = items.filter((item) => {
+      if (selectedCategory === 'all') return true;
+      return (item.products.category || '') === selectedCategory;
+    });
+
+    const customerName = priceList.customer?.company_name || 'Cliente';
+    const createdAt = new Date(priceList.created_at).toLocaleDateString('it-IT');
+
+    // Build sheet rows (AOA)
+    const rows: any[][] = [];
+    rows.push([`Listino ${customerName}`]);
+    rows.push(['Listino:', priceList.name, '', '', 'Data Creazione:', createdAt]);
+    rows.push([]); // spacer
+
+    // Table header
+    rows.push(['Foto', 'Codice', 'Prodotto', 'MOQ', 'Cartone', 'Pedana', 'Scadenza', 'EAN', 'IVA', 'Prezzo']);
+
+    const pushItemRow = (item: PriceListExcelItem) => {
+      const p = item.products || ({} as PriceListExcelProduct);
+      const finalPrice = computeFinalPrice(item.price, item.discount_percentage);
+      const vatRate = (p.category || '') === 'Farmaci' ? '10%' : '22%';
+      const photo = p.photo_thumb_url || p.photo_url || 'N/A';
+      const productText = `${p.name || ''}${p.description ? `\n${p.description}` : ''}`.trim();
+      const moq = `${item.min_quantity} ${p.unit || ''}`.trim();
+
+      rows.push([
+        photo,
+        p.code || '',
+        productText,
+        moq,
+        p.cartone || '-',
+        p.pallet || '-',
+        p.scadenza || '-',
+        p.ean || '-',
+        vatRate,
+        finalPrice, // numeric
+      ]);
+    };
+
+    if (printByCategory) {
+      const grouped = filteredItems.reduce<Record<string, PriceListExcelItem[]>>((acc, it) => {
+        const cat = it.products.category || 'Senza categoria';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(it);
+        return acc;
+      }, {});
+      const categories = Object.keys(grouped).sort();
+      for (const cat of categories) {
+        rows.push([cat]); // category separator row
+        const sorted = sortItems(grouped[cat], sortField, sortDirection);
+        sorted.forEach(pushItemRow);
+        rows.push([]); // spacer between categories
+      }
+    } else {
+      const sorted = sortItems(filteredItems, sortField, sortDirection);
+      sorted.forEach(pushItemRow);
+    }
+
+    // Conditions + footer (simple rows)
+    const shouldPrintConditions = priceList.print_conditions !== false;
+    const hasConditions =
+      !!(priceList.payment_conditions || priceList.shipping_conditions || priceList.delivery_conditions || priceList.brand_conditions);
+    if (shouldPrintConditions && hasConditions) {
+      rows.push([]);
+      rows.push(['CONDIZIONI DI VENDITA']);
+      if (priceList.payment_conditions) rows.push(['Pagamento:', priceList.payment_conditions]);
+      if (priceList.shipping_conditions) rows.push(['Trasporto:', priceList.shipping_conditions]);
+      if (priceList.delivery_conditions) rows.push(['Tempi di consegna:', priceList.delivery_conditions]);
+      if (priceList.brand_conditions) rows.push(['Marchio:', priceList.brand_conditions]);
+    }
+
+    rows.push([]);
+    rows.push([
+      "I codici presenti in questo listino sono ad uso interno. I codici personalizzati del cliente verranno generati automaticamente al momento dell'ordine.",
+    ]);
+    rows.push([]);
+    rows.push([
+      'FARMAP INDUSTRY S.r.l. - Via Nazionale, 66 - 65012 Cepagatti (PE) - P.IVA: 02244470684 - Tel: +39 085 9774028',
+    ]);
+
+    if (priceList.valid_from || priceList.valid_until) {
+      const validFrom = priceList.valid_from ? new Date(priceList.valid_from).toLocaleDateString('it-IT') : '';
+      const validUntil = priceList.valid_until ? new Date(priceList.valid_until).toLocaleDateString('it-IT') : '';
+      rows.push(['Validità:', validFrom ? `dal ${validFrom}` : '', validUntil ? `fino al ${validUntil}` : '']);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Column widths (approx)
+    ws['!cols'] = [
+      { wch: 24 }, // Foto (URL/N/A)
+      { wch: 12 }, // Codice
+      { wch: 45 }, // Prodotto
+      { wch: 12 }, // MOQ
+      { wch: 10 }, // Cartone
+      { wch: 10 }, // Pedana
+      { wch: 12 }, // Scadenza
+      { wch: 18 }, // EAN
+      { wch: 8 }, // IVA
+      { wch: 12 }, // Prezzo
+    ];
+
+    // Apply number format for price column where possible
+    // Price column is index 9, starting from the first table row at rows index 3 (0-based)
+    for (let r = 0; r < rows.length; r++) {
+      const isTableDataRow = r >= 4; // after header rows (0..3) where row 3 is table header
+      if (!isTableDataRow) continue;
+      const cellAddress = XLSX.utils.encode_cell({ r, c: 9 });
+      const cell = ws[cellAddress];
+      if (cell && typeof cell.v === 'number') {
+        cell.t = 'n';
+        cell.z = '€ #,##0.00';
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Listino');
+    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    saveAs(blob, `${filename}.xlsx`);
+    return true;
+  } catch (error) {
+    console.error('Error exporting price list to XLSX:', error);
+    return false;
+  }
+}
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 // Assicurati che 'jspdf' e 'jspdf-autotable' siano importati in cima al file.
